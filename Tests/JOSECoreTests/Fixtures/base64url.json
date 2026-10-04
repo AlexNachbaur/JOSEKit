@@ -1,0 +1,574 @@
+{
+  "_generated": {
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
+    "generator": "interop/generate-fixtures.mjs",
+    "description": "base64url encodings from jose, and what jose does with each decode input.",
+    "jose": "6.2.12",
+    "node": "v24.11.1",
+    "openssl": "3.5.4"
+  },
+  "encode": [
+    {
+      "hex": "",
+      "base64url": ""
+    },
+    {
+      "hex": "65",
+      "base64url": "ZQ"
+    },
+    {
+      "hex": "1365",
+      "base64url": "E2U"
+    },
+    {
+      "hex": "077c46",
+      "base64url": "B3xG"
+    },
+    {
+      "hex": "279a459c",
+      "base64url": "J5pFnA"
+    },
+    {
+      "hex": "b57432a871",
+      "base64url": "tXQyqHE"
+    },
+    {
+      "hex": "52a3fc0df514",
+      "base64url": "UqP8DfUU"
+    },
+    {
+      "hex": "94785c0f5faf46",
+      "base64url": "lHhcD1-vRg"
+    },
+    {
+      "hex": "3acde19b3e449698",
+      "base64url": "Os3hmz5Elpg"
+    },
+    {
+      "hex": "a3d62b1a541449c876",
+      "base64url": "o9YrGlQUSch2"
+    },
+    {
+      "hex": "24c39c45163d1f01ad8b",
+      "base64url": "JMOcRRY9HwGtiw"
+    },
+    {
+      "hex": "87abb2db66bc5ae316d068",
+      "base64url": "h6uy22a8WuMW0Gg"
+    },
+    {
+      "hex": "9469d9766cb8b1a44a39c374",
+      "base64url": "lGnZdmy4saRKOcN0"
+    },
+    {
+      "hex": "51fcd1cd1e16e06b8456c552dc",
+      "base64url": "UfzRzR4W4GuEVsVS3A"
+    },
+    {
+      "hex": "945ac96d8ec9aa994c77c733af7e",
+      "base64url": "lFrJbY7JqplMd8czr34"
+    },
+    {
+      "hex": "673a433b32a3dee56cd8e5075d1e4c",
+      "base64url": "ZzpDOzKj3uVs2OUHXR5M"
+    },
+    {
+      "hex": "7c8053078e006b80ef89ccd8141c811c",
+      "base64url": "fIBTB44Aa4DviczYFByBHA"
+    },
+    {
+      "hex": "cb8bbc968fd1ff8d3d8a6cdeabc30de83b",
+      "base64url": "y4u8lo_R_409imzeq8MN6Ds"
+    },
+    {
+      "hex": "fe6b44142b8f8fb7e7cee0659045fdc2b8a8",
+      "base64url": "_mtEFCuPj7fnzuBlkEX9wrio"
+    },
+    {
+      "hex": "67c91f67e401afb24a4d98eaf40bf3897d1d2a",
+      "base64url": "Z8kfZ-QBr7JKTZjq9AvziX0dKg"
+    },
+    {
+      "hex": "9fd9f35a812116a747ec9dfd60ac6df94fb27493",
+      "base64url": "n9nzWoEhFqdH7J39YKxt-U-ydJM"
+    },
+    {
+      "hex": "b57513d9b4830328f80813d54695fc5b4d6280ee4a",
+      "base64url": "tXUT2bSDAyj4CBPVRpX8W01igO5K"
+    },
+    {
+      "hex": "b3e8beac77abf423afad25e7def5d8acace51ac83e4e",
+      "base64url": "s-i-rHer9COvrSXn3vXYrKzlGsg-Tg"
+    },
+    {
+      "hex": "c92c8b4142721bfe9f93ab396b051a7e65a90557d69c3f",
+      "base64url": "ySyLQUJyG_6fk6s5awUafmWpBVfWnD8"
+    },
+    {
+      "hex": "0798489418c1075538d9c68b35a409584f41a25a3161b0c1",
+      "base64url": "B5hIlBjBB1U42caLNaQJWE9BoloxYbDB"
+    },
+    {
+      "hex": "9015e57c1e5e4f2f249b0b5a7fc03f68621ed4bb97c784d29f",
+      "base64url": "kBXlfB5eTy8kmwtaf8A_aGIe1LuXx4TSnw"
+    },
+    {
+      "hex": "6acd2da6681e7de1dba749bbb4965c39cd34f3eab95ce5054be2",
+      "base64url": "as0tpmgefeHbp0m7tJZcOc008-q5XOUFS-I"
+    },
+    {
+      "hex": "943e4e4fdd507b60c06bf74565d4114e00a4238322b1dcc9355f80",
+      "base64url": "lD5OT91Qe2DAa_dFZdQRTgCkI4MisdzJNV-A"
+    },
+    {
+      "hex": "07f8c612dfe4d043ed6385ae4dd84e36d974d5b1d2a4295f22fa51af",
+      "base64url": "B_jGEt_k0EPtY4WuTdhONtl01bHSpClfIvpRrw"
+    },
+    {
+      "hex": "3a4ea161158b695c5040d41678c80a90a74e665a11451335e3c11b2c65",
+      "base64url": "Ok6hYRWLaVxQQNQWeMgKkKdOZloRRRM148EbLGU"
+    },
+    {
+      "hex": "7f91d8411c5b2b789d870c0096bac68b2a521931291e0256636e58c21d5a",
+      "base64url": "f5HYQRxbK3idhwwAlrrGiypSGTEpHgJWY25Ywh1a"
+    },
+    {
+      "hex": "0f3e47624385df58de0a9096a31df59c3c73d781087bf940316820a8cfabd3",
+      "base64url": "Dz5HYkOF31jeCpCWox31nDxz14EIe_lAMWggqM-r0w"
+    },
+    {
+      "hex": "b1f24eb11a857c01afacbff4f8f1f81f1644467d5da214563cb2d32ee6273ca4",
+      "base64url": "sfJOsRqFfAGvrL_0-PH4HxZERn1dohRWPLLTLuYnPKQ"
+    },
+    {
+      "hex": "69f9149da04b723ef4fb3e95ea21659d1d53e7be8c8cd02dcb906543e9b4c5715b",
+      "base64url": "afkUnaBLcj70-z6V6iFlnR1T576MjNAty5BlQ-m0xXFb"
+    },
+    {
+      "hex": "071bb40eaaa969849016060c0c82fd1d49e3c6e5af52783688e2272679fe3f016ac1",
+      "base64url": "Bxu0DqqpaYSQFgYMDIL9HUnjxuWvUng2iOInJnn-PwFqwQ"
+    },
+    {
+      "hex": "3f66945c39e186b0a9d88aa7c8ca1f1e93099cd2f76fadbd41ec9c3b313e182d3a11be",
+      "base64url": "P2aUXDnhhrCp2IqnyMofHpMJnNL3b629QeycOzE-GC06Eb4"
+    },
+    {
+      "hex": "93cb2c79795e6d40b27c34b0b3102ef5c10eec290c2d016b367d26cdbba64f37e545517b",
+      "base64url": "k8sseXlebUCyfDSwsxAu9cEO7CkMLQFrNn0mzbumTzflRVF7"
+    },
+    {
+      "hex": "a3cdf4699cd14f6876bc34e0e0634b90372164cf8998988883d140e70c5d2e68d749228df7",
+      "base64url": "o830aZzRT2h2vDTg4GNLkDchZM-JmJiIg9FA5wxdLmjXSSKN9w"
+    },
+    {
+      "hex": "67db20f9f85fb3339f2c2046c35af99c89ea807dca76b17e3ea4ed277ee60383f38be2e69462",
+      "base64url": "Z9sg-fhfszOfLCBGw1r5nInqgH3KdrF-PqTtJ37mA4Pzi-LmlGI"
+    },
+    {
+      "hex": "ec985deef8d0f054dcf1c1765fd55114363ee3697f183f48a69e10fd70db0aa168858d860406ef",
+      "base64url": "7Jhd7vjQ8FTc8cF2X9VRFDY-42l_GD9Ipp4Q_XDbCqFohY2GBAbv"
+    },
+    {
+      "hex": "95f2c569212c1f27ffe7263ea6810526e962ce150a81f34c40e455eb83e2277ff56cbdc7405ae4f3",
+      "base64url": "lfLFaSEsHyf_5yY-poEFJulizhUKgfNMQORV64PiJ3_1bL3HQFrk8w"
+    },
+    {
+      "hex": "8a9bdf03a3a245e3fd05988669c477f526e26825f347b80dcb197222d321a4ae7a9aa4c3264ff9388d",
+      "base64url": "ipvfA6OiReP9BZiGacR39SbiaCXzR7gNyxlyItMhpK56mqTDJk_5OI0"
+    },
+    {
+      "hex": "c49abd8fd5c8014aaf01566cb7014e7cd1bbcfbdaa6bc7b9c18d2907909160d296b8d876570a4301c910",
+      "base64url": "xJq9j9XIAUqvAVZstwFOfNG7z72qa8e5wY0pB5CRYNKWuNh2VwpDAckQ"
+    },
+    {
+      "hex": "16c70f02902f1c69ab697a9d761892de0cdf8eff328fe64297867be0535dc2ca7e99650bb572c34e37f7db",
+      "base64url": "FscPApAvHGmraXqddhiS3gzfjv8yj-ZCl4Z74FNdwsp-mWULtXLDTjf32w"
+    },
+    {
+      "hex": "0ac1a7873da5e47d6e4caf011c3876ca93714b9f7deb6b6b368663ec3ef1d29f0e17c14683c14cd4b2ce7915",
+      "base64url": "CsGnhz2l5H1uTK8BHDh2ypNxS59962trNoZj7D7x0p8OF8FGg8FM1LLOeRU"
+    },
+    {
+      "hex": "4be57cb966de9b08997bb2f2f0d7c9eb1b3b9f4e10f746cdbec96d4baa6fc1c51c0d1f806474f3a435ff8f2743",
+      "base64url": "S-V8uWbemwiZe7Ly8NfJ6xs7n04Q90bNvsltS6pvwcUcDR-AZHTzpDX_jydD"
+    },
+    {
+      "hex": "724189c6f0bcba5e56e768376c5ec14317a2d7c06a74e3bf80531bcd58d2af9a1b417427d7afa811dc25d0639783",
+      "base64url": "ckGJxvC8ul5W52g3bF7BQxei18BqdOO_gFMbzVjSr5obQXQn16-oEdwl0GOXgw"
+    },
+    {
+      "hex": "05e83f92c40313658c7a7547fbf4219c03edbffb51968bf53decc5088fba7dbac2cb18a7b94d4713740ad3fe052db5",
+      "base64url": "Beg_ksQDE2WMenVH-_QhnAPtv_tRlov1PezFCI-6fbrCyxinuU1HE3QK0_4FLbU"
+    },
+    {
+      "hex": "05b1d76670a64c3cda92605641828c28c2f2358e1cb4445d57841e014f29f47e93cf724bc3d285cbaa751b3d7e72c7b3",
+      "base64url": "BbHXZnCmTDzakmBWQYKMKMLyNY4ctERdV4QeAU8p9H6Tz3JLw9KFy6p1Gz1-csez"
+    },
+    {
+      "hex": "fb",
+      "base64url": "-w"
+    },
+    {
+      "hex": "ff",
+      "base64url": "_w"
+    },
+    {
+      "hex": "fbff",
+      "base64url": "-_8"
+    },
+    {
+      "hex": "fbffbf",
+      "base64url": "-_-_"
+    },
+    {
+      "hex": "00",
+      "base64url": "AA"
+    },
+    {
+      "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "base64url": "__________________________________________8"
+    },
+    {
+      "hex": "bc367122e51e26b0e533f492bd6b81a1e2743e5d5dab60532351c7bafd390df3860b087f6d9943bc4f03494187883920f6920d83f1a0f78f68314be329bac36c0966564dd70ae84139cd3f75b67fd645c83cccf646e478aeb42c529ffd43ef798f843d4b2cdd6f92289d0e0e66e0363b9ff56d516ec6044198c085b201eab449528a726fb382c4183878ed0f0ab19e5aa34241cb6652d9317d4969073a38e071e70c138ac76ece5df27fa238b295590863b171ae58ec0551bca9e96585efa95448315f410f2f2ae5fa2b338713d986b2a1d0a60b272a3c0ba2f3755dced41cddeb643ae938b1efde41d6bcddbd2dc7ef05f4c1cc872071cafbbe6d0649b2dd16d31e13469de63b9a24ece20c64a6577d8cc28109ab0c13953c6f5b0ee555abbeb9637736392d4d9d168f450da6fb93dc47bdd1374f7253a29354f8fc249b51612f54602c33a1b18f16e30a4ce7623c25c8d14e7bd9294f1a406b79f226aeb3caffa111a13cf4ef569411ce99a05235f9342378152c5f70bd8e9514ebc71ac78f4001bbe5cca546b352a814b3bc0f46b94945a63363abf6de27f7364d60dc01b734911cb0e30c67020ba015a2a993ffc7f170d93f1e1b237552b9a8b48ccfc9cf3d6e4e6a1791607e2935002ab91b1675a907f4542643f2e8b1a752a62f76f642e4d24da2ff3c6e8befcfacbb82deab78f9a67551162348d607b85324ff99de086772945725bebf3dc18e7b9ad8b18d14bfc1176febbfddf3155e5dbfc766605fe5e5ced8256df26bb98aaefc008ccb1d5f8d58f335a0f86206e5efd69701ce70f6c9b533b0f0b9cd020379440a1763c3a78c63010813150428fd1613ee978c3a9a60f72c0c4324a173bf82968a382e87a45670429837206f6c4f95a9b5fde894d3a7706518d02f1fdc3cad4c983f75251dd1be02fee43231ca7bfd0b69cc64372909a8346ea29f5a87914d691f95c1c330c0f64b903fa47239f0f65ecb43afe791cbb9a32072e5ef77e1f456e9d262ab443b645ffcb50c82500d978812a4d2e233391fabe23bdda7992f7cc47b54b9919fbace7658d3637ff2775522f05788192db6978e182e6bd07800a74f4c2919896b3937fb3f0a12dd808454cb961f5b0734ff79567adb2479abc98f4bde539920a239ed1d43f4578f569669c7f3512da5dfd52120acb62e8aa53b09b432ba5d07af2848861a7fd149f5e0ffdedf56e477926c1c5685bf716830c22549f22ab8626d6591ceb11b1f7733d8c918f582c832c48b7eca6e6caca8bc72ddc3278626d3f2d402325bfde78c8409cfe106dea278002f3ba8e4daccda78758964c74aae3c553c51a673d89909c8341de4e72b13f1d4d72cf01d726b958ad98e98271a462eb33838c7eea6b84a749a5e278d62cf67f20f7f50ce9d573255bfe12e3507c587516a01b34febe364d2ee75803b8a3cb8",
+      "base64url": "vDZxIuUeJrDlM_SSvWuBoeJ0Pl1dq2BTI1HHuv05DfOGCwh_bZlDvE8DSUGHiDkg9pINg_Gg949oMUvjKbrDbAlmVk3XCuhBOc0_dbZ_1kXIPMz2RuR4rrQsUp_9Q-95j4Q9Syzdb5IonQ4OZuA2O5_1bVFuxgRBmMCFsgHqtElSinJvs4LEGDh47Q8KsZ5ao0JBy2ZS2TF9SWkHOjjgcecME4rHbs5d8n-iOLKVWQhjsXGuWOwFUbyp6WWF76lUSDFfQQ8vKuX6KzOHE9mGsqHQpgsnKjwLovN1Xc7UHN3rZDrpOLHv3kHWvN29LcfvBfTBzIcgccr7vm0GSbLdFtMeE0ad5juaJOziDGSmV32MwoEJqwwTlTxvWw7lVau-uWN3NjktTZ0Wj0UNpvuT3Ee90TdPclOik1T4_CSbUWEvVGAsM6GxjxbjCkznYjwlyNFOe9kpTxpAa3nyJq6zyv-hEaE89O9WlBHOmaBSNfk0I3gVLF9wvY6VFOvHGsePQAG75cylRrNSqBSzvA9GuUlFpjNjq_beJ_c2TWDcAbc0kRyw4wxnAgugFaKpk__H8XDZPx4bI3VSuai0jM_Jzz1uTmoXkWB-KTUAKrkbFnWpB_RUJkPy6LGnUqYvdvZC5NJNov88bovvz6y7gt6rePmmdVEWI0jWB7hTJP-Z3ghncpRXJb6_PcGOe5rYsY0Uv8EXb-u_3fMVXl2_x2ZgX-XlztglbfJruYqu_ACMyx1fjVjzNaD4Ygbl79aXAc5w9sm1M7Dwuc0CA3lEChdjw6eMYwEIExUEKP0WE-6XjDqaYPcsDEMkoXO_gpaKOC6HpFZwQpg3IG9sT5Wptf3olNOncGUY0C8f3DytTJg_dSUd0b4C_uQyMcp7_QtpzGQ3KQmoNG6in1qHkU1pH5XBwzDA9kuQP6RyOfD2XstDr-eRy7mjIHLl73fh9Fbp0mKrRDtkX_y1DIJQDZeIEqTS4jM5H6viO92nmS98xHtUuZGfus52WNNjf_J3VSLwV4gZLbaXjhgua9B4AKdPTCkZiWs5N_s_ChLdgIRUy5YfWwc0_3lWetskeavJj0veU5kgojntHUP0V49WlmnH81Etpd_VISCsti6KpTsJtDK6XQevKEiGGn_RSfXg_97fVuR3kmwcVoW_cWgwwiVJ8iq4Ym1lkc6xGx93M9jJGPWCyDLEi37KbmysqLxy3cMnhibT8tQCMlv954yECc_hBt6ieAAvO6jk2szaeHWJZMdKrjxVPFGmc9iZCcg0HeTnKxPx1Ncs8B1ya5WK2Y6YJxpGLrM4OMfuprhKdJpeJ41iz2fyD39Qzp1XMlW_4S41B8WHUWoBs0_r42TS7nWAO4o8uA"
+    }
+  ],
+  "decode": [
+    {
+      "input": "",
+      "jose": {
+        "accepted": true,
+        "hex": ""
+      }
+    },
+    {
+      "input": "YQ",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YWI",
+      "jose": {
+        "accepted": true,
+        "hex": "6162"
+      }
+    },
+    {
+      "input": "YWJj",
+      "jose": {
+        "accepted": true,
+        "hex": "616263"
+      }
+    },
+    {
+      "input": "Zm9vYg",
+      "jose": {
+        "accepted": true,
+        "hex": "666f6f62"
+      }
+    },
+    {
+      "input": "Zm9vYmE",
+      "jose": {
+        "accepted": true,
+        "hex": "666f6f6261"
+      }
+    },
+    {
+      "input": "Zm9vYmFy",
+      "jose": {
+        "accepted": true,
+        "hex": "666f6f626172"
+      }
+    },
+    {
+      "input": "-_8",
+      "jose": {
+        "accepted": true,
+        "hex": "fbff"
+      }
+    },
+    {
+      "input": "_-8",
+      "jose": {
+        "accepted": true,
+        "hex": "ffef"
+      }
+    },
+    {
+      "input": "__8",
+      "jose": {
+        "accepted": true,
+        "hex": "ffff"
+      }
+    },
+    {
+      "input": "YQ==",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YWI=",
+      "jose": {
+        "accepted": true,
+        "hex": "6162"
+      }
+    },
+    {
+      "input": "Zm9vYg==",
+      "jose": {
+        "accepted": true,
+        "hex": "666f6f62"
+      }
+    },
+    {
+      "input": "Zm9vYmE=",
+      "jose": {
+        "accepted": true,
+        "hex": "666f6f6261"
+      }
+    },
+    {
+      "input": "YQ=",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YQ===",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YWI==",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YWJj=",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YWJj====",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "=",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "==",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "====",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YQ=a",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "=YQ",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YW=I",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YQ==YQ",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YQ==YQ==",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "Y",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YWJjZ",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YWJjZGVmZ",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YR",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YX",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YWJ",
+      "jose": {
+        "accepted": true,
+        "hex": "6162"
+      }
+    },
+    {
+      "input": "YWL",
+      "jose": {
+        "accepted": true,
+        "hex": "6162"
+      }
+    },
+    {
+      "input": "Zm9vYh",
+      "jose": {
+        "accepted": true,
+        "hex": "666f6f62"
+      }
+    },
+    {
+      "input": "+/8",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YW+j",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YW/j",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "Y Q",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": " YQ",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YQ ",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YQ\n",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YQ\r\n",
+      "jose": {
+        "accepted": true,
+        "hex": "61"
+      }
+    },
+    {
+      "input": "YW\tI",
+      "jose": {
+        "accepted": true,
+        "hex": "6162"
+      }
+    },
+    {
+      "input": "YQ\u0000",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YQ.",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "é",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    },
+    {
+      "input": "YWé",
+      "jose": {
+        "accepted": false,
+        "error": "The input to be decoded is not correctly encoded."
+      }
+    }
+  ]
+}

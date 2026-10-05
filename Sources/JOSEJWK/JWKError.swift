@@ -23,6 +23,22 @@ public enum JWKError: Error, Sendable, Equatable {
     case x963NotUncompressed(curve: String, marker: UInt8)
     /// The private value is not a valid private key for the curve (zero, or not below the order).
     case invalidPrivateKey(curve: String)
+    /// RFC 7518 §3.3 and §3.5: an RSA key of 2048 bits or larger must be used.
+    case rsaKeyTooSmall(bitCount: Int, minimum: Int)
+    /// The modulus is larger than this package will process. Verification cost grows steeply
+    /// with key size, and a key can arrive from an untrusted JWK Set.
+    case rsaKeyTooLarge(bitCount: Int, maximum: Int)
+    /// An RSA value has a leading zero byte. RFC 7518 §6.3.1 (Base64urlUInt) requires the
+    /// minimum number of octets, so that equal keys have equal JWKs and thumbprints.
+    case nonMinimalInteger(member: String)
+    /// The RSA key's values cannot form a key: an even modulus or exponent, an exponent of 1,
+    /// or values the platform's RSA implementation refuses.
+    case invalidRSAKey(reason: String)
+    /// A private RSA JWK in a form this package does not handle: without the CRT values
+    /// (`p`, `q`, `dp`, `dq`, `qi`), or with more than two primes (`oth`).
+    case unsupportedRSAPrivateKey(reason: String)
+    /// A PKCS#1 DER key could not be read.
+    case invalidDER(reason: String)
     /// A private JWK's `d` does not correspond to its public members.
     case privateKeyDoesNotMatchPublicKey(curve: String)
     /// A JWK being read as a public key carries a private member.
@@ -76,6 +92,18 @@ extension JWKError: CustomStringConvertible {
                 + "only uncompressed points (0x04) are accepted"
         case .invalidPrivateKey(let curve):
             return "private key value is not valid for \(curve)"
+        case .rsaKeyTooSmall(let bitCount, let minimum):
+            return "RSA key is \(bitCount) bits; at least \(minimum) are required"
+        case .rsaKeyTooLarge(let bitCount, let maximum):
+            return "RSA key is \(bitCount) bits; at most \(maximum) are supported"
+        case .nonMinimalInteger(let member):
+            return "JWK member \"\(member)\" has a leading zero byte; RSA values must be minimally encoded"
+        case .invalidRSAKey(let reason):
+            return "RSA key is not valid: \(reason)"
+        case .unsupportedRSAPrivateKey(let reason):
+            return "RSA private key is not supported: \(reason)"
+        case .invalidDER(let reason):
+            return "PKCS#1 DER key could not be read: \(reason)"
         case .privateKeyDoesNotMatchPublicKey(let curve):
             return "\(curve) private key does not correspond to the public key it was supplied with"
         case .privateMemberInPublicKey(let member, let keyType):

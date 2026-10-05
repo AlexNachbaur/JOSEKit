@@ -11,6 +11,7 @@ public struct PrivateJWK: Sendable {
         case p384(ECPrivateKey<P384Curve>)
         case p521(ECPrivateKey<P521Curve>)
         case ed25519(Ed25519PrivateKey)
+        case rsa(RSAPrivateKey)
     }
 
     public let key: Key
@@ -32,6 +33,8 @@ public struct PrivateJWK: Sendable {
             return JWK(.p521(key.publicKey), metadata: metadata)
         case .ed25519(let key):
             return JWK(.ed25519(key.publicKey), metadata: metadata)
+        case .rsa(let key):
+            return JWK(.rsa(key.publicKey), metadata: metadata)
         }
     }
 
@@ -65,8 +68,28 @@ public struct PrivateJWK: Sendable {
                 throw .privateKeyDoesNotMatchPublicKey(curve: curve)
             }
             key = .ed25519(privateKey)
+        case "RSA":
+            // RFC 7518 §6.3.2 lets a producer omit the CRT values or add further primes. Both
+            // platform implementations need the two-prime CRT form.
+            guard members.values["oth"] == nil else {
+                throw .unsupportedRSAPrivateKey(reason: "keys with more than two primes (\"oth\") are not supported")
+            }
+            for name in ["p", "q", "dp", "dq", "qi"] where members.values[name] == nil {
+                throw .unsupportedRSAPrivateKey(reason: "the CRT value \"\(name)\" is missing")
+            }
+            let components = RSAPrivateKeyComponents(
+                modulus: try members.requiredBytes("n", keyType: keyType),
+                publicExponent: try members.requiredBytes("e", keyType: keyType),
+                privateExponent: try members.requiredBytes("d", keyType: keyType),
+                prime1: try members.requiredBytes("p", keyType: keyType),
+                prime2: try members.requiredBytes("q", keyType: keyType),
+                exponent1: try members.requiredBytes("dp", keyType: keyType),
+                exponent2: try members.requiredBytes("dq", keyType: keyType),
+                coefficient: try members.requiredBytes("qi", keyType: keyType)
+            )
+            key = .rsa(try RSAPrivateKey(components: components))
         default:
-            throw .keyTypeMismatch(expected: "EC or OKP", found: keyType)
+            throw .keyTypeMismatch(expected: "EC, OKP or RSA", found: keyType)
         }
     }
 
@@ -99,6 +122,13 @@ public struct PrivateJWK: Sendable {
             members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
         case .ed25519(let key):
             members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+        case .rsa(let key):
+            members.values["d"] = .string(Base64URL.encode(key.components.privateExponent))
+            members.values["p"] = .string(Base64URL.encode(key.components.prime1))
+            members.values["q"] = .string(Base64URL.encode(key.components.prime2))
+            members.values["dp"] = .string(Base64URL.encode(key.components.exponent1))
+            members.values["dq"] = .string(Base64URL.encode(key.components.exponent2))
+            members.values["qi"] = .string(Base64URL.encode(key.components.coefficient))
         }
         return try members.jsonRepresentation()
     }

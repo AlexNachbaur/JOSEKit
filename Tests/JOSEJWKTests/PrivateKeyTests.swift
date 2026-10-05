@@ -54,7 +54,7 @@ struct PrivateKeyTests {
         #expect(throws: JWKError.invalidPrivateKey(curve: "P-256")) {
             try PrivateJWK(json: try JSONEncoder().encode(zeroD))
         }
-        #expect(throws: JWKError.keyTypeMismatch(expected: "EC or OKP", found: "oct")) {
+        #expect(throws: JWKError.keyTypeMismatch(expected: "EC, OKP or RSA", found: "oct")) {
             try PrivateJWK(json: Data(#"{"kty":"oct","k":"AAAA"}"#.utf8))
         }
         #expect(throws: JWKError.keyTypeMismatch(expected: "EC P-256, P-384 or P-521", found: "EC secp256k1")) {
@@ -112,6 +112,16 @@ struct PrivateKeyTests {
                 #expect(!rendered.contains("\(material.count) bytes") || value is SymmetricKeyMaterial)
             }
         }
+    }
+
+    @Test("descriptions are exactly the redacted form")
+    func exactDescriptions() throws {
+        #expect("\(try ECPrivateKey<P384Curve>())" == "ECPrivateKey<P-384>(redacted)")
+        #expect("\(try Ed25519PrivateKey())" == "Ed25519PrivateKey(redacted)")
+        #expect("\(PrivateJWK(.p256(try ECPrivateKey<P256Curve>())))" == "PrivateJWK(EC, redacted)")
+        #expect("\(PrivateJWK(.ed25519(try Ed25519PrivateKey())))" == "PrivateJWK(OKP, redacted)")
+        #expect("\(SymmetricJWK(SymmetricKeyMaterial(randomByteCount: 32)))" == "SymmetricJWK(redacted)")
+        #expect("\(SymmetricKeyMaterial(randomByteCount: 32))" == "SymmetricKeyMaterial(32 bytes, redacted)")
     }
 
     @Test("symmetric JWKs parse and write, and other key types are refused")

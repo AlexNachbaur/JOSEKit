@@ -48,6 +48,29 @@ struct JWKTests {
             return .invalidBase64URL(member: "x", .invalidCharacter(byte: 0x2B, offset: 41))
         case ("kty is oct", _):
             return .symmetricKeyInPublicKey
+        // RSA. jose's importJWK (WebCrypto) checks almost nothing about an RSA key when importing
+        // it; it refuses a key under 2048 bits only when the key is used. Here an RSA key that
+        // could never be valid is refused when it is read.
+        case ("n is a number", "RSA"):
+            return .wrongMemberType(name: "n", expected: "a string")
+        case ("n is not base64url (standard alphabet)", "RSA"):
+            return .invalidBase64URL(member: "n", .invalidCharacter(byte: 0x2B, offset: 340))
+        case ("n is empty", "RSA"):
+            return .wrongByteCount(member: "n", curve: "RSA", expected: 1, found: 0)
+        case ("1024-bit key", "RSA"):
+            return .rsaKeyTooSmall(bitCount: 1024, minimum: 2048)
+        case ("n has a leading zero byte", "RSA"):
+            return .nonMinimalInteger(member: "n")
+        case ("e has a leading zero byte", "RSA"):
+            return .nonMinimalInteger(member: "e")
+        case ("e is even", "RSA"):
+            return .invalidRSAKey(reason: "the public exponent is even")
+        case ("e is 1", "RSA"):
+            return .invalidRSAKey(reason: "the public exponent is 1")
+        case ("n is even", "RSA"):
+            return .invalidRSAKey(reason: "the modulus is even")
+        case ("private member d present", "RSA"):
+            return .privateMemberInPublicKey(member: "d", keyType: "RSA")
         case ("private member d present", "Ed25519"):
             return .privateMemberInPublicKey(member: "d", keyType: "OKP")
         case ("private member d present", _):
@@ -64,6 +87,17 @@ struct JWKTests {
         for key in fixture.keys {
             let jwk = try JWK(json: try key.publicJSON())
             #expect(jwk.keyDescription.hasSuffix(key.curve))
+            let exported = try JSONDecoder().decode([String: String].self, from: try jwk.jsonRepresentation())
+            #expect(exported == key.publicJwk)
+        }
+        #expect(fixture.rsaKeys.map(\.bitCount) == [2048, 2048, 3072, 4096])
+        for key in fixture.rsaKeys {
+            let jwk = try JWK(json: try JSONEncoder().encode(key.publicJwk))
+            guard case .rsa(let publicKey) = jwk.key else {
+                Issue.record("RSA key was not recognised")
+                continue
+            }
+            #expect(publicKey.bitCount == key.bitCount)
             let exported = try JSONDecoder().decode([String: String].self, from: try jwk.jsonRepresentation())
             #expect(exported == key.publicJwk)
         }
@@ -86,8 +120,8 @@ struct JWKTests {
                 #expect(try ECPublicKey<P521Curve>(x963Representation: raw) == publicKey)
             case .ed25519(let publicKey):
                 #expect(publicKey.rawRepresentation == raw)
-            case .unrecognized:
-                Issue.record("\(key.curve) key was not recognised")
+            case .rsa, .unrecognized:
+                Issue.record("\(key.curve) key was not recognised as itself")
             }
         }
     }
@@ -123,6 +157,7 @@ struct JWKTests {
                     #expect(throws: JWKError.self, label) { try ECDSAVerifier<P384Curve>(jwk: jwk) }
                     #expect(throws: JWKError.self, label) { try ECDSAVerifier<P521Curve>(jwk: jwk) }
                     #expect(throws: JWKError.self, label) { try Ed25519Verifier<EdDSA>(jwk: jwk) }
+                    #expect(throws: JWKError.self, label) { try RSAVerifier<RS256>(jwk: jwk) }
                     #expect(throws: JWKError.self, label) { try jwk.thumbprint() }
                     unrecognized += 1
                 } catch {
@@ -130,9 +165,9 @@ struct JWKTests {
                 }
             }
         }
-        #expect(accepted >= 8)
-        #expect(rejected >= 20)
-        #expect(stricter >= 10)
+        #expect(accepted >= 10)
+        #expect(rejected >= 22)
+        #expect(stricter >= 20)
         #expect(unrecognized == 8)
     }
 
@@ -226,7 +261,11 @@ struct JWKTests {
     @Test("additional parameters cannot use names that carry key material or metadata")
     func reservedAdditionalParameters() throws {
         var jwk = try JWK(json: Self.p256JSON)
-        for name in ["kty", "crv", "x", "y", "d", "k", "kid", "use", "key_ops", "alg"] {
+        let reserved = [
+            "kty", "crv", "x", "y", "d", "k", "n", "e", "p", "q", "dp", "dq", "qi", "oth", "kid", "use", "key_ops",
+            "alg",
+        ]
+        for name in reserved {
             #expect(throws: JWKError.reservedParameterName(name)) {
                 try jwk.setAdditionalParameter(name, to: "value")
             }
@@ -239,18 +278,18 @@ struct JWKTests {
 
     @Test("an unrecognised key type keeps every member and writes them back unchanged")
     func unrecognizedRoundTrip() throws {
-        let json = Data(#"{"alg":"RS256","e":"AQAB","kid":"rsa-1","kty":"RSA","n":"abc","use":"sig"}"#.utf8)
+        let json = Data(#"{"alg":"ML-DSA-44","kid":"pq-1","kty":"AKP","pub":"abc","use":"sig"}"#.utf8)
         let jwk = try JWK(json: json)
         guard case .unrecognized(let key) = jwk.key else {
             Issue.record("expected an unrecognised key")
             return
         }
-        #expect(key.keyType == "RSA")
-        #expect(key.parameters == ["e": "AQAB", "n": "abc"])
-        #expect(jwk.keyID == "rsa-1")
-        #expect(jwk.keyType == "RSA")
+        #expect(key.keyType == "AKP")
+        #expect(key.parameters == ["pub": "abc"])
+        #expect(jwk.keyID == "pq-1")
+        #expect(jwk.keyType == "AKP")
         #expect(try jwk.jsonRepresentation() == json)
-        #expect(throws: JWKError.thumbprintUnavailable(keyType: "RSA")) { try jwk.thumbprint() }
+        #expect(throws: JWKError.thumbprintUnavailable(keyType: "AKP")) { try jwk.thumbprint() }
     }
 
     @Test("a JWK embedded in another Codable type decodes and encodes")
@@ -309,7 +348,7 @@ struct JWKTests {
     func keySet() throws {
         let good = String(decoding: Self.p256JSON, as: UTF8.self)
         let json = Data(
-            #"{"keys":[\#(good),{"kty":"EC","crv":"P-256","x":"AA","y":"AA"},{"kty":"RSA","n":"abc","e":"AQAB","kid":"r"},7,{"kty":"oct","k":"AAAA"}]}"#
+            #"{"keys":[\#(good),{"kty":"EC","crv":"P-256","x":"AA","y":"AA"},{"kty":"AKP","pub":"abc","kid":"r"},7,{"kty":"oct","k":"AAAA"}]}"#
                 .utf8
         )
         let set = try JWKSet(json: json)
@@ -363,7 +402,13 @@ struct JWKTests {
             (.keyTooShort(algorithm: "HS256", minimumByteCount: 32, found: 16), "16"),
             (.duplicateKeyOperation("verify"), "verify"),
             (.invalidKeySet, "keys"),
-            (.thumbprintUnavailable(keyType: "RSA"), "RSA"),
+            (.thumbprintUnavailable(keyType: "AKP"), "AKP"),
+            (.rsaKeyTooSmall(bitCount: 1024, minimum: 2048), "1024"),
+            (.rsaKeyTooLarge(bitCount: 32768, maximum: 16384), "32768"),
+            (.nonMinimalInteger(member: "n"), "\"n\""),
+            (.invalidRSAKey(reason: "even"), "even"),
+            (.unsupportedRSAPrivateKey(reason: "oth"), "oth"),
+            (.invalidDER(reason: "truncated"), "truncated"),
             (.reservedParameterName("d"), "\"d\""),
         ]
         for (error, fragment) in errors {

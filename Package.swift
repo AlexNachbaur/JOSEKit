@@ -15,6 +15,14 @@ let crypto: Target.Dependency = .product(
     condition: .when(platforms: nonApplePlatforms)
 )
 
+// RSA is not in CryptoKit. On Apple platforms it comes from Security.framework; elsewhere from
+// swift-crypto's extras, which are likewise only built for those platforms.
+let cryptoExtras: Target.Dependency = .product(
+    name: "CryptoExtras",
+    package: "swift-crypto",
+    condition: .when(platforms: nonApplePlatforms)
+)
+
 let package = Package(
     name: "jose-jwk",
     platforms: [
@@ -38,6 +46,7 @@ let package = Package(
             dependencies: [
                 .product(name: "JOSECore", package: "jose-core"),
                 crypto,
+                cryptoExtras,
             ],
             swiftSettings: swiftSettings
         ),

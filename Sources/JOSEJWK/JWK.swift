@@ -12,6 +12,7 @@ public struct JWK: Sendable, Hashable {
         case p384(ECPublicKey<P384Curve>)
         case p521(ECPublicKey<P521Curve>)
         case ed25519(Ed25519PublicKey)
+        case rsa(RSAPublicKey)
         /// A key type or curve this package does not implement. Its members are kept as they
         /// were read so that an add-on can interpret them.
         case unrecognized(UnrecognizedKey)
@@ -30,7 +31,9 @@ public struct JWK: Sendable, Hashable {
     }
 
     /// Member names that are owned by typed properties, or that would carry private material.
-    static let reservedNames: Set<String> = ["kty", "crv", "x", "y", "d", "k", "kid", "use", "key_ops", "alg"]
+    static let reservedNames: Set<String> = [
+        "kty", "crv", "x", "y", "d", "k", "n", "e", "p", "q", "dp", "dq", "qi", "oth", "kid", "use", "key_ops", "alg",
+    ]
 
     public var key: Key
     public var metadata: JWKMetadata
@@ -53,6 +56,8 @@ public struct JWK: Sendable, Hashable {
             return "EC"
         case .ed25519:
             return "OKP"
+        case .rsa:
+            return "RSA"
         case .unrecognized(let unrecognized):
             return unrecognized.keyType
         }
@@ -100,6 +105,17 @@ public struct JWK: Sendable, Hashable {
             try members.requireAbsent("d", keyType: keyType)
             key = .ed25519(try Ed25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType)))
             recognizedNames.formUnion(["crv", "x"])
+        case "RSA":
+            for privateMember in RSAPrivateMembers.names {
+                try members.requireAbsent(privateMember, keyType: keyType)
+            }
+            key = .rsa(
+                try RSAPublicKey(
+                    modulus: members.requiredBytes("n", keyType: keyType),
+                    exponent: members.requiredBytes("e", keyType: keyType)
+                )
+            )
+            recognizedNames.formUnion(["n", "e"])
         case "oct":
             throw .symmetricKeyInPublicKey
         default:
@@ -141,6 +157,8 @@ public struct JWK: Sendable, Hashable {
             members.setECPublicKey(key)
         case .ed25519(let key):
             members.setEd25519PublicKey(key)
+        case .rsa(let key):
+            members.setRSAPublicKey(key)
         case .unrecognized(let unrecognized):
             members.values = unrecognized.parameters
             members.values["kty"] = .string(unrecognized.keyType)
@@ -167,6 +185,21 @@ extension JWKMembers {
         values["kty"] = "OKP"
         values["crv"] = .string(Ed25519PublicKey.curveName)
         values["x"] = .string(Base64URL.encode(key.rawRepresentation))
+    }
+}
+
+/// The members that make an RSA JWK a private key (RFC 7518 §6.3.2).
+struct RSAPrivateMembers {
+    private init() {}
+
+    static let names = ["d", "p", "q", "dp", "dq", "qi", "oth"]
+}
+
+extension JWKMembers {
+    mutating func setRSAPublicKey(_ key: RSAPublicKey) {
+        values["kty"] = "RSA"
+        values["n"] = .string(Base64URL.encode(key.modulus))
+        values["e"] = .string(Base64URL.encode(key.exponent))
     }
 }
 

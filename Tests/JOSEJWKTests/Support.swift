@@ -78,8 +78,26 @@ struct KeysFixture: Decodable {
         let tag: String
         let tamperedTag: String
     }
+    struct RSASignatureCase: Decodable {
+        let algorithm: String
+        let message: String
+        let signature: String
+        let tamperedSignature: String
+        let nonStandardSaltSignature: String?
+    }
+    struct RSAKey: Decodable {
+        let bitCount: Int
+        let publicJwk: [String: String]
+        let privateJwk: [String: String]
+        let publicPkcs1: String
+        let privatePkcs1: String
+        let thumbprints: [String: String]
+        let thumbprintUris: [String: String]
+        let signatures: [RSASignatureCase]
+    }
     let keys: [Key]
     let hmacs: [HMACCase]
+    let rsaKeys: [RSAKey]
 
     static func load() throws -> KeysFixture {
         try Fixtures.load(KeysFixture.self, named: "keys")

@@ -69,7 +69,7 @@ public struct ECDSAVerifier<Curve: ECDSACurve>: Verifier {
             publicKey = key as? ECPublicKey<Curve>
         case .p521(let key):
             publicKey = key as? ECPublicKey<Curve>
-        case .ed25519, .unrecognized:
+        case .ed25519, .rsa, .unrecognized:
             publicKey = nil
         }
         guard let publicKey else {
@@ -97,6 +97,8 @@ extension JWK {
             return "EC \(P521Curve.name)"
         case .ed25519:
             return "OKP \(Ed25519PublicKey.curveName)"
+        case .rsa:
+            return "RSA"
         case .unrecognized(let unrecognized):
             return unrecognized.keyType
         }

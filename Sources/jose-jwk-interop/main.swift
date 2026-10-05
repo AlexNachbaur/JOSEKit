@@ -172,6 +172,18 @@ for _ in 0..<3 {
     response.keys.append(key)
 }
 
+for _ in 0..<2 {
+    let rsa = try RSAPrivateKey()
+    var key = try describe(curve: "RSA", publicJWK: JWK(.rsa(rsa.publicKey)), privateJWK: PrivateJWK(.rsa(rsa)))
+    try await sign(messages, with: try RSASigner<RS256>(privateKey: rsa), into: &key)
+    try await sign(messages, with: try RSASigner<RS384>(privateKey: rsa), into: &key)
+    try await sign(messages, with: try RSASigner<RS512>(privateKey: rsa), into: &key)
+    try await sign(messages, with: try RSASigner<PS256>(privateKey: rsa), into: &key)
+    try await sign(messages, with: try RSASigner<PS384>(privateKey: rsa), into: &key)
+    try await sign(messages, with: try RSASigner<PS512>(privateKey: rsa), into: &key)
+    response.keys.append(key)
+}
+
 #if canImport(CryptoKit)
     // Where this machine has a usable Secure Enclave, put a hardware key through the same checks.
     do {
@@ -213,6 +225,18 @@ for item in challenge.verify {
         response.verdicts.append(try verdict(try Ed25519Verifier<JOSECore.Ed25519>(jwk: jwk), item))
     case "EdDSA":
         response.verdicts.append(try verdict(try Ed25519Verifier<EdDSA>(jwk: jwk), item))
+    case "RS256":
+        response.verdicts.append(try verdict(try RSAVerifier<RS256>(jwk: jwk), item))
+    case "RS384":
+        response.verdicts.append(try verdict(try RSAVerifier<RS384>(jwk: jwk), item))
+    case "RS512":
+        response.verdicts.append(try verdict(try RSAVerifier<RS512>(jwk: jwk), item))
+    case "PS256":
+        response.verdicts.append(try verdict(try RSAVerifier<PS256>(jwk: jwk), item))
+    case "PS384":
+        response.verdicts.append(try verdict(try RSAVerifier<PS384>(jwk: jwk), item))
+    case "PS512":
+        response.verdicts.append(try verdict(try RSAVerifier<PS512>(jwk: jwk), item))
     default:
         throw InteropError(description: "unsupported algorithm \(item.algorithm)")
     }

@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { base64url, calculateJwkThumbprint, calculateJwkThumbprintUri, exportJWK, generateKeyPair, importJWK } from 'jose';
-import { ASYMMETRIC, HMAC, flipLastBit, hmac, joseVersion, sign, verifies } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA, flipLastBit, hmac, joseVersion, rsaSign, rsaVerifies, sign, verifies } from './common.mjs';
 
 const fixturesDirectory = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -102,9 +102,55 @@ async function keysFixture() {
         }
     }
 
+    const rsaKeys = [];
+    for (const modulusLength of [2048, 2048, 3072, 4096]) {
+        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength });
+        const publicJwk = await exportJWK(publicKey);
+        const privateJwk = await exportJWK(privateKey);
+        const thumbprints = {};
+        const thumbprintUris = {};
+        for (const hash of HASHES) {
+            thumbprints[hash] = await calculateJwkThumbprint(publicJwk, hash);
+            thumbprintUris[hash] = await calculateJwkThumbprintUri(publicJwk, hash);
+        }
+        const signatures = [];
+        for (const spec of RSA) {
+            const message = crypto.randomBytes(60);
+            const signature = rsaSign(spec, privateKey, message);
+            assert(rsaVerifies(spec, publicKey, message, signature), 'counterpart rejected its own RSA signature');
+            const tampered = flipLastBit(signature);
+            assert(!rsaVerifies(spec, publicKey, message, tampered), 'counterpart accepted a tampered RSA signature');
+            const entry = {
+                algorithm: spec.alg,
+                message: message.toString('hex'),
+                signature: signature.toString('hex'),
+                tamperedSignature: tampered.toString('hex'),
+            };
+            if (spec.alg.startsWith('PS')) {
+                // A genuine PSS signature by the same key, but with a salt that is not the digest
+                // length. RFC 7518 §3.5 fixes the salt length, and the counterpart refuses this.
+                const otherSalt = crypto.sign(spec.hash, message, { key: privateKey, ...spec.options, saltLength: 20 });
+                assert(!rsaVerifies(spec, publicKey, message, otherSalt), 'counterpart accepted a non-standard salt length');
+                entry.nonStandardSaltSignature = otherSalt.toString('hex');
+            }
+            signatures.push(entry);
+        }
+        rsaKeys.push({
+            bitCount: modulusLength,
+            publicJwk,
+            privateJwk,
+            publicPkcs1: publicKey.export({ type: 'pkcs1', format: 'der' }).toString('hex'),
+            privatePkcs1: privateKey.export({ type: 'pkcs1', format: 'der' }).toString('hex'),
+            thumbprints,
+            thumbprintUris,
+            signatures,
+        });
+    }
+
     write('keys.json', 'Keys exported by jose as JWKs, with thumbprints from jose and signatures from WebCrypto.', {
         keys,
         hmacs,
+        rsaKeys,
     });
 }
 
@@ -159,6 +205,46 @@ async function invalidJwkFixture() {
             cases.push({ curve: kind.name, name, json: JSON.stringify(jwk), jose });
         }
     }
+    // RSA
+    {
+        const pair = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+        const first = await exportJWK(pair.publicKey);
+        const privateJwk = await exportJWK(pair.privateKey);
+        const small = await exportJWK(crypto.generateKeyPairSync('rsa', { modulusLength: 1024 }).publicKey);
+        const without = (jwk, member) => {
+            const copy = { ...jwk };
+            delete copy[member];
+            return copy;
+        };
+        const nBytes = Buffer.from(base64url.decode(first.n));
+        const candidates = {
+            'valid (positive control)': first,
+            'valid with kid, use and alg': { ...first, kid: 'rsa-1', use: 'sig', alg: 'RS256' },
+            'n missing': without(first, 'n'),
+            'e missing': without(first, 'e'),
+            'n is a number': { ...first, n: 12345 },
+            'n is not base64url (standard alphabet)': { ...first, n: first.n.slice(0, -2) + '+/' },
+            'n is empty': { ...first, n: '' },
+            '1024-bit key': small,
+            'n has a leading zero byte': { ...first, n: base64url.encode(Buffer.concat([Buffer.from([0]), nBytes])) },
+            'e has a leading zero byte': { ...first, e: 'AAEAAQ' },
+            'e is even': { ...first, e: 'AQAA' },
+            'e is 1': { ...first, e: 'AQ' },
+            'n is even': { ...first, n: base64url.encode(Buffer.concat([nBytes.subarray(0, nBytes.length - 1), Buffer.from([nBytes[nBytes.length - 1] & 0xfe])])) },
+            'private member d present': privateJwk,
+        };
+        for (const [name, jwk] of Object.entries(candidates)) {
+            let jose;
+            try {
+                const imported = await importJWK(jwk, 'RS256');
+                jose = { accepted: true, importedAs: imported.type ?? 'secret' };
+            } catch (error) {
+                jose = { accepted: false, error: `${error.name}: ${error.message}` };
+            }
+            cases.push({ curve: 'RSA', name, json: JSON.stringify(jwk), jose });
+        }
+    }
+
     write('jwk-parsing.json', 'JWK documents, well-formed and not, with what jose importJWK does with each.', { cases });
 }
 

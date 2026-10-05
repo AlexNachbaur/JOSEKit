@@ -10,7 +10,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { calculateJwkThumbprint, calculateJwkThumbprintUri, exportJWK, generateKeyPair, importJWK } from 'jose';
-import { ASYMMETRIC, HMAC, flipLastBit, hmac, kindForCurve, sign, verifies } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA, flipLastBit, hmac, kindForCurve, rsaSign, rsaSpec, rsaVerifies, sign, verifies } from './common.mjs';
 
 const HASHES = ['sha256', 'sha384', 'sha512'];
 
@@ -63,6 +63,38 @@ async function challenge(file) {
         }
     }
 
+    {
+        const pair = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+        const other = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+        const jwk = JSON.stringify(await exportJWK(pair.publicKey));
+        const otherJwk = JSON.stringify(await exportJWK(other.publicKey));
+        for (const spec of RSA) {
+            for (let i = 0; i < 5; i++) {
+                const message = crypto.randomBytes(48);
+                const signature = rsaSign(spec, pair.privateKey, message);
+                // The last variant is a signature made under a different RSA algorithm.
+                const otherSpec = RSA[(RSA.indexOf(spec) + 3) % RSA.length];
+                const variants = [
+                    { jwk, key: pair.publicKey, message, signature },
+                    { jwk, key: pair.publicKey, message, signature: flipLastBit(signature) },
+                    { jwk, key: pair.publicKey, message: flipLastBit(message), signature },
+                    { jwk: otherJwk, key: other.publicKey, message, signature },
+                    { jwk, key: pair.publicKey, message, signature: rsaSign(otherSpec, pair.privateKey, message) },
+                ];
+                for (const variant of variants) {
+                    verify.push({
+                        algorithm: spec.alg,
+                        curve: 'RSA',
+                        jwk: variant.jwk,
+                        message: variant.message.toString('hex'),
+                        signature: variant.signature.toString('hex'),
+                        expected: rsaVerifies(spec, variant.key, variant.message, variant.signature),
+                    });
+                }
+            }
+        }
+    }
+
     fs.writeFileSync(file, JSON.stringify({ messages: messages.map((m) => m.toString('hex')), hmac: hmacCases, verify }));
 }
 
@@ -80,9 +112,16 @@ async function verify(challengeFile, responseFile) {
     }
 
     for (const [index, key] of response.keys.entries()) {
-        const kind = kindForCurve(key.curve);
+        const isRSA = key.curve === 'RSA';
+        const kind = isRSA ? { joseAlg: 'RS256', algs: RSA.map((spec) => spec.alg) } : kindForCurve(key.curve);
         const label = `key[${index}] ${key.curve}`;
         const publicJwk = JSON.parse(key.publicJwk);
+        // RSA goes through Node's crypto with a KeyObject, because a WebCrypto RSA key is bound
+        // to one algorithm and these keys are used under six.
+        const verifyWith = (algorithm, verifyKey, message, signature) =>
+            isRSA
+                ? rsaVerifies(rsaSpec(algorithm), crypto.createPublicKey({ key: publicJwk, format: 'jwk' }), message, signature)
+                : verifies(kind, verifyKey, message, signature);
 
         let publicKey;
         try {
@@ -102,17 +141,19 @@ async function verify(challengeFile, responseFile) {
                 check(
                     'private JWK matches public',
                     label,
-                    reexported.x === publicJwk.x && reexported.y === publicJwk.y,
+                    reexported.x === publicJwk.x && reexported.y === publicJwk.y && reexported.n === publicJwk.n && reexported.e === publicJwk.e,
                     'public members differ',
                 );
                 // The counterpart signs with the Swift-made private key and verifies with the
                 // Swift-made public key.
                 const message = crypto.randomBytes(32);
-                const signature = await sign(kind, privateKey, message);
+                const signature = isRSA
+                    ? rsaSign(rsaSpec('PS256'), crypto.createPrivateKey({ key: JSON.parse(key.privateJwk), format: 'jwk' }), message)
+                    : await sign(kind, privateKey, message);
                 check(
                     'private JWK signs for public JWK',
                     label,
-                    await verifies(kind, publicKey, message, signature),
+                    await verifyWith('PS256', publicKey, message, signature),
                     'signature did not verify',
                 );
             } catch (error) {
@@ -135,17 +176,18 @@ async function verify(challengeFile, responseFile) {
             const signature = Buffer.from(item.signature, 'hex');
             check('signature algorithm', `${label}[${i}]`, kind.algs.includes(item.algorithm), item.algorithm);
             check('signature message', `${label}[${i}]`, challenge.messages.includes(item.message), 'not a challenge message');
-            check('signature accepted', `${label}[${i}]`, await verifies(kind, publicKey, message, signature), 'counterpart rejected it');
+            check('signature accepted', `${label}[${i}]`, await verifyWith(item.algorithm, publicKey, message, signature), 'counterpart rejected it');
             // Shows that acceptance above is not vacuous.
             check(
                 'tampered signature refused',
                 `${label}[${i}]`,
-                !(await verifies(kind, publicKey, message, flipLastBit(signature))),
+                !(await verifyWith(item.algorithm, publicKey, message, flipLastBit(signature))),
                 'counterpart accepted a tampered signature',
             );
         }
     }
-    check('key count', '', response.keys.length >= 12, `${response.keys.length} keys`);
+    check('RSA keys present', '', response.keys.filter((key) => key.curve === 'RSA').length === 2, '');
+    check('key count', '', response.keys.length >= 14, `${response.keys.length} keys`);
 
     check('hmac count', '', response.hmac.length === challenge.hmac.length, `${response.hmac.length} tags`);
     for (const [index, item] of challenge.hmac.entries()) {

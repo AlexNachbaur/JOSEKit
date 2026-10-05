@@ -60,6 +60,14 @@ struct SignatureTests {
         #expect(EdDSA.identifier.rawValue == "EdDSA")
         #expect(Ed25519.signatureByteCount == 64)
         #expect(EdDSA.signatureByteCount == nil)
+        let rsa: [(any SignatureAlgorithm.Type, String)] = [
+            (RS256.self, "RS256"), (RS384.self, "RS384"), (RS512.self, "RS512"),
+            (PS256.self, "PS256"), (PS384.self, "PS384"), (PS512.self, "PS512"),
+        ]
+        for (algorithm, name) in rsa {
+            #expect(algorithm.identifier.rawValue == name)
+            #expect(algorithm.signatureByteCount == nil)
+        }
         #expect(ES256.signatureByteCount == 64)
         #expect(ES384.signatureByteCount == 96)
         #expect(ES512.signatureByteCount == 132)

@@ -79,3 +79,41 @@ public struct HS512: SignatureAlgorithm {
     public static let identifier: AlgorithmIdentifier = "HS512"
     public static let signatureByteCount: Int? = 64
 }
+
+// RSA signatures are as long as the key's modulus, so none of these fix a size.
+
+/// RSASSA-PKCS1-v1_5 using SHA-256 (RFC 7518 §3.3).
+public struct RS256: SignatureAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "RS256"
+    public static let signatureByteCount: Int? = nil
+}
+
+/// RSASSA-PKCS1-v1_5 using SHA-384 (RFC 7518 §3.3).
+public struct RS384: SignatureAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "RS384"
+    public static let signatureByteCount: Int? = nil
+}
+
+/// RSASSA-PKCS1-v1_5 using SHA-512 (RFC 7518 §3.3).
+public struct RS512: SignatureAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "RS512"
+    public static let signatureByteCount: Int? = nil
+}
+
+/// RSASSA-PSS using SHA-256 and MGF1 with SHA-256 (RFC 7518 §3.5).
+public struct PS256: SignatureAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "PS256"
+    public static let signatureByteCount: Int? = nil
+}
+
+/// RSASSA-PSS using SHA-384 and MGF1 with SHA-384 (RFC 7518 §3.5).
+public struct PS384: SignatureAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "PS384"
+    public static let signatureByteCount: Int? = nil
+}
+
+/// RSASSA-PSS using SHA-512 and MGF1 with SHA-512 (RFC 7518 §3.5).
+public struct PS512: SignatureAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "PS512"
+    public static let signatureByteCount: Int? = nil
+}

@@ -1,0 +1,409 @@
+{
+  "_generated": {
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
+    "generator": "interop/generate-fixtures.mjs",
+    "description": "Compact JWEs, valid and not, with jose compactDecrypt's verdict under one 256-bit key.",
+    "jose": "6.2.12",
+    "node": "v24.11.1"
+  },
+  "jwk": "{\"kty\":\"oct\",\"k\":\"CupCShMXG0EoS1hTYOMFKtXTCSDbE8JubG8nHjV8_Cs\"}",
+  "wrongJwk": "{\"kty\":\"oct\",\"k\":\"Zk4wqUfq9MUYiqyh7Sxj6Rd0a-FuYV98RR9uCM3PSzQ\"}",
+  "cases": [
+    {
+      "name": "valid A256KW / A256GCM (positive control)",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    },
+    {
+      "name": "valid A256KW / A128CBC-HS256",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg.uMH_UQPQ7a5cdb7d0s_n1g.H71-5n-mtGqDyCVF2n27Gw",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    },
+    {
+      "name": "valid dir / A256GCM",
+      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..8RCA0gKtWY_Asd_a.BgcEG02FX_eBfW30WC4.Avq_ydYh2gDKmTqlb0IIFA",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    },
+    {
+      "name": "wrong key",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": true,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "ciphertext altered",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFU.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "tag altered",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67A",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "iv altered",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRD.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "encrypted key altered",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vg.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "header altered (typ added)",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwidHlwIjoieCJ9.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "CBC ciphertext altered",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg.uMH_UQPQ7a5cdb7d0s_n1w.H71-5n-mtGqDyCVF2n27Gw",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "CBC tag altered",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg.uMH_UQPQ7a5cdb7d0s_n1g.H71-5n-mtGqDyCVF2n27Gg",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "CBC ciphertext truncated by a block",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg..H71-5n-mtGqDyCVF2n27Gw",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "tag truncated",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmp",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Invalid Authentication Tag length"
+      }
+    },
+    {
+      "name": "tag empty",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: JWE Authentication Tag missing"
+      }
+    },
+    {
+      "name": "iv too short",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgw.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Invalid Initialization Vector length"
+      }
+    },
+    {
+      "name": "iv empty",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw..qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: JWE Initialization Vector missing"
+      }
+    },
+    {
+      "name": "encrypted key empty",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0..sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "ciphertext empty",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC..t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "four segments",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Invalid Compact JWE"
+      }
+    },
+    {
+      "name": "six segments",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q.extra",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Invalid Compact JWE"
+      }
+    },
+    {
+      "name": "three segments (a JWS shape)",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Invalid Compact JWE"
+      }
+    },
+    {
+      "name": "empty string",
+      "token": "",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Invalid Compact JWE"
+      }
+    },
+    {
+      "name": "header empty",
+      "token": ".5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: JWE Protected Header is invalid"
+      }
+    },
+    {
+      "name": "header is not JSON",
+      "token": "bm90IGpzb24.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: JWE Protected Header is invalid"
+      }
+    },
+    {
+      "name": "header is a JSON array",
+      "token": "WyJhbGciXQ.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: JWE Protected Header is invalid"
+      }
+    },
+    {
+      "name": "header has duplicate alg",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Encountered unexpected JWE Encrypted Key"
+      }
+    },
+    {
+      "name": "alg missing",
+      "token": "eyJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: missing JWE Algorithm (alg) in JWE Header"
+      }
+    },
+    {
+      "name": "enc missing",
+      "token": "eyJhbGciOiJBMjU2S1cifQ.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: missing JWE Encryption Algorithm (enc) in JWE Header"
+      }
+    },
+    {
+      "name": "alg is a number",
+      "token": "eyJhbGciOjEsImVuYyI6IkEyNTZHQ00ifQ.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: missing JWE Algorithm (alg) in JWE Header"
+      }
+    },
+    {
+      "name": "alg unknown",
+      "token": "eyJhbGciOiJBOTk5S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JOSE_NOT_SUPPORTED: Invalid or unsupported \"alg\" (JWE Algorithm) header value"
+      }
+    },
+    {
+      "name": "alg none",
+      "token": "eyJhbGciOiJub25lIiwiZW5jIjoiQTI1NkdDTSJ9.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JOSE_NOT_SUPPORTED: Invalid or unsupported \"alg\" (JWE Algorithm) header value"
+      }
+    },
+    {
+      "name": "alg changed to dir with the wrapping key",
+      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Encountered unexpected JWE Encrypted Key"
+      }
+    },
+    {
+      "name": "enc unknown",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBOTk5R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JOSE_NOT_SUPPORTED: Invalid or unsupported \"enc\" (JWE Encryption Algorithm) header value"
+      }
+    },
+    {
+      "name": "enc changed to A128GCM",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "dir with a non-empty encrypted key",
+      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.8RCA0gKtWY_Asd_a.BgcEG02FX_eBfW30WC4.Avq_ydYh2gDKmTqlb0IIFA",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: Encountered unexpected JWE Encrypted Key"
+      }
+    },
+    {
+      "name": "zip DEF",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiemlwIjoiREVGIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "crit names an unknown extension",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJ1cm46ZXhhbXBsZTp4Il0sInVybjpleGFtcGxlOngiOjF9.DdP3bMlZPbZMm2QgxcwPkakZII4Z8s6RaJSdINEIpboAGkPnRLhURQ.yWVJYQdjWrJj-tt3.GSu5wsNDyyfRinCIlNk.e8dwNlCciIXJtJpGBmtdjg",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JOSE_NOT_SUPPORTED: Extension Header Parameter \"urn:example:x\" is not recognized"
+      }
+    },
+    {
+      "name": "crit is empty",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6W119.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_INVALID: \"crit\" (Critical) Header Parameter MUST be an array of non-empty strings when present"
+      }
+    },
+    {
+      "name": "crit names enc",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJlbmMiXX0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JOSE_NOT_SUPPORTED: Extension Header Parameter \"enc\" is not recognized"
+      }
+    },
+    {
+      "name": "header segment padded",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0=.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "wrongKey": false,
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWE_DECRYPTION_FAILED: decryption operation failed"
+      }
+    },
+    {
+      "name": "tag segment padded",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q==",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    },
+    {
+      "name": "trailing newline",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q\n",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    },
+    {
+      "name": "unknown non-critical parameter",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwidXJuOmV4YW1wbGU6aWdub3JlZCI6WzEsMl19.141lny30ltBFNkF0rHjUBF5A7WrnPbJKX_ecbdGengPXk5nPGgR_DA.IFA4I0FE4diMpzib.HuTc_WHYYwnvsHX5kX0.2NPyGyd5bVE2tJQiV7N4Jw",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    },
+    {
+      "name": "kid is a number",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwia2lkIjo1fQ.rz4-DmUO9vAgE4-DXbtlYevC_480hTwJP1o9JoKvc-IkjQHEkkbUjw.pp0MT5x5iwjWKXBt.hb1NdySk1kNwGVKP9F8.aFVSTOZaaj-336R_RGBsUA",
+      "wrongKey": false,
+      "jose": {
+        "accepted": true,
+        "plaintext": "61747461636b206174206461776e"
+      }
+    }
+  ]
+}

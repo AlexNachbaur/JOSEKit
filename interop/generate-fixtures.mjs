@@ -135,7 +135,17 @@ async function keysFixture() {
             }
             signatures.push(entry);
         }
+        // RSAES-OAEP ciphertexts made by OpenSSL, for this package to decrypt.
+        const oaep = [];
+        for (const hash of ['sha1', 'sha256']) {
+            for (const length of [16, 32, 64]) {
+                const plaintext = crypto.randomBytes(length);
+                const ciphertext = crypto.publicEncrypt({ key: publicKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: hash }, plaintext);
+                oaep.push({ hash, plaintext: plaintext.toString('hex'), ciphertext: ciphertext.toString('hex') });
+            }
+        }
         rsaKeys.push({
+            oaep,
             bitCount: modulusLength,
             publicJwk,
             privateJwk,
@@ -147,10 +157,34 @@ async function keysFixture() {
         });
     }
 
+    // ECDH. The shared secret is computed by OpenSSL from one party's private key and the
+    // other's public key; this package must derive the same bytes from the same two JWKs.
+    const agreements = [];
+    for (const curve of ['P-256', 'P-384', 'P-521', 'X25519']) {
+        for (let i = 0; i < 4; i++) {
+            const generate = () =>
+                curve === 'X25519' ? crypto.generateKeyPairSync('x25519') : crypto.generateKeyPairSync('ec', { namedCurve: curve });
+            const ours = generate();
+            const theirs = generate();
+            const sharedSecret = crypto.diffieHellman({ privateKey: ours.privateKey, publicKey: theirs.publicKey });
+            const reverse = crypto.diffieHellman({ privateKey: theirs.privateKey, publicKey: ours.publicKey });
+            assert(sharedSecret.equals(reverse), 'ECDH is not symmetric');
+            const publicJwk = await exportJWK(theirs.publicKey);
+            agreements.push({
+                curve,
+                privateJwk: await exportJWK(ours.privateKey),
+                publicJwk,
+                publicThumbprint: await calculateJwkThumbprint(publicJwk, 'sha256'),
+                sharedSecret: sharedSecret.toString('hex'),
+            });
+        }
+    }
+
     write('keys.json', 'Keys exported by jose as JWKs, with thumbprints from jose and signatures from WebCrypto.', {
         keys,
         hmacs,
         rsaKeys,
+        agreements,
     });
 }
 

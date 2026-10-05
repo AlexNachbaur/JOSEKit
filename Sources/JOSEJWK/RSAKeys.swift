@@ -241,3 +241,38 @@ public struct RSAVerifier<Algorithm: RSASignatureAlgorithm>: Verifier {
         }
     }
 }
+
+// MARK: - Encryption
+
+/// Encrypts short messages (in JOSE, a content encryption key) to an RSA public key with
+/// RSAES-OAEP.
+public struct RSAOAEPEncryptionKey: Sendable {
+    public let publicKey: RSAPublicKey
+    private let key: RSABackendPublicKey
+
+    public init(publicKey: RSAPublicKey) throws(JWKError) {
+        key = try RSABackendPublicKey(pkcs1DER: publicKey.pkcs1DERRepresentation)
+        self.publicKey = publicKey
+    }
+
+    public func encrypt(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+        try key.encryptOAEP(plaintext, hash: hash)
+    }
+}
+
+/// Decrypts RSAES-OAEP ciphertexts with an RSA private key.
+public struct RSAOAEPDecryptionKey: Sendable {
+    public let publicKey: RSAPublicKey
+    private let key: RSABackendPrivateKey
+
+    public init(privateKey: RSAPrivateKey) throws(JWKError) {
+        key = try RSABackendPrivateKey(pkcs1DER: privateKey.pkcs1DERRepresentation)
+        publicKey = privateKey.publicKey
+    }
+
+    /// Fails with ``JWKError/rsaDecryptionFailed`` for any ciphertext that does not decrypt
+    /// under this key, without saying why.
+    public func decrypt(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+        try key.decryptOAEP(ciphertext, hash: hash)
+    }
+}

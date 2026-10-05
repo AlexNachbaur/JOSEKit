@@ -11,6 +11,7 @@ public struct PrivateJWK: Sendable {
         case p384(ECPrivateKey<P384Curve>)
         case p521(ECPrivateKey<P521Curve>)
         case ed25519(Ed25519PrivateKey)
+        case x25519(X25519PrivateKey)
         case rsa(RSAPrivateKey)
     }
 
@@ -33,6 +34,8 @@ public struct PrivateJWK: Sendable {
             return JWK(.p521(key.publicKey), metadata: metadata)
         case .ed25519(let key):
             return JWK(.ed25519(key.publicKey), metadata: metadata)
+        case .x25519(let key):
+            return JWK(.x25519(key.publicKey), metadata: metadata)
         case .rsa(let key):
             return JWK(.rsa(key.publicKey), metadata: metadata)
         }
@@ -59,15 +62,26 @@ public struct PrivateJWK: Sendable {
             }
         case "OKP":
             let curve = try members.requiredString("crv", keyType: keyType)
-            guard curve == Ed25519PublicKey.curveName else {
-                throw .keyTypeMismatch(expected: "OKP Ed25519", found: "OKP \(curve)")
+            let publicBytes = try members.requiredBytes("x", keyType: keyType)
+            let privateBytes = try members.requiredBytes("d", keyType: keyType)
+            switch curve {
+            case Ed25519PublicKey.curveName:
+                let declared = try Ed25519PublicKey(rawRepresentation: publicBytes)
+                let privateKey = try Ed25519PrivateKey(rawRepresentation: privateBytes)
+                guard privateKey.publicKey == declared else {
+                    throw .privateKeyDoesNotMatchPublicKey(curve: curve)
+                }
+                key = .ed25519(privateKey)
+            case X25519PublicKey.curveName:
+                let declared = try X25519PublicKey(rawRepresentation: publicBytes)
+                let privateKey = try X25519PrivateKey(rawRepresentation: privateBytes)
+                guard privateKey.publicKey == declared else {
+                    throw .privateKeyDoesNotMatchPublicKey(curve: curve)
+                }
+                key = .x25519(privateKey)
+            default:
+                throw .keyTypeMismatch(expected: "OKP Ed25519 or X25519", found: "OKP \(curve)")
             }
-            let declared = try Ed25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType))
-            let privateKey = try Ed25519PrivateKey(rawRepresentation: members.requiredBytes("d", keyType: keyType))
-            guard privateKey.publicKey == declared else {
-                throw .privateKeyDoesNotMatchPublicKey(curve: curve)
-            }
-            key = .ed25519(privateKey)
         case "RSA":
             // RFC 7518 §6.3.2 lets a producer omit the CRT values or add further primes. Both
             // platform implementations need the two-prime CRT form.
@@ -121,6 +135,8 @@ public struct PrivateJWK: Sendable {
         case .p521(let key):
             members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
         case .ed25519(let key):
+            members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+        case .x25519(let key):
             members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
         case .rsa(let key):
             members.values["d"] = .string(Base64URL.encode(key.components.privateExponent))

@@ -16,6 +16,14 @@ public enum RSASignatureHash: Sendable {
     case sha512
 }
 
+/// The hash used by RSAES-OAEP, for both the label hash and MGF1.
+public enum RSAOAEPHash: Sendable {
+    /// `RSA-OAEP` (RFC 7518 §4.3).
+    case sha1
+    /// `RSA-OAEP-256`.
+    case sha256
+}
+
 // CryptoKit has no RSA. On Apple platforms the operations go to Security.framework, so that
 // Apple apps do not have to build BoringSSL; everywhere else they go to swift-crypto's extras.
 // The two implementations sit behind the same two types, and are held to the same fixtures.
@@ -66,6 +74,15 @@ public enum RSASignatureHash: Sendable {
         }
     }
 
+    private func oaepAlgorithm(_ hash: RSAOAEPHash) -> SecKeyAlgorithm {
+        switch hash {
+        case .sha1:
+            return .rsaEncryptionOAEPSHA1
+        case .sha256:
+            return .rsaEncryptionOAEPSHA256
+        }
+    }
+
     struct RSABackendPublicKey: Sendable {
         private let wrapped: SendableSecKey
 
@@ -86,6 +103,15 @@ public enum RSASignatureHash: Sendable {
             _ = error?.takeRetainedValue()
             return isValid
         }
+
+        func encryptOAEP(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+            var error: Unmanaged<CFError>?
+            let algorithm = oaepAlgorithm(hash)
+            guard let ciphertext = SecKeyCreateEncryptedData(wrapped.key, algorithm, plaintext as CFData, &error) else {
+                throw .rsaEncryptionFailed(reason: describe(error))
+            }
+            return ciphertext as Data
+        }
     }
 
     struct RSABackendPrivateKey: Sendable {
@@ -102,6 +128,17 @@ public enum RSASignatureHash: Sendable {
                 throw JWKError.invalidRSAKey(reason: "signing failed: \(describe(error))")
             }
             return signature as Data
+        }
+
+        func decryptOAEP(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+            var error: Unmanaged<CFError>?
+            let algorithm = oaepAlgorithm(hash)
+            guard let plaintext = SecKeyCreateDecryptedData(wrapped.key, algorithm, ciphertext as CFData, &error) else {
+                // Taken so that it is released; its content is deliberately not reported.
+                _ = error?.takeRetainedValue()
+                throw .rsaDecryptionFailed
+            }
+            return plaintext as Data
         }
 
         /// Generates a key in memory (it is not stored in the keychain) and returns it as PKCS#1 DER.
@@ -134,12 +171,27 @@ public enum RSASignatureHash: Sendable {
         }
     }
 
+    private func oaepPadding(_ hash: RSAOAEPHash) -> _RSA.Encryption.Padding {
+        switch hash {
+        case .sha1:
+            return .PKCS1_OAEP
+        case .sha256:
+            return .PKCS1_OAEP_SHA256
+        }
+    }
+
     struct RSABackendPublicKey: Sendable {
         private let key: _RSA.Signing.PublicKey
+        // swift-crypto's RSA encryption key types are not `Sendable`, unlike its signing keys.
+        // Rather than assert that they are safe to share, the DER is kept and the encryption key
+        // is rebuilt for each operation; parsing it is negligible next to the RSA operation.
+        private let der: Data
 
         init(pkcs1DER: Data) throws(JWKError) {
             do {
                 key = try _RSA.Signing.PublicKey(derRepresentation: pkcs1DER)
+                _ = try _RSA.Encryption.PublicKey(derRepresentation: pkcs1DER)
+                der = pkcs1DER
             } catch {
                 throw .invalidRSAKey(reason: String(describing: error))
             }
@@ -156,14 +208,27 @@ public enum RSASignatureHash: Sendable {
                 return key.isValidSignature(rsaSignature, for: SHA512.hash(data: message), padding: rsaPadding(padding))
             }
         }
+
+        func encryptOAEP(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+            do {
+                return try _RSA.Encryption.PublicKey(derRepresentation: der)
+                    .encrypt(plaintext, padding: oaepPadding(hash))
+            } catch {
+                throw .rsaEncryptionFailed(reason: String(describing: error))
+            }
+        }
     }
 
     struct RSABackendPrivateKey: Sendable {
         private let key: _RSA.Signing.PrivateKey
+        // See `RSABackendPublicKey.der`.
+        private let der: Data
 
         init(pkcs1DER: Data) throws(JWKError) {
             do {
                 key = try _RSA.Signing.PrivateKey(derRepresentation: pkcs1DER)
+                _ = try _RSA.Encryption.PrivateKey(derRepresentation: pkcs1DER)
+                der = pkcs1DER
             } catch {
                 throw .invalidRSAKey(reason: String(describing: error))
             }
@@ -180,6 +245,15 @@ public enum RSASignatureHash: Sendable {
             case .sha512:
                 return try key.signature(for: SHA512.hash(data: message), padding: rsaPadding(padding))
                     .rawRepresentation
+            }
+        }
+
+        func decryptOAEP(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+            do {
+                return try _RSA.Encryption.PrivateKey(derRepresentation: der)
+                    .decrypt(ciphertext, padding: oaepPadding(hash))
+            } catch {
+                throw .rsaDecryptionFailed
             }
         }
 

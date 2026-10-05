@@ -60,8 +60,8 @@ struct PrivateKeyTests {
         #expect(throws: JWKError.keyTypeMismatch(expected: "EC P-256, P-384 or P-521", found: "EC secp256k1")) {
             try PrivateJWK(json: Data(#"{"kty":"EC","crv":"secp256k1"}"#.utf8))
         }
-        #expect(throws: JWKError.keyTypeMismatch(expected: "OKP Ed25519", found: "OKP X25519")) {
-            try PrivateJWK(json: Data(#"{"kty":"OKP","crv":"X25519"}"#.utf8))
+        #expect(throws: JWKError.keyTypeMismatch(expected: "OKP Ed25519 or X25519", found: "OKP Ed448")) {
+            try PrivateJWK(json: Data(#"{"kty":"OKP","crv":"Ed448","x":"AA","d":"AA"}"#.utf8))
         }
     }
 

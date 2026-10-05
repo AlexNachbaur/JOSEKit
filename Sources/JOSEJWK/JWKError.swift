@@ -39,6 +39,13 @@ public enum JWKError: Error, Sendable, Equatable {
     case unsupportedRSAPrivateKey(reason: String)
     /// A PKCS#1 DER key could not be read.
     case invalidDER(reason: String)
+    /// ECDH could not produce a usable shared secret with the given public key.
+    case keyAgreementFailed(curve: String)
+    /// RSA encryption failed. The plaintext may be too long for the key.
+    case rsaEncryptionFailed(reason: String)
+    /// RSA decryption failed. Deliberately carries no detail: saying why would help an attacker
+    /// who can submit ciphertexts.
+    case rsaDecryptionFailed
     /// A private JWK's `d` does not correspond to its public members.
     case privateKeyDoesNotMatchPublicKey(curve: String)
     /// A JWK being read as a public key carries a private member.
@@ -104,6 +111,12 @@ extension JWKError: CustomStringConvertible {
             return "RSA private key is not supported: \(reason)"
         case .invalidDER(let reason):
             return "PKCS#1 DER key could not be read: \(reason)"
+        case .keyAgreementFailed(let curve):
+            return "\(curve) key agreement did not produce a usable shared secret"
+        case .rsaEncryptionFailed(let reason):
+            return "RSA encryption failed: \(reason)"
+        case .rsaDecryptionFailed:
+            return "RSA decryption failed"
         case .privateKeyDoesNotMatchPublicKey(let curve):
             return "\(curve) private key does not correspond to the public key it was supplied with"
         case .privateMemberInPublicKey(let member, let keyType):

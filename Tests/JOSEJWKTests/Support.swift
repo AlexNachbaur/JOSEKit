@@ -85,7 +85,20 @@ struct KeysFixture: Decodable {
         let tamperedSignature: String
         let nonStandardSaltSignature: String?
     }
+    struct OAEPCase: Decodable {
+        let hash: String
+        let plaintext: String
+        let ciphertext: String
+    }
+    struct Agreement: Decodable {
+        let curve: String
+        let privateJwk: [String: String]
+        let publicJwk: [String: String]
+        let publicThumbprint: String
+        let sharedSecret: String
+    }
     struct RSAKey: Decodable {
+        let oaep: [OAEPCase]
         let bitCount: Int
         let publicJwk: [String: String]
         let privateJwk: [String: String]
@@ -98,6 +111,7 @@ struct KeysFixture: Decodable {
     let keys: [Key]
     let hmacs: [HMACCase]
     let rsaKeys: [RSAKey]
+    let agreements: [Agreement]
 
     static func load() throws -> KeysFixture {
         try Fixtures.load(KeysFixture.self, named: "keys")

@@ -12,6 +12,7 @@ public struct JWK: Sendable, Hashable {
         case p384(ECPublicKey<P384Curve>)
         case p521(ECPublicKey<P521Curve>)
         case ed25519(Ed25519PublicKey)
+        case x25519(X25519PublicKey)
         case rsa(RSAPublicKey)
         /// A key type or curve this package does not implement. Its members are kept as they
         /// were read so that an add-on can interpret them.
@@ -54,7 +55,7 @@ public struct JWK: Sendable, Hashable {
         switch key {
         case .p256, .p384, .p521:
             return "EC"
-        case .ed25519:
+        case .ed25519, .x25519:
             return "OKP"
         case .rsa:
             return "RSA"
@@ -98,12 +99,17 @@ public struct JWK: Sendable, Hashable {
             recognizedNames.formUnion(["crv", "x", "y"])
         case "OKP":
             let curve = try members.requiredString("crv", keyType: keyType)
-            guard curve == Ed25519PublicKey.curveName else {
+            switch curve {
+            case Ed25519PublicKey.curveName:
+                try members.requireAbsent("d", keyType: keyType)
+                key = .ed25519(try Ed25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType)))
+            case X25519PublicKey.curveName:
+                try members.requireAbsent("d", keyType: keyType)
+                key = .x25519(try X25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType)))
+            default:
                 key = Self.unrecognized(members, keyType: keyType)
                 return
             }
-            try members.requireAbsent("d", keyType: keyType)
-            key = .ed25519(try Ed25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType)))
             recognizedNames.formUnion(["crv", "x"])
         case "RSA":
             for privateMember in RSAPrivateMembers.names {
@@ -156,7 +162,9 @@ public struct JWK: Sendable, Hashable {
         case .p521(let key):
             members.setECPublicKey(key)
         case .ed25519(let key):
-            members.setEd25519PublicKey(key)
+            members.setOctetKeyPair(curve: Ed25519PublicKey.curveName, x: key.rawRepresentation)
+        case .x25519(let key):
+            members.setOctetKeyPair(curve: X25519PublicKey.curveName, x: key.rawRepresentation)
         case .rsa(let key):
             members.setRSAPublicKey(key)
         case .unrecognized(let unrecognized):
@@ -181,10 +189,10 @@ extension JWKMembers {
         values["y"] = .string(Base64URL.encode(key.y))
     }
 
-    mutating func setEd25519PublicKey(_ key: Ed25519PublicKey) {
+    mutating func setOctetKeyPair(curve: String, x: Data) {
         values["kty"] = "OKP"
-        values["crv"] = .string(Ed25519PublicKey.curveName)
-        values["x"] = .string(Base64URL.encode(key.rawRepresentation))
+        values["crv"] = .string(curve)
+        values["x"] = .string(Base64URL.encode(x))
     }
 }
 

@@ -74,6 +74,18 @@ extension Ed25519PublicKey {
     }
 }
 
+extension X25519PublicKey {
+    var canonicalJSON: String {
+        "{\"crv\":" + JSONStringEscaper.quoted(Self.curveName)
+            + ",\"kty\":\"OKP\",\"x\":" + JSONStringEscaper.quoted(Base64URL.encode(rawRepresentation))
+            + "}"
+    }
+
+    public func thumbprint(using hashAlgorithm: JWKThumbprint.HashAlgorithm = .sha256) -> JWKThumbprint {
+        JWKThumbprint(canonicalJSON: canonicalJSON, hashAlgorithm: hashAlgorithm)
+    }
+}
+
 extension RSAPublicKey {
     var canonicalJSON: String {
         "{\"e\":" + JSONStringEscaper.quoted(Base64URL.encode(exponent))
@@ -102,6 +114,8 @@ extension JWK {
         case .p521(let key):
             return key.thumbprint(using: hashAlgorithm)
         case .ed25519(let key):
+            return key.thumbprint(using: hashAlgorithm)
+        case .x25519(let key):
             return key.thumbprint(using: hashAlgorithm)
         case .rsa(let key):
             return key.thumbprint(using: hashAlgorithm)

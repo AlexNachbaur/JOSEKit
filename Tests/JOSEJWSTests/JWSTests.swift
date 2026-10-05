@@ -458,6 +458,49 @@ struct JWSTests {
         )
     }
 
+    @Test("crit itself must be protected, and may not list a name twice")
+    func criticalRules() async throws {
+        let keys = try Keys()
+        let signed = try await Plain.sign(Data("p".utf8), with: keys.signer)
+        let parts = try signed.compactSerialization().split(separator: ".").map(String.init)
+
+        // The critical parameter is protected and understood; only `crit` sits in the unprotected header.
+        let protected = encoded(#"{"alg":"ES256","urn:example:must":"x"}"#)
+        let json =
+            #"{"payload":"\#(parts[1])","signature":"\#(parts[2])","protected":"\#(protected)","header":{"crit":["urn:example:must"]}}"#
+        do {
+            _ = try JWS<ExampleHeader>.Unverified(json: Data(json.utf8))
+            Issue.record("an unprotected crit was accepted")
+        } catch {
+            guard case .headerParameterNotProtected(let name) = error else {
+                Issue.record("unexpected error \(error)")
+                return
+            }
+            #expect(name == "crit")
+        }
+        // Positive control: the same header with crit protected parses.
+        let allProtected = try await token(
+            headerJSON: #"{"alg":"ES256","crit":["urn:example:must"],"urn:example:must":"x"}"#,
+            signer: keys.signer
+        )
+        _ = try JWS<ExampleHeader>.Unverified(compact: allProtected).verify(with: keys.verification)
+
+        let repeated = try await token(
+            headerJSON: #"{"alg":"ES256","crit":["urn:example:must","urn:example:must"],"urn:example:must":"x"}"#,
+            signer: keys.signer
+        )
+        do {
+            _ = try JWS<ExampleHeader>.Unverified(compact: repeated)
+            Issue.record("a crit list with a repeated name was accepted")
+        } catch {
+            guard case .invalidCritical(let reason) = error else {
+                Issue.record("unexpected error \(error)")
+                return
+            }
+            #expect(reason.contains("more than once"))
+        }
+    }
+
     @Test("malformed JSON serializations report what is wrong")
     func invalidJSONSerialization() {
         func parse(_ json: String) -> String? {
@@ -529,6 +572,23 @@ struct JWSTests {
         #expect(verify(withoutKeyID, [wrongKeyRightID]) == "signatureInvalid")
     }
 
+    @Test("an RSA token cannot be re-labelled between RS256 and PS256, and is refused when only EC keys are offered")
+    func rsaAlgorithmBinding() async throws {
+        let key = try RSAPrivateKey()
+        let signed = try await Plain.sign(Data("rsa".utf8), with: try RSASigner<RS256>(privateKey: key, keyID: "r"))
+        let jws = try Plain.Unverified(compact: try signed.compactSerialization())
+        let rs256 = AnyVerifier(try RSAVerifier<RS256>(publicKey: key.publicKey, keyID: "r"))
+        let ps256 = AnyVerifier(try RSAVerifier<PS256>(publicKey: key.publicKey, keyID: "r"))
+        #expect(try jws.verify(with: VerificationKeys([rs256])).payload == Data("rsa".utf8))
+        // The same key registered for a different RSA algorithm is not a verifier for this token.
+        #expect(
+            thrownCase { () throws(JWSError) in try jws.verify(with: VerificationKeys([ps256])) }
+                == "noVerifierForAlgorithm"
+        )
+        let ecOnly = try Keys().verification
+        #expect(thrownCase { () throws(JWSError) in try jws.verify(with: ecOnly) } == "noVerifierForAlgorithm")
+    }
+
     @Test("the error for an unsupported algorithm lists what was offered")
     func noVerifierMessage() async throws {
         let keys = try Keys()
@@ -588,6 +648,16 @@ struct JWSTests {
         let keys = VerificationKeys(jwks: set, allowing: [ES256.self, JOSECore.Ed25519.self, EdDSA.self])
         let summary = keys.verifiers.map { "\($0.algorithm):\($0.keyID?.rawValue ?? "-")" }
         #expect(summary == ["ES256:p256", "Ed25519:ed", "EdDSA:ed", "EdDSA:ed-legacy"])
+
+        let rsa = JWK(.rsa(try RSAPrivateKey().publicKey), metadata: JWKMetadata(keyID: "rsa"))
+        let rsaKeys = VerificationKeys(
+            jwks: JWKSet(keys: [p256, rsa]),
+            allowing: [RS256.self, PS256.self, ES256.self]
+        )
+        #expect(
+            rsaKeys.verifiers.map { "\($0.algorithm):\($0.keyID?.rawValue ?? "-")" }
+                == ["ES256:p256", "RS256:rsa", "PS256:rsa"]
+        )
 
         #expect(VerificationKeys(jwks: set, allowing: []).verifiers.isEmpty)
         #expect(VerificationKeys(jwks: set, allowing: [ES384.self, ES512.self]).algorithms == ["ES384"])

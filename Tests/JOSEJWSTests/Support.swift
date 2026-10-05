@@ -140,6 +140,18 @@ struct TestKeys {
             return try JOSECore.Ed25519.verifier(for: try JWK(json: json))
         case "EdDSA":
             return try EdDSA.verifier(for: try JWK(json: json))
+        case "RS256":
+            return try RS256.verifier(for: try JWK(json: json))
+        case "RS384":
+            return try RS384.verifier(for: try JWK(json: json))
+        case "RS512":
+            return try RS512.verifier(for: try JWK(json: json))
+        case "PS256":
+            return try PS256.verifier(for: try JWK(json: json))
+        case "PS384":
+            return try PS384.verifier(for: try JWK(json: json))
+        case "PS512":
+            return try PS512.verifier(for: try JWK(json: json))
         case "HS256":
             return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
         case "HS384":

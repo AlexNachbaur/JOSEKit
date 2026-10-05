@@ -13,7 +13,7 @@ import {
     CompactSign, FlattenedSign, GeneralSign, base64url, compactVerify, exportJWK, flattenedVerify, generalVerify,
     generateKeyPair, importJWK,
 } from 'jose';
-import { ASYMMETRIC, HMAC } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA_ALGORITHMS } from './common.mjs';
 
 async function challenge(file) {
     const hmacKeys = [];
@@ -32,6 +32,11 @@ async function challenge(file) {
             const other = await generateKeyPair(kind.joseAlg, { extractable: true });
             setups.push({ alg, signKey: pair.privateKey, verifyKey: pair.publicKey, wrongKey: other.publicKey });
         }
+    }
+    for (const alg of RSA_ALGORITHMS) {
+        const pair = await generateKeyPair(alg, { extractable: true });
+        const other = await generateKeyPair(alg, { extractable: true });
+        setups.push({ alg, signKey: pair.privateKey, verifyKey: pair.publicKey, wrongKey: other.publicKey });
     }
     for (const spec of HMAC) {
         setups.push({
@@ -136,7 +141,7 @@ async function verify(challengeFile, responseFile) {
     }
 
     const unencodedHex = Buffer.from(challenge.unencodedPayload, 'utf8').toString('hex');
-    const expectedAlgorithms = ['ES256', 'ES384', 'ES512', 'Ed25519', 'EdDSA', 'HS256', 'HS384', 'HS512'];
+    const expectedAlgorithms = ['ES256', 'ES384', 'ES512', 'Ed25519', 'EdDSA', ...RSA_ALGORITHMS, 'HS256', 'HS384', 'HS512'];
     check('algorithms covered', '', JSON.stringify(response.produced.map((p) => p.algorithm)) === JSON.stringify(expectedAlgorithms), response.produced.map((p) => p.algorithm).join(','));
 
     for (const item of response.produced) {

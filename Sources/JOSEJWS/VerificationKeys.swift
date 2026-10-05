@@ -83,6 +83,42 @@ extension EdDSA: JWKVerifiableAlgorithm {
     }
 }
 
+extension RS256: JWKVerifiableAlgorithm {
+    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        AnyVerifier(try RSAVerifier<RS256>(jwk: jwk))
+    }
+}
+
+extension RS384: JWKVerifiableAlgorithm {
+    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        AnyVerifier(try RSAVerifier<RS384>(jwk: jwk))
+    }
+}
+
+extension RS512: JWKVerifiableAlgorithm {
+    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        AnyVerifier(try RSAVerifier<RS512>(jwk: jwk))
+    }
+}
+
+extension PS256: JWKVerifiableAlgorithm {
+    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        AnyVerifier(try RSAVerifier<PS256>(jwk: jwk))
+    }
+}
+
+extension PS384: JWKVerifiableAlgorithm {
+    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        AnyVerifier(try RSAVerifier<PS384>(jwk: jwk))
+    }
+}
+
+extension PS512: JWKVerifiableAlgorithm {
+    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        AnyVerifier(try RSAVerifier<PS512>(jwk: jwk))
+    }
+}
+
 /// The keys a JWS may be verified with.
 ///
 /// This is also the list of acceptable algorithms: a token is only ever checked with a verifier

@@ -134,7 +134,8 @@ struct CounterpartTests {
         let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
         #expect(
             fixture.tokens.map(\.algorithm) == [
-                "ES256", "ES384", "ES512", "Ed25519", "EdDSA", "HS256", "HS384", "HS512",
+                "ES256", "ES384", "ES512", "Ed25519", "EdDSA", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512",
+                "HS256", "HS384", "HS512",
             ]
         )
         for token in fixture.tokens {
@@ -199,7 +200,7 @@ struct CounterpartTests {
         let payload = try Data(hex: general.payload)
         let jws = try Plain.Unverified(json: Data(general.json.utf8))
         #expect(jws.headers.count == general.signers.count)
-        #expect(general.signers.count == 5)
+        #expect(general.signers.count == 11)
 
         var all: [AnyVerifier] = []
         for signer in general.signers {

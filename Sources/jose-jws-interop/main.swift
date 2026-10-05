@@ -154,6 +154,15 @@ response.produced.append(
 )
 response.produced.append(try await produce(try Ed25519Signer<EdDSA>(privateKey: edwards, keyID: "ed"), jwk: edwardsJWK))
 
+let rsa = try RSAPrivateKey()
+let rsaJWK = try publicJSON(.rsa(rsa.publicKey))
+response.produced.append(try await produce(try RSASigner<RS256>(privateKey: rsa, keyID: "rsa"), jwk: rsaJWK))
+response.produced.append(try await produce(try RSASigner<RS384>(privateKey: rsa, keyID: "rsa"), jwk: rsaJWK))
+response.produced.append(try await produce(try RSASigner<RS512>(privateKey: rsa, keyID: "rsa"), jwk: rsaJWK))
+response.produced.append(try await produce(try RSASigner<PS256>(privateKey: rsa, keyID: "rsa"), jwk: rsaJWK))
+response.produced.append(try await produce(try RSASigner<PS384>(privateKey: rsa, keyID: "rsa"), jwk: rsaJWK))
+response.produced.append(try await produce(try RSASigner<PS512>(privateKey: rsa, keyID: "rsa"), jwk: rsaJWK))
+
 for key in challenge.hmacKeys {
     let jwk = try SymmetricJWK(json: Data(key.jwk.utf8))
     switch key.algorithm {
@@ -181,6 +190,18 @@ func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
         return try JOSECore.Ed25519.verifier(for: try JWK(json: json))
     case "EdDSA":
         return try EdDSA.verifier(for: try JWK(json: json))
+    case "RS256":
+        return try RS256.verifier(for: try JWK(json: json))
+    case "RS384":
+        return try RS384.verifier(for: try JWK(json: json))
+    case "RS512":
+        return try RS512.verifier(for: try JWK(json: json))
+    case "PS256":
+        return try PS256.verifier(for: try JWK(json: json))
+    case "PS384":
+        return try PS384.verifier(for: try JWK(json: json))
+    case "PS512":
+        return try PS512.verifier(for: try JWK(json: json))
     case "HS256":
         return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
     case "HS384":

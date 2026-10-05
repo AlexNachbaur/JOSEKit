@@ -15,7 +15,7 @@ import {
     CompactSign, FlattenedSign, GeneralSign, base64url, compactVerify, exportJWK, flattenedVerify, generalVerify,
     generateKeyPair,
 } from 'jose';
-import { ASYMMETRIC, HMAC, joseVersion } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA_ALGORITHMS, joseVersion } from './common.mjs';
 
 const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWSTests/Fixtures');
 
@@ -50,6 +50,11 @@ async function signingSetups() {
             const { publicKey, privateKey } = await generateKeyPair(kind.joseAlg, { extractable: true });
             setups.push({ alg, signKey: privateKey, verifyKey: publicKey, jwk: await exportJWK(publicKey), symmetric: false });
         }
+    }
+    // A WebCrypto RSA key is bound to one algorithm, so each RSA algorithm gets its own key.
+    for (const alg of RSA_ALGORITHMS) {
+        const { publicKey, privateKey } = await generateKeyPair(alg, { extractable: true });
+        setups.push({ alg, signKey: privateKey, verifyKey: publicKey, jwk: await exportJWK(publicKey), symmetric: false });
     }
     for (const spec of HMAC) {
         const secret = crypto.createSecretKey(crypto.randomBytes(spec.byteCount));

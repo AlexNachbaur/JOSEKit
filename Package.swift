@@ -9,6 +9,7 @@ let swiftSettings: [SwiftSetting] = [
 let core: Target.Dependency = .product(name: "JOSECore", package: "jose-core")
 let jwk: Target.Dependency = .product(name: "JOSEJWK", package: "jose-jwk")
 let jws: Target.Dependency = .product(name: "JOSEJWS", package: "jose-jws")
+let jwe: Target.Dependency = .product(name: "JOSEJWE", package: "jose-jwe")
 
 let package = Package(
     name: "jose-jwt",
@@ -20,13 +21,17 @@ let package = Package(
         .visionOS(.v1),
     ],
     products: [
-        .library(name: "JOSEJWT", targets: ["JOSEJWT"])
+        .library(name: "JOSEJWT", targets: ["JOSEJWT"]),
+        // Encrypted and nested JWTs. A separate product so that an application that only signs
+        // and verifies does not build the encryption code.
+        .library(name: "JOSEJWTEncrypted", targets: ["JOSEJWTEncrypted"]),
     ],
     dependencies: [
         // Path dependencies until the repositories are published.
         .package(path: "../jose-core"),
         .package(path: "../jose-jwk"),
         .package(path: "../jose-jws"),
+        .package(path: "../jose-jwe"),
     ],
     targets: [
         .target(
@@ -39,6 +44,22 @@ let package = Package(
         .executableTarget(
             name: "jose-jwt-interop",
             dependencies: ["JOSEJWT", core, jwk, jws],
+            swiftSettings: swiftSettings
+        ),
+        .target(
+            name: "JOSEJWTEncrypted",
+            dependencies: ["JOSEJWT", core, jwk, jws, jwe],
+            swiftSettings: swiftSettings
+        ),
+        .executableTarget(
+            name: "jose-jwt-encrypted-interop",
+            dependencies: ["JOSEJWT", "JOSEJWTEncrypted", core, jwk, jws, jwe],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "JOSEJWTEncryptedTests",
+            dependencies: ["JOSEJWT", "JOSEJWTEncrypted", core, jwk, jws, jwe],
+            resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(

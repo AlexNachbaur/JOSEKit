@@ -151,7 +151,7 @@ struct ClaimsJSON {
 
 extension JWTClaims {
     /// The claims set as JSON, with members in lexical order.
-    func jsonRepresentation() throws(JWTError) -> Data {
+    package func jsonRepresentation() throws(JWTError) -> Data {
         var values: [String: JSONValue]
         do {
             let customJSON = try ClaimsJSON.encoder().encode(custom)
@@ -210,7 +210,7 @@ extension JWTClaims {
 
     /// Reads a claims set, rejecting duplicate member names. Returns the typed claims and every
     /// member as received.
-    static func parse(_ json: Data) throws(JWTError) -> (claims: JWTClaims<Custom>, raw: [String: JSONValue]) {
+    package static func parse(_ json: Data) throws(JWTError) -> (claims: JWTClaims<Custom>, raw: [String: JSONValue]) {
         do {
             try JSONMemberUniqueness.validate(json)
         } catch {

@@ -57,7 +57,7 @@ public struct JWTValidationPolicy: Sendable {
         self.clock = clock
     }
 
-    func validate<Custom>(_ claims: JWTClaims<Custom>, type headerType: MediaType?) throws(JWTValidationError) {
+    package func validate<Custom>(_ claims: JWTClaims<Custom>, type headerType: MediaType?) throws(JWTValidationError) {
         switch type {
         case .exactly(let expected):
             guard headerType == expected else {

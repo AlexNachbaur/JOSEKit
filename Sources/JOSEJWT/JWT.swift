@@ -61,6 +61,18 @@ public struct JWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendabl
             let (claims, raw) = try JWTClaims<Custom>.parse(verified.payload)
             return Verified(header: verified.header, unvalidatedClaims: claims, rawClaims: raw)
         }
+
+        /// Resolves keys from the header's `jku`, `x5c` or `jwk` with `resolver`, then verifies.
+        public func verify(resolving resolver: HeaderKeyResolver) async throws(JWTError) -> Verified {
+            let verified: JWS<Header>.Verified
+            do {
+                verified = try await jws.verify(resolving: resolver)
+            } catch {
+                throw .jws(error)
+            }
+            let (claims, raw) = try JWTClaims<Custom>.parse(verified.payload)
+            return Verified(header: verified.header, unvalidatedClaims: claims, rawClaims: raw)
+        }
     }
 
     /// A JWT whose signature is good. Whether it is expired, or meant for you, is not yet known.

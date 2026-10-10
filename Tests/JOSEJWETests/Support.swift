@@ -123,6 +123,18 @@ struct TestKeys {
             return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP>(privateKey: try rsa(), keyID: keyID))
         case "RSA-OAEP-256":
             return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try rsa(), keyID: keyID))
+        case "PBES2-HS256+A128KW":
+            return AnyKeyDecrypter(
+                try PBES2Key<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
+            )
+        case "PBES2-HS384+A192KW":
+            return AnyKeyDecrypter(
+                try PBES2Key<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID)
+            )
+        case "PBES2-HS512+A256KW":
+            return AnyKeyDecrypter(
+                try PBES2Key<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID)
+            )
         default:
             throw FixtureError(description: "no decrypter for \(algorithm)")
         }

@@ -67,7 +67,28 @@ export function keyManagementSetups() {
             },
         });
     }
+    // PBES2: the "key" is a password. It is carried to the Swift side as an oct JWK whose `k` is
+    // the password's UTF-8 bytes, which is how jose itself accepts a password-as-bytes.
+    for (const alg of ['PBES2-HS256+A128KW', 'PBES2-HS384+A192KW', 'PBES2-HS512+A256KW']) {
+        setups.push({
+            alg,
+            label: alg,
+            async keys() {
+                const password = Buffer.from(`correct horse ${crypto.randomInt(1_000_000)}`, 'utf8');
+                const jwk = { kty: 'oct', k: Buffer.from(password).toString('base64url') };
+                return { encryptKey: password, decryptKey: password, decryptJwk: jwk, encryptJwk: jwk };
+            },
+        });
+    }
     return setups;
+}
+
+/**
+ * jose refuses PBES2 on decryption unless it is explicitly allowed, because the token chooses
+ * the iteration count and so the recipient's work. The Swift side bounds the count instead.
+ */
+export function decryptOptions(alg) {
+    return alg.startsWith('PBES2') ? { keyManagementAlgorithms: [alg] } : {};
 }
 
 export function flipLastBit(buffer) {

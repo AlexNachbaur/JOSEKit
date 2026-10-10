@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CompactEncrypt, FlattenedEncrypt, GeneralEncrypt, base64url, compactDecrypt, exportJWK, flattenedDecrypt, generalDecrypt, generateKeyPair } from 'jose';
-import { ENCRYPTIONS, flipLastBit, joseVersion, keyManagementSetups } from './common.mjs';
+import { ENCRYPTIONS, decryptOptions, flipLastBit, joseVersion, keyManagementSetups } from './common.mjs';
 
 const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWETests/Fixtures');
 
@@ -46,7 +46,7 @@ async function validFixture() {
             const token = await new CompactEncrypt(plaintext)
                 .setProtectedHeader({ alg: setup.alg, enc: encryption.enc, kid: 'key-1', typ: 'example+jwe', 'urn:example:level': 7 })
                 .encrypt(keys.encryptKey);
-            const { plaintext: decrypted } = await compactDecrypt(token, keys.decryptKey);
+            const { plaintext: decrypted } = await compactDecrypt(token, keys.decryptKey, decryptOptions(setup.alg));
             assert(Buffer.from(decrypted).equals(plaintext), 'jose could not decrypt its own JWE');
             compact.push({
                 label: `${setup.label} / ${encryption.enc}`,

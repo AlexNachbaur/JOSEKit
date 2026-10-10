@@ -858,6 +858,75 @@ struct JWETests {
 
     // MARK: Primitives
 
+    @Test("PBES2 round-trips, writes its salt and count, and refuses the wrong password")
+    func pbes2RoundTrip() async throws {
+        let key = try PBES2Key<PBES2HS256A128KW>(password: "correct horse battery staple", keyID: "pw")
+        let sealed = try Plain.encrypt(Self.plaintext, to: key, using: A128CBCHS256.self)
+        #expect(sealed.header?.rawParameters["p2c"] == 2048)
+        guard case .string(let salt) = try #require(sealed.header?.rawParameters["p2s"]) else {
+            Issue.record("p2s missing")
+            return
+        }
+        #expect(try Base64URL.decode(salt).count == 16)
+        #expect(try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(key)])).plaintext == Self.plaintext)
+
+        let wrong = try PBES2Key<PBES2HS256A128KW>(password: "correct horse battery stapler")
+        #expect(
+            await thrown { () async throws(JWEError) in
+                try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(wrong)]))
+            }
+                == .decryptionFailed
+        )
+        let stronger = try PBES2Key<PBES2HS512A256KW>(password: "p", iterationCount: 5000, maximumIterationCount: 5000)
+        let strongSealed = try Plain.encrypt(Self.plaintext, to: stronger, using: A256GCM.self)
+        #expect(strongSealed.header?.rawParameters["p2c"] == 5000)
+        #expect(
+            try await strongSealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(stronger)])).plaintext
+                == Self.plaintext
+        )
+    }
+
+    @Test("PBES2 iteration counts are bounded in both directions, and the salt input must be long enough")
+    func pbes2Limits() async throws {
+        #expect(throws: JWEError.invalidIterationCount(found: 0, maximum: 10_000)) {
+            try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 0)
+        }
+        #expect(throws: JWEError.invalidIterationCount(found: 20_000, maximum: 10_000)) {
+            try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 20_000)
+        }
+        _ = try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 20_000, maximumIterationCount: 20_000)
+
+        // A received token is checked before any derivation: the count is attacker-controlled.
+        let key = try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 1000, maximumIterationCount: 1000)
+        func outcome(_ header: [String: JSONValue]) async -> JWEError? {
+            let request = KeyDecryptionRequest(
+                encryptedKey: Data(count: 24),
+                contentEncryption: "A128GCM",
+                keyByteCount: 16,
+                header: header
+            )
+            return await thrown { () async throws(JWEError) in try await key.decryptKey(request) }
+        }
+        let salt = JSONValue.string(Base64URL.encode(Data(count: 16)))
+        #expect(await outcome(["p2s": salt, "p2c": 1000]) == .decryptionFailed)
+        #expect(await outcome(["p2s": salt, "p2c": 1001]) == .invalidIterationCount(found: 1001, maximum: 1000))
+        #expect(await outcome(["p2s": salt, "p2c": 0]) == .invalidIterationCount(found: 0, maximum: 1000))
+        #expect(
+            await outcome(["p2s": salt, "p2c": 1_000_000_000_000])
+                == .invalidIterationCount(found: 1_000_000_000_000, maximum: 1000)
+        )
+        #expect(
+            await outcome(["p2s": salt, "p2c": "1000"])
+                == .headerParameterWrongType(name: "p2c", expected: "a positive integer")
+        )
+        #expect(await outcome(["p2s": salt]) == .missingHeaderParameter(name: "p2c", algorithm: "PBES2-HS256+A128KW"))
+        #expect(await outcome(["p2c": 1000]) == .missingHeaderParameter(name: "p2s", algorithm: "PBES2-HS256+A128KW"))
+        #expect(
+            await outcome(["p2s": .string(Base64URL.encode(Data(count: 7))), "p2c": 1000])
+                == .saltTooShort(algorithm: "PBES2-HS256+A128KW", minimum: 8, found: 7)
+        )
+    }
+
     @Test("AES-GCM-KW needs its iv and tag, of the right sizes")
     func gcmKeyWrapParameters() async throws {
         let key = try AESGCMKeyWrapKey<A256GCMKW>(key: secret(32))
@@ -1006,6 +1075,8 @@ struct JWETests {
             (.missingHeaderParameter(name: "epk", algorithm: "ECDH-ES"), "epk"),
             (.invalidEphemeralKey(.pointNotOnCurve(curve: "P-256")), "P-256"),
             (.ephemeralKeyCurveMismatch(expected: "P-256", found: "P-384"), "P-384"),
+            (.invalidIterationCount(found: 5, maximum: 4), "5"),
+            (.saltTooShort(algorithm: "PBES2-HS256+A128KW", minimum: 8, found: 2), "2 bytes"),
             (.unsupportedContentEncryption(algorithm: "X", allowed: ["A256GCM"]), "A256GCM"),
             (.noDecrypterForAlgorithm(algorithm: "RSA1_5", offered: ["dir"]), "RSA1_5"),
             (.noDecrypterForKeyID(keyID: "k9", algorithm: "dir"), "k9"),

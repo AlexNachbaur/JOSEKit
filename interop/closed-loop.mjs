@@ -10,7 +10,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { CompactEncrypt, FlattenedEncrypt, GeneralEncrypt, base64url, compactDecrypt, flattenedDecrypt, generalDecrypt, importJWK } from 'jose';
-import { ENCRYPTIONS, flipLastBit, keyManagementSetups } from './common.mjs';
+import { ENCRYPTIONS, decryptOptions, flipLastBit, keyManagementSetups } from './common.mjs';
 
 async function challenge(file) {
     const plaintext = crypto.randomBytes(200);
@@ -54,8 +54,8 @@ async function challenge(file) {
                 let expected;
                 try {
                     const result = variant.serialization === 'compact'
-                        ? await compactDecrypt(variant.token, variant.key.decryptKey)
-                        : await flattenedDecrypt(JSON.parse(variant.token), variant.key.decryptKey);
+                        ? await compactDecrypt(variant.token, variant.key.decryptKey, decryptOptions(setup.alg))
+                        : await flattenedDecrypt(JSON.parse(variant.token), variant.key.decryptKey, decryptOptions(setup.alg));
                     expected = { accepted: true, plaintext: Buffer.from(result.plaintext).toString('hex') };
                 } catch {
                     expected = { accepted: false };
@@ -124,8 +124,9 @@ async function verify(challengeFile, responseFile) {
         const produced = response.produced[index];
         if (!produced) continue;
         const key = await importJWK(JSON.parse(item.decryptJwk), item.algorithm);
+        const options = decryptOptions(item.algorithm);
 
-        const result = await opens('compact decrypted by jose', item.label, () => compactDecrypt(produced.compact, key));
+        const result = await opens('compact decrypted by jose', item.label, () => compactDecrypt(produced.compact, key, options));
         if (result) {
             const header = result.protectedHeader;
             check('compact header', item.label, header.alg === item.algorithm && header.enc === item.encryption && header.typ === 'example+jwe', JSON.stringify(header));
@@ -133,12 +134,12 @@ async function verify(challengeFile, responseFile) {
         // Decryption above only means something if jose refuses the same JWE once altered.
         const parts = produced.compact.split('.');
         const flip = (segment) => base64url.encode(flipLastBit(Buffer.from(base64url.decode(segment))));
-        await refuses('compact with altered ciphertext refused', item.label, () => compactDecrypt([parts[0], parts[1], parts[2], flip(parts[3]), parts[4]].join('.'), key));
-        await refuses('compact with altered tag refused', item.label, () => compactDecrypt([parts[0], parts[1], parts[2], parts[3], flip(parts[4])].join('.'), key));
+        await refuses('compact with altered ciphertext refused', item.label, () => compactDecrypt([parts[0], parts[1], parts[2], flip(parts[3]), parts[4]].join('.'), key, options));
+        await refuses('compact with altered tag refused', item.label, () => compactDecrypt([parts[0], parts[1], parts[2], parts[3], flip(parts[4])].join('.'), key, options));
 
         const flattened = JSON.parse(produced.flattened);
-        await opens('flattened with additional data decrypted by jose', item.label, () => flattenedDecrypt(flattened, key), challenge.additionalData);
-        await refuses('flattened with altered additional data refused', item.label, () => flattenedDecrypt({ ...flattened, aad: base64url.encode('other') }, key));
+        await opens('flattened with additional data decrypted by jose', item.label, () => flattenedDecrypt(flattened, key, options), challenge.additionalData);
+        await refuses('flattened with altered additional data refused', item.label, () => flattenedDecrypt({ ...flattened, aad: base64url.encode('other') }, key, options));
     }
 
     const general = JSON.parse(response.multiple);

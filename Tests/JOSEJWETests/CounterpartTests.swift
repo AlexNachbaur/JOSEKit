@@ -65,8 +65,8 @@ struct CounterpartTests {
     @Test("every pairing of key management and content encryption from jose decrypts")
     func compactTokens() async throws {
         let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
-        #expect(fixture.compact.count == 150)
-        #expect(Set(fixture.compact.map(\.algorithm)).count == 13)
+        #expect(fixture.compact.count == 168)
+        #expect(Set(fixture.compact.map(\.algorithm)).count == 16)
         #expect(Set(fixture.compact.map(\.encryption)).count == 6)
         for item in fixture.compact {
             let label = Comment(rawValue: item.label)

@@ -6,12 +6,12 @@
     "jose": "6.2.12",
     "node": "v24.11.1"
   },
-  "jwk": "{\"kty\":\"oct\",\"k\":\"CupCShMXG0EoS1hTYOMFKtXTCSDbE8JubG8nHjV8_Cs\"}",
-  "wrongJwk": "{\"kty\":\"oct\",\"k\":\"Zk4wqUfq9MUYiqyh7Sxj6Rd0a-FuYV98RR9uCM3PSzQ\"}",
+  "jwk": "{\"kty\":\"oct\",\"k\":\"JXz7ezmcIWUV7Sm_c21WVIhRBsM4Imm2V7lRq6NdXQI\"}",
+  "wrongJwk": "{\"kty\":\"oct\",\"k\":\"28qkxyXQ46HlX3LSSaGk6LkPLkBaZOkUyohn4mDTvtY\"}",
   "cases": [
     {
       "name": "valid A256KW / A256GCM (positive control)",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": true,
@@ -20,7 +20,7 @@
     },
     {
       "name": "valid A256KW / A128CBC-HS256",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg.uMH_UQPQ7a5cdb7d0s_n1g.H71-5n-mtGqDyCVF2n27Gw",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.u_7BvnqP0MJxIRr-zaZTNUjZtOYKqjGkpSDy-72aeE6KdbAP2Hpaxg.Gb2MfLrbqVIlZluvBseSzw.t6OK66GrAe6r4b0LrHOhxA.AQ8CMYiOBPiBzMOGDNR0Tw",
       "wrongKey": false,
       "jose": {
         "accepted": true,
@@ -29,7 +29,7 @@
     },
     {
       "name": "valid dir / A256GCM",
-      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..8RCA0gKtWY_Asd_a.BgcEG02FX_eBfW30WC4.Avq_ydYh2gDKmTqlb0IIFA",
+      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..AV7-TRvC5dmrAiO4._gV6X9umiOy8ihu14AE.CWbItoPM3O4COL4GxilC4A",
       "wrongKey": false,
       "jose": {
         "accepted": true,
@@ -38,7 +38,7 @@
     },
     {
       "name": "wrong key",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": true,
       "jose": {
         "accepted": false,
@@ -47,7 +47,7 @@
     },
     {
       "name": "ciphertext altered",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFU.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01I.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -56,7 +56,7 @@
     },
     {
       "name": "tag altered",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67A",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbg",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -65,7 +65,7 @@
     },
     {
       "name": "iv altered",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRD.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMk.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -74,7 +74,7 @@
     },
     {
       "name": "encrypted key altered",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vg.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDQ.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -83,7 +83,7 @@
     },
     {
       "name": "header altered (typ added)",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwidHlwIjoieCJ9.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwidHlwIjoieCJ9.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -92,7 +92,7 @@
     },
     {
       "name": "CBC ciphertext altered",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg.uMH_UQPQ7a5cdb7d0s_n1w.H71-5n-mtGqDyCVF2n27Gw",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.u_7BvnqP0MJxIRr-zaZTNUjZtOYKqjGkpSDy-72aeE6KdbAP2Hpaxg.Gb2MfLrbqVIlZluvBseSzw.t6OK66GrAe6r4b0LrHOhxQ.AQ8CMYiOBPiBzMOGDNR0Tw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -101,7 +101,7 @@
     },
     {
       "name": "CBC tag altered",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg.uMH_UQPQ7a5cdb7d0s_n1g.H71-5n-mtGqDyCVF2n27Gg",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.u_7BvnqP0MJxIRr-zaZTNUjZtOYKqjGkpSDy-72aeE6KdbAP2Hpaxg.Gb2MfLrbqVIlZluvBseSzw.t6OK66GrAe6r4b0LrHOhxA.AQ8CMYiOBPiBzMOGDNR0Tg",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -110,7 +110,7 @@
     },
     {
       "name": "CBC ciphertext truncated by a block",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.LWiijUwSHwujeOKEte-XT1Rdvav68Pr_IUHhDhAjWnXlVVvJgo_4NQ.WannsqM8upRRJY1Ydbwnfg..H71-5n-mtGqDyCVF2n27Gw",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.u_7BvnqP0MJxIRr-zaZTNUjZtOYKqjGkpSDy-72aeE6KdbAP2Hpaxg.Gb2MfLrbqVIlZluvBseSzw..AQ8CMYiOBPiBzMOGDNR0Tw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -119,7 +119,7 @@
     },
     {
       "name": "tag truncated",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmp",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -128,7 +128,7 @@
     },
     {
       "name": "tag empty",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -137,7 +137,7 @@
     },
     {
       "name": "iv too short",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgw.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkc.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -146,7 +146,7 @@
     },
     {
       "name": "iv empty",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw..qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA..-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -155,7 +155,7 @@
     },
     {
       "name": "encrypted key empty",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0..sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0..Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -164,7 +164,7 @@
     },
     {
       "name": "ciphertext empty",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC..t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl..M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -173,7 +173,7 @@
     },
     {
       "name": "four segments",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -182,7 +182,7 @@
     },
     {
       "name": "six segments",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q.extra",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw.extra",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -191,7 +191,7 @@
     },
     {
       "name": "three segments (a JWS shape)",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -209,7 +209,7 @@
     },
     {
       "name": "header empty",
-      "token": ".5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": ".d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -218,7 +218,7 @@
     },
     {
       "name": "header is not JSON",
-      "token": "bm90IGpzb24.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "bm90IGpzb24.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -227,7 +227,7 @@
     },
     {
       "name": "header is a JSON array",
-      "token": "WyJhbGciXQ.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "WyJhbGciXQ.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -236,7 +236,7 @@
     },
     {
       "name": "header has duplicate alg",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -245,7 +245,7 @@
     },
     {
       "name": "alg missing",
-      "token": "eyJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -254,7 +254,7 @@
     },
     {
       "name": "enc missing",
-      "token": "eyJhbGciOiJBMjU2S1cifQ.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1cifQ.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -263,7 +263,7 @@
     },
     {
       "name": "alg is a number",
-      "token": "eyJhbGciOjEsImVuYyI6IkEyNTZHQ00ifQ.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOjEsImVuYyI6IkEyNTZHQ00ifQ.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -272,7 +272,7 @@
     },
     {
       "name": "alg unknown",
-      "token": "eyJhbGciOiJBOTk5S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBOTk5S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -281,7 +281,7 @@
     },
     {
       "name": "alg none",
-      "token": "eyJhbGciOiJub25lIiwiZW5jIjoiQTI1NkdDTSJ9.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJub25lIiwiZW5jIjoiQTI1NkdDTSJ9.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -290,7 +290,7 @@
     },
     {
       "name": "alg changed to dir with the wrapping key",
-      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -299,7 +299,7 @@
     },
     {
       "name": "enc unknown",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBOTk5R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBOTk5R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -308,7 +308,7 @@
     },
     {
       "name": "enc changed to A128GCM",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMTI4R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -317,7 +317,7 @@
     },
     {
       "name": "dir with a non-empty encrypted key",
-      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.8RCA0gKtWY_Asd_a.BgcEG02FX_eBfW30WC4.Avq_ydYh2gDKmTqlb0IIFA",
+      "token": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.AV7-TRvC5dmrAiO4._gV6X9umiOy8ihu14AE.CWbItoPM3O4COL4GxilC4A",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -326,7 +326,7 @@
     },
     {
       "name": "zip DEF",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiemlwIjoiREVGIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiemlwIjoiREVGIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -335,7 +335,7 @@
     },
     {
       "name": "crit names an unknown extension",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJ1cm46ZXhhbXBsZTp4Il0sInVybjpleGFtcGxlOngiOjF9.DdP3bMlZPbZMm2QgxcwPkakZII4Z8s6RaJSdINEIpboAGkPnRLhURQ.yWVJYQdjWrJj-tt3.GSu5wsNDyyfRinCIlNk.e8dwNlCciIXJtJpGBmtdjg",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJ1cm46ZXhhbXBsZTp4Il0sInVybjpleGFtcGxlOngiOjF9._qJQvpcON3zil9I1-OXJHBS8yuZQHhKxeFxXKgyrAubYLxqpG9z4sw.hZl8FaXk3Nuz3yNz.Co6ChqM2apnrZlbA-FY.l87ktGksDHGNEDcpXsrGXw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -344,7 +344,7 @@
     },
     {
       "name": "crit is empty",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6W119.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6W119.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -353,7 +353,7 @@
     },
     {
       "name": "crit names enc",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJlbmMiXX0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJlbmMiXX0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -362,7 +362,7 @@
     },
     {
       "name": "header segment padded",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0=.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0=.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw",
       "wrongKey": false,
       "jose": {
         "accepted": false,
@@ -371,7 +371,7 @@
     },
     {
       "name": "tag segment padded",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q==",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw==",
       "wrongKey": false,
       "jose": {
         "accepted": true,
@@ -380,7 +380,7 @@
     },
     {
       "name": "trailing newline",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.5vOhjUXSYwhX-9XhwUaoaEoqjEWFUTa6gOZoqy1jOXNnnEUeUZY8Vw.sttO-qHEJgyJYYRC.qYAOahn1ZuuxNguCPFQ.t1HOVkIAZY0-WTmphmV67Q\n",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.d7OSqIY4r7G7c1BBOjgV9EVzSABuwQxiQxljtZmDPN4jgeb0-TCUDA.Ql5-cZBEUkf0MIMl.-T2h1pOwp9TxtHHD01M.M3hXLm6ZEhOLe840qiEdbw\n",
       "wrongKey": false,
       "jose": {
         "accepted": true,
@@ -389,7 +389,7 @@
     },
     {
       "name": "unknown non-critical parameter",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwidXJuOmV4YW1wbGU6aWdub3JlZCI6WzEsMl19.141lny30ltBFNkF0rHjUBF5A7WrnPbJKX_ecbdGengPXk5nPGgR_DA.IFA4I0FE4diMpzib.HuTc_WHYYwnvsHX5kX0.2NPyGyd5bVE2tJQiV7N4Jw",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwidXJuOmV4YW1wbGU6aWdub3JlZCI6WzEsMl19.BKLDOMbgSN5YyZPg48nyT1aFk5LvLQWTOS1AHXR63dS5okQKN3xVSA.5RAb1bmJLfm061k1.HogsEz_CU9Bx_vMM2Jk.dA0N3GhqH_aV7D-fknJEWQ",
       "wrongKey": false,
       "jose": {
         "accepted": true,
@@ -398,7 +398,7 @@
     },
     {
       "name": "kid is a number",
-      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwia2lkIjo1fQ.rz4-DmUO9vAgE4-DXbtlYevC_480hTwJP1o9JoKvc-IkjQHEkkbUjw.pp0MT5x5iwjWKXBt.hb1NdySk1kNwGVKP9F8.aFVSTOZaaj-336R_RGBsUA",
+      "token": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwia2lkIjo1fQ.5TKol2Se7hYMm3ge27nzUYiitAs7wXfmMdkvX9YhvQn0C0KzcoRaDg.0O3uarXVsCHDFBxj.92EHBNIbXFkce8RMXLw.z1jFDe0YLK_UjpLphP2HOA",
       "wrongKey": false,
       "jose": {
         "accepted": true,

@@ -41,6 +41,11 @@ public enum JWEError: Error, Sendable, Equatable {
     case invalidEphemeralKey(JWKError)
     /// The `epk` is for a different curve from the recipient's key.
     case ephemeralKeyCurveMismatch(expected: String, found: String)
+    /// A PBES2 iteration count is below 1 or above the configured maximum. The maximum exists
+    /// because a token chooses the count, and so the work a recipient does.
+    case invalidIterationCount(found: Int, maximum: Int)
+    /// A PBES2 salt input is shorter than RFC 7518 §4.8.1.1 allows.
+    case saltTooShort(algorithm: AlgorithmIdentifier, minimum: Int, found: Int)
 
     // MARK: Decryption
 
@@ -118,6 +123,10 @@ extension JWEError: CustomStringConvertible {
             return "JWE \"epk\" header parameter is not a usable public key: \(error)"
         case .ephemeralKeyCurveMismatch(let expected, let found):
             return "JWE \"epk\" is a \(found) key; the recipient key is \(expected)"
+        case .invalidIterationCount(let found, let maximum):
+            return "PBES2 iteration count \(found) is outside the accepted range 1...\(maximum)"
+        case .saltTooShort(let algorithm, let minimum, let found):
+            return "\(algorithm) salt input is \(found) bytes; at least \(minimum) are required"
         case .unsupportedContentEncryption(let algorithm, let allowed):
             return "JWE content encryption \(algorithm) is not allowed "
                 + "(allowed: \(allowed.map(\.rawValue).joined(separator: ", ")))"

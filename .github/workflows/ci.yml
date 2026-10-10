@@ -1,0 +1,108 @@
+# Builds and tests on every platform the package supports. The sibling JOSE packages are checked
+# out next to this one and used through JOSE_LOCAL_PACKAGES, so that CI tests the current
+# branches rather than the last tagged releases. macOS and Linux also run the closed-loop
+# interoperability check against panva/jose. Windows and Android are build-only and must not
+# block merges until they have been seen to work; see the comments in jose-core's workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  JOSE_LOCAL_PACKAGES: "1"
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jose-jws
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-core
+          path: jose-core
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-jwk
+          path: jose-jwk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - run: swift format lint --strict --recursive Sources Tests Package.swift
+        working-directory: jose-jws
+      - run: swift test
+        working-directory: jose-jws
+      - run: ./scripts/interop.sh
+        working-directory: jose-jws
+
+  linux:
+    runs-on: ubuntu-latest
+    container: swift:6.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jose-jws
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-core
+          path: jose-core
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-jwk
+          path: jose-jwk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: swift test
+        working-directory: jose-jws
+      - run: ./scripts/interop.sh
+        working-directory: jose-jws
+
+  windows:
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jose-jws
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-core
+          path: jose-core
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-jwk
+          path: jose-jwk
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-6.2-release
+          tag: 6.2-RELEASE
+      - run: swift build --build-tests
+        working-directory: jose-jws
+
+  android:
+    runs-on: ubuntu-latest
+    container: swift:6.2
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jose-jws
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-core
+          path: jose-core
+      - uses: actions/checkout@v4
+        with:
+          repository: AlexNachbaur/jose-jwk
+          path: jose-jwk
+      - run: swift sdk install "$ANDROID_SDK_URL" --checksum "$ANDROID_SDK_CHECKSUM"
+        env:
+          ANDROID_SDK_URL: https://download.swift.org/swift-6.2-release/android-sdk/swift-6.2-RELEASE/swift-6.2-RELEASE_android-0.1.artifactbundle.tar.gz
+          ANDROID_SDK_CHECKSUM: "0000000000000000000000000000000000000000000000000000000000000000"
+      - run: swift build --swift-sdk aarch64-unknown-linux-android28 --build-tests
+        working-directory: jose-jws

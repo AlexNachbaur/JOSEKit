@@ -73,6 +73,8 @@ public enum JWSError: Error, Sendable {
     case verificationFailed(VerificationError)
     /// The JWS has several signatures and none verified. One reason per signature, in order.
     case noSignatureVerified(reasons: [JWSError])
+    /// Keys could not be obtained from the header's `jku`, `x5c` or `jwk`.
+    case keyResolutionFailed(KeyResolutionError)
 
     // MARK: Signing
 
@@ -148,6 +150,8 @@ extension JWSError: CustomStringConvertible {
         case .noSignatureVerified(let reasons):
             return "none of the JWS's \(reasons.count) signatures verified: "
                 + reasons.map(\.description).joined(separator: "; ")
+        case .keyResolutionFailed(let error):
+            return "JWS verification keys could not be resolved from the header: \(error)"
         case .signingFailed(let error):
             return "JWS signing failed: \(error)"
         case .headerEncodingFailed(let description):

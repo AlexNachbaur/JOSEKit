@@ -132,6 +132,26 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
             }
             return Verified(header: header, verifiedHeaders: verifiedHeaders, payload: payload)
         }
+
+        /// Resolves keys from the header's `jku`, `x5c` or `jwk` with `resolver`, then verifies.
+        ///
+        /// Keys are resolved for the first signature's header. With several signatures, resolve and
+        /// verify per header instead.
+        public func verify(
+            resolving resolver: HeaderKeyResolver,
+            detachedPayload: Data? = nil
+        ) async throws(JWSError) -> Verified {
+            guard let header else {
+                throw .missingAlgorithm
+            }
+            let keys: VerificationKeys
+            do {
+                keys = try await resolver.verificationKeys(for: header)
+            } catch {
+                throw .keyResolutionFailed(error)
+            }
+            return try verify(with: keys, detachedPayload: detachedPayload)
+        }
     }
 
     /// A JWS with at least one signature that verified.

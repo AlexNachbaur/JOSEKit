@@ -24,6 +24,12 @@ public enum RSAOAEPHash: Sendable {
     case sha256
 }
 
+/// A failure of an RSA key operation (not of the key itself), reported through
+/// `SigningError.keyOperationFailed`.
+struct RSAOperationError: Error, CustomStringConvertible {
+    let description: String
+}
+
 // CryptoKit has no RSA. On Apple platforms the operations go to Security.framework, so that
 // Apple apps do not have to build BoringSSL; everywhere else they go to swift-crypto's extras.
 // The two implementations sit behind the same two types, and are held to the same fixtures.
@@ -125,7 +131,7 @@ public enum RSAOAEPHash: Sendable {
             var error: Unmanaged<CFError>?
             let algorithm = secAlgorithm(padding: padding, hash: hash)
             guard let signature = SecKeyCreateSignature(wrapped.key, algorithm, message as CFData, &error) else {
-                throw JWKError.invalidRSAKey(reason: "signing failed: \(describe(error))")
+                throw RSAOperationError(description: describe(error))
             }
             return signature as Data
         }

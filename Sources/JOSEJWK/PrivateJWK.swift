@@ -62,6 +62,9 @@ public struct PrivateJWK: Sendable {
             }
         case "OKP":
             let curve = try members.requiredString("crv", keyType: keyType)
+            guard curve == Ed25519PublicKey.curveName || curve == X25519PublicKey.curveName else {
+                throw .keyTypeMismatch(expected: "OKP Ed25519 or X25519", found: "OKP \(curve)")
+            }
             let publicBytes = try members.requiredBytes("x", keyType: keyType)
             let privateBytes = try members.requiredBytes("d", keyType: keyType)
             switch curve {

@@ -131,7 +131,7 @@ func ecdsaKey<Curve: ECDSACurve>(
     return key
 }
 
-func verdict<V: Verifier>(_ verifier: V, _ item: Challenge.VerifyCase) throws -> Bool {
+func verdict<V: Verifier>(_ verifier: V, _ item: Challenge.VerifyCase) async throws -> Bool {
     let signature: Signature<V.Algorithm>
     do {
         signature = try Signature(rawRepresentation: try bytes(fromHex: item.signature))
@@ -139,7 +139,7 @@ func verdict<V: Verifier>(_ verifier: V, _ item: Challenge.VerifyCase) throws ->
         return false
     }
     do {
-        try verifier.verify(signature, for: try bytes(fromHex: item.message))
+        try await verifier.verify(signature, for: try bytes(fromHex: item.message))
         return true
     } catch VerificationError.signatureMismatch {
         return false
@@ -216,27 +216,27 @@ for item in challenge.verify {
     let jwk = try JWK(json: Data(item.jwk.utf8))
     switch item.algorithm {
     case "ES256":
-        response.verdicts.append(try verdict(try ECDSAVerifier<P256Curve>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try ECDSAVerifier<P256Curve>(jwk: jwk), item))
     case "ES384":
-        response.verdicts.append(try verdict(try ECDSAVerifier<P384Curve>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try ECDSAVerifier<P384Curve>(jwk: jwk), item))
     case "ES512":
-        response.verdicts.append(try verdict(try ECDSAVerifier<P521Curve>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try ECDSAVerifier<P521Curve>(jwk: jwk), item))
     case "Ed25519":
-        response.verdicts.append(try verdict(try Ed25519Verifier<JOSECore.Ed25519>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try Ed25519Verifier<JOSECore.Ed25519>(jwk: jwk), item))
     case "EdDSA":
-        response.verdicts.append(try verdict(try Ed25519Verifier<EdDSA>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try Ed25519Verifier<EdDSA>(jwk: jwk), item))
     case "RS256":
-        response.verdicts.append(try verdict(try RSAVerifier<RS256>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try RSAVerifier<RS256>(jwk: jwk), item))
     case "RS384":
-        response.verdicts.append(try verdict(try RSAVerifier<RS384>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try RSAVerifier<RS384>(jwk: jwk), item))
     case "RS512":
-        response.verdicts.append(try verdict(try RSAVerifier<RS512>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try RSAVerifier<RS512>(jwk: jwk), item))
     case "PS256":
-        response.verdicts.append(try verdict(try RSAVerifier<PS256>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try RSAVerifier<PS256>(jwk: jwk), item))
     case "PS384":
-        response.verdicts.append(try verdict(try RSAVerifier<PS384>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try RSAVerifier<PS384>(jwk: jwk), item))
     case "PS512":
-        response.verdicts.append(try verdict(try RSAVerifier<PS512>(jwk: jwk), item))
+        response.verdicts.append(try await verdict(try RSAVerifier<PS512>(jwk: jwk), item))
     default:
         throw InteropError(description: "unsupported algorithm \(item.algorithm)")
     }

@@ -62,6 +62,8 @@ public enum JWKError: Error, Sendable, Equatable {
     case algorithmMismatch(keyAlgorithm: AlgorithmIdentifier, required: AlgorithmIdentifier)
     /// RFC 7518 §3.2: an HMAC key must be at least as long as the hash output.
     case keyTooShort(algorithm: AlgorithmIdentifier, minimumByteCount: Int, found: Int)
+    /// The algorithm needs a symmetric key of exactly one size, such as 32 bytes for A256KW.
+    case keyWrongSize(algorithm: AlgorithmIdentifier, expectedByteCount: Int, found: Int)
     /// `key_ops` lists the same operation twice, which RFC 7517 §4.3 forbids.
     case duplicateKeyOperation(String)
     /// The top-level `keys` member of a JWK Set is absent or is not an array.
@@ -133,6 +135,8 @@ extension JWKError: CustomStringConvertible {
             return "JWK is restricted to algorithm \(keyAlgorithm); it cannot be used with \(required)"
         case .keyTooShort(let algorithm, let minimumByteCount, let found):
             return "\(algorithm) key is \(found) bytes; at least \(minimumByteCount) are required"
+        case .keyWrongSize(let algorithm, let expectedByteCount, let found):
+            return "\(algorithm) key is \(found) bytes; exactly \(expectedByteCount) are required"
         case .duplicateKeyOperation(let name):
             return "JWK key_ops lists \"\(name)\" more than once"
         case .invalidKeySet:

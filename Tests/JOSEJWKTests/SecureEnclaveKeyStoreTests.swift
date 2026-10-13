@@ -246,7 +246,7 @@
             let loaded = try #require(try store.load("hw", keyID: "hw"))
             #expect(loaded.publicKey == signer.publicKey)
             let message = Data("stored".utf8)
-            try ECDSAVerifier(publicKey: signer.publicKey).verify(try await loaded.sign(message), for: message)
+            try await ECDSAVerifier(publicKey: signer.publicKey).verify(try await loaded.sign(message), for: message)
             try store.remove("hw")
             #expect(try store.load("hw") == nil)
             print("note: real keychain test ran against the keychain and Secure Enclave")

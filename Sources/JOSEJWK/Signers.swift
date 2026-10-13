@@ -32,7 +32,7 @@ public struct ECDSASigner<Curve: ECDSACurve>: Signer {
         do {
             raw = try Curve.rawSignature(for: message, using: key)
         } catch {
-            throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: error)
+            throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnderlyingError(error))
         }
         do {
             return try Signature(rawRepresentation: raw)
@@ -78,7 +78,7 @@ public struct ECDSAVerifier<Curve: ECDSACurve>: Verifier {
         try self.init(publicKey: publicKey, keyID: jwk.keyID)
     }
 
-    public func verify(_ signature: Signature<Algorithm>, for message: Data) throws(VerificationError) {
+    public func verify(_ signature: Signature<Algorithm>, for message: Data) async throws(VerificationError) {
         guard Curve.isValid(rawSignature: signature.rawRepresentation, for: message, using: key) else {
             throw .signatureMismatch(algorithm: Algorithm.identifier)
         }
@@ -138,7 +138,7 @@ public struct Ed25519Signer<Algorithm: Ed25519KeyAlgorithm>: Signer {
         do {
             raw = try key.signature(for: message)
         } catch {
-            throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: error)
+            throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnderlyingError(error))
         }
         do {
             return try Signature(rawRepresentation: raw)
@@ -171,7 +171,7 @@ public struct Ed25519Verifier<Algorithm: Ed25519KeyAlgorithm>: Verifier {
         try self.init(publicKey: publicKey, keyID: jwk.keyID)
     }
 
-    public func verify(_ signature: Signature<Algorithm>, for message: Data) throws(VerificationError) {
+    public func verify(_ signature: Signature<Algorithm>, for message: Data) async throws(VerificationError) {
         guard key.isValidSignature(signature.rawRepresentation, for: message) else {
             throw .signatureMismatch(algorithm: Algorithm.identifier)
         }
@@ -255,7 +255,7 @@ public struct HMACVerifier<Algorithm: HMACAlgorithm>: Verifier {
         try self.init(key: jwk.key, keyID: jwk.metadata.keyID)
     }
 
-    public func verify(_ signature: Signature<Algorithm>, for message: Data) throws(VerificationError) {
+    public func verify(_ signature: Signature<Algorithm>, for message: Data) async throws(VerificationError) {
         let isValid = HMAC<Algorithm.Hash>.isValidAuthenticationCode(
             signature.rawRepresentation,
             authenticating: message,

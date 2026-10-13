@@ -56,8 +56,10 @@
             let signature = try await signer.sign(message)
             #expect(signature.rawRepresentation.count == 64)
             let verifier = try ECDSAVerifier<P256Curve>(jwk: JWK(.p256(signer.publicKey)))
-            try verifier.verify(signature, for: message)
-            #expect(throws: VerificationError.self) { try verifier.verify(signature, for: Data("other".utf8)) }
+            try await verifier.verify(signature, for: message)
+            await #expect(throws: VerificationError.self) {
+                try await verifier.verify(signature, for: Data("other".utf8))
+            }
         }
 
         @Test("works through the Signer protocol as an existential")
@@ -78,7 +80,7 @@
                     return
                 }
                 #expect(algorithm == "ES256")
-                #expect(underlying is MockEnclaveKey.Refused)
+                #expect(underlying.typeName.hasSuffix("Refused"))
             }
         }
 
@@ -144,11 +146,11 @@
             }
             let verifier = try ECDSAVerifier(publicKey: signer.publicKey)
             let message = Data("hardware".utf8)
-            try verifier.verify(try await signer.sign(message), for: message)
+            try await verifier.verify(try await signer.sign(message), for: message)
 
             let restored = try SecureEnclaveSigner(dataRepresentation: signer.dataRepresentation, keyID: "hw")
             #expect(restored.publicKey == signer.publicKey)
-            try verifier.verify(try await restored.sign(message), for: message)
+            try await verifier.verify(try await restored.sign(message), for: message)
             print("note: Secure Enclave hardware test ran against real hardware")
         }
 

@@ -56,7 +56,7 @@ struct JWKTests {
         case ("n is not base64url (standard alphabet)", "RSA"):
             return .invalidBase64URL(member: "n", .invalidCharacter(byte: 0x2B, offset: 340))
         case ("n is empty", "RSA"):
-            return .wrongByteCount(member: "n", curve: "RSA", expected: 1, found: 0)
+            return .invalidRSAKey(reason: "\"n\" is empty")
         case ("1024-bit key", "RSA"):
             return .rsaKeyTooSmall(bitCount: 1024, minimum: 2048)
         case ("n has a leading zero byte", "RSA"):
@@ -276,6 +276,30 @@ struct JWKTests {
         #expect(jwk.additionalParameters.isEmpty)
     }
 
+    @Test("an unrecognised key type carrying private material is refused, so a JWK never holds a secret")
+    func unrecognizedRejectsPrivateMembers() {
+        for member in ["d", "k", "p", "q", "dp", "dq", "qi", "oth"] {
+            let json = Data(#"{"kty":"AKP","pub":"abc","\#(member)":"secret"}"#.utf8)
+            #expect(throws: JWKError.privateMemberInPublicKey(member: member, keyType: "AKP")) {
+                try JWK(json: json)
+            }
+        }
+        // An unknown curve of a known type is the other way into the unrecognised branch.
+        #expect(throws: JWKError.privateMemberInPublicKey(member: "d", keyType: "OKP")) {
+            try JWK(json: Data(#"{"kty":"OKP","crv":"Ed448","x":"abc","d":"secret"}"#.utf8))
+        }
+    }
+
+    @Test("a member the typed properties own is refused when parsed as an extra, as it is when set")
+    func reservedMembersOnParse() {
+        #expect(throws: JWKError.reservedParameterName("k")) {
+            try JWK(json: Self.p256JSON.dropLast() + Data(#","k":"AAAA"}"#.utf8))
+        }
+        #expect(throws: JWKError.reservedParameterName("n")) {
+            try JWK(json: Self.p256JSON.dropLast() + Data(#","n":"AAAA"}"#.utf8))
+        }
+    }
+
     @Test("an unrecognised key type keeps every member and writes them back unchanged")
     func unrecognizedRoundTrip() throws {
         let json = Data(#"{"alg":"ML-DSA-44","kid":"pq-1","kty":"AKP","pub":"abc","use":"sig"}"#.utf8)
@@ -400,6 +424,7 @@ struct JWKTests {
             (.keyOperationNotPermitted(operations: ["sign"], required: "verify"), "verify"),
             (.algorithmMismatch(keyAlgorithm: "ES384", required: "ES256"), "ES384"),
             (.keyTooShort(algorithm: "HS256", minimumByteCount: 32, found: 16), "16"),
+            (.keyWrongSize(algorithm: "A256KW", expectedByteCount: 32, found: 16), "exactly 32"),
             (.duplicateKeyOperation("verify"), "verify"),
             (.invalidKeySet, "keys"),
             (.thumbprintUnavailable(keyType: "AKP"), "AKP"),

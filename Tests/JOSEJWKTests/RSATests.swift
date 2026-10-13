@@ -10,29 +10,35 @@ struct RSATests {
         _ algorithm: Algorithm.Type,
         jwk: JWK,
         testCase: KeysFixture.RSASignatureCase
-    ) throws {
+    ) async throws {
         let verifier = try RSAVerifier<Algorithm>(jwk: jwk)
         let message = try Data(hex: testCase.message)
-        try verifier.verify(try Signature(rawRepresentation: try Data(hex: testCase.signature)), for: message)
-        #expect(throws: VerificationError.self, "\(testCase.algorithm) tampered") {
-            try verifier.verify(
+        try await verifier.verify(try Signature(rawRepresentation: try Data(hex: testCase.signature)), for: message)
+        await #expect(throws: VerificationError.self, "\(testCase.algorithm) tampered") {
+            try await verifier.verify(
                 try Signature(rawRepresentation: try Data(hex: testCase.tamperedSignature)),
                 for: message
             )
         }
         if let otherSalt = testCase.nonStandardSaltSignature {
-            #expect(throws: VerificationError.self, "\(testCase.algorithm) salt length other than the digest length") {
-                try verifier.verify(try Signature(rawRepresentation: try Data(hex: otherSalt)), for: message)
+            await #expect(
+                throws: VerificationError.self,
+                "\(testCase.algorithm) salt length other than the digest length"
+            ) {
+                try await verifier.verify(try Signature(rawRepresentation: try Data(hex: otherSalt)), for: message)
             }
         }
         #expect(testCase.algorithm.hasPrefix("PS") == (testCase.nonStandardSaltSignature != nil))
-        #expect(throws: VerificationError.self, "\(testCase.algorithm) other message") {
-            try verifier.verify(try Signature(rawRepresentation: try Data(hex: testCase.signature)), for: message + [0])
+        await #expect(throws: VerificationError.self, "\(testCase.algorithm) other message") {
+            try await verifier.verify(
+                try Signature(rawRepresentation: try Data(hex: testCase.signature)),
+                for: message + [0]
+            )
         }
     }
 
     @Test("signatures made by OpenSSL verify under all six algorithms, and tampered ones do not")
-    func counterpartSignatures() throws {
+    func counterpartSignatures() async throws {
         let fixture = try KeysFixture.load()
         var checked = 0
         for key in fixture.rsaKeys {
@@ -41,17 +47,17 @@ struct RSATests {
             for testCase in key.signatures {
                 switch testCase.algorithm {
                 case "RS256":
-                    try verify(RS256.self, jwk: jwk, testCase: testCase)
+                    try await verify(RS256.self, jwk: jwk, testCase: testCase)
                 case "RS384":
-                    try verify(RS384.self, jwk: jwk, testCase: testCase)
+                    try await verify(RS384.self, jwk: jwk, testCase: testCase)
                 case "RS512":
-                    try verify(RS512.self, jwk: jwk, testCase: testCase)
+                    try await verify(RS512.self, jwk: jwk, testCase: testCase)
                 case "PS256":
-                    try verify(PS256.self, jwk: jwk, testCase: testCase)
+                    try await verify(PS256.self, jwk: jwk, testCase: testCase)
                 case "PS384":
-                    try verify(PS384.self, jwk: jwk, testCase: testCase)
+                    try await verify(PS384.self, jwk: jwk, testCase: testCase)
                 case "PS512":
-                    try verify(PS512.self, jwk: jwk, testCase: testCase)
+                    try await verify(PS512.self, jwk: jwk, testCase: testCase)
                 default:
                     Issue.record("unexpected algorithm \(testCase.algorithm)")
                 }
@@ -62,7 +68,7 @@ struct RSATests {
     }
 
     @Test("a signature is only valid under the algorithm it was made with")
-    func algorithmsAreNotInterchangeable() throws {
+    func algorithmsAreNotInterchangeable() async throws {
         let key = try #require(try KeysFixture.load().rsaKeys.first)
         let jwk = try JWK(json: try JSONEncoder().encode(key.publicJwk))
         let rs256 = try #require(key.signatures.first { $0.algorithm == "RS256" })
@@ -71,17 +77,26 @@ struct RSATests {
         let rs256Signature = try Data(hex: rs256.signature)
 
         // Positive control.
-        try RSAVerifier<RS256>(jwk: jwk).verify(try Signature(rawRepresentation: rs256Signature), for: rs256Message)
+        try await RSAVerifier<RS256>(jwk: jwk).verify(
+            try Signature(rawRepresentation: rs256Signature),
+            for: rs256Message
+        )
         // Same padding, different hash.
-        #expect(throws: VerificationError.self) {
-            try RSAVerifier<RS384>(jwk: jwk).verify(try Signature(rawRepresentation: rs256Signature), for: rs256Message)
+        await #expect(throws: VerificationError.self) {
+            try await RSAVerifier<RS384>(jwk: jwk).verify(
+                try Signature(rawRepresentation: rs256Signature),
+                for: rs256Message
+            )
         }
         // Same hash, different padding, in both directions.
-        #expect(throws: VerificationError.self) {
-            try RSAVerifier<PS256>(jwk: jwk).verify(try Signature(rawRepresentation: rs256Signature), for: rs256Message)
+        await #expect(throws: VerificationError.self) {
+            try await RSAVerifier<PS256>(jwk: jwk).verify(
+                try Signature(rawRepresentation: rs256Signature),
+                for: rs256Message
+            )
         }
-        #expect(throws: VerificationError.self) {
-            try RSAVerifier<RS256>(jwk: jwk).verify(
+        await #expect(throws: VerificationError.self) {
+            try await RSAVerifier<RS256>(jwk: jwk).verify(
                 try Signature(rawRepresentation: try Data(hex: ps256.signature)),
                 for: try Data(hex: ps256.message)
             )
@@ -152,11 +167,11 @@ struct RSATests {
 
             let pkcs1 = try await RSASigner<RS256>(privateKey: privateKey, keyID: "k").sign(message)
             #expect(pkcs1.rawRepresentation.count == key.bitCount / 8)
-            try RSAVerifier<RS256>(jwk: publicJWK).verify(pkcs1, for: message)
+            try await RSAVerifier<RS256>(jwk: publicJWK).verify(pkcs1, for: message)
 
             let pss = try await RSASigner<PS384>(privateKey: privateKey).sign(message)
             #expect(pss.rawRepresentation.count == key.bitCount / 8)
-            try RSAVerifier<PS384>(jwk: publicJWK).verify(pss, for: message)
+            try await RSAVerifier<PS384>(jwk: publicJWK).verify(pss, for: message)
             // PSS is randomised; PKCS#1 v1.5 is not.
             let pssAgain = try await RSASigner<PS384>(privateKey: privateKey).sign(message)
             #expect(pssAgain.rawRepresentation != pss.rawRepresentation)
@@ -207,6 +222,33 @@ struct RSATests {
         #expect(throws: JWKError.unsupportedRSAPrivateKey(reason: "PKCS#1 version 1 (multi-prime)")) {
             try RSAPrivateKey(pkcs1DERRepresentation: der)
         }
+    }
+
+    // Pins a platform difference rather than a guarantee: see the comment in
+    // `RSAPrivateKey.init(components:)`. If Security.framework starts checking `d`, the Apple
+    // branch here will fail and the comment must be updated.
+    @Test("a private JWK whose d has been altered: refused by BoringSSL, accepted by Security.framework")
+    func alteredPrivateExponent() throws {
+        let key = try #require(try KeysFixture.load().rsaKeys.first)
+        var altered = key.privateJwk
+        var d = try Base64URL.decode(try #require(altered["d"]))
+        d[d.count / 2] ^= 0x01
+        altered["d"] = Base64URL.encode(d)
+        _ = try PrivateJWK(json: try JSONEncoder().encode(key.privateJwk))
+        #if canImport(Security)
+            _ = try PrivateJWK(json: try JSONEncoder().encode(altered))
+        #else
+            #expect(throws: JWKError.self) {
+                try PrivateJWK(json: try JSONEncoder().encode(altered))
+            }
+        #endif
+    }
+
+    @Test("an RSA key operation failure is a key-operation error, not an invalid-key error")
+    func operationFailureIsNotAKeyError() {
+        let failure: any Error = RSAOperationError(description: "x")
+        #expect(!(failure is JWKError))
+        #expect(String(describing: failure) == "x")
     }
 
     @Test("private JWKs without CRT values, or with extra primes, are refused with a reason")
@@ -272,8 +314,16 @@ struct RSATests {
         #expect(throws: JWKError.nonMinimalInteger(member: "n")) {
             try RSAPublicKey(modulus: Data([0x00]) + Data(repeating: 0xFF, count: 256), exponent: Data([0x03]))
         }
-        #expect(throws: JWKError.wrongByteCount(member: "e", curve: "RSA", expected: 1, found: 0)) {
+        #expect(throws: JWKError.invalidRSAKey(reason: "\"e\" is empty")) {
             try RSAPublicKey(modulus: Data(repeating: 0xFF, count: 256), exponent: Data())
+        }
+        // RFC 8017: e < n. An exponent equal to, or longer than, the modulus is refused.
+        let modulus256 = Data(repeating: 0xFF, count: 256)
+        #expect(throws: JWKError.invalidRSAKey(reason: "the public exponent is not smaller than the modulus")) {
+            try RSAPublicKey(modulus: modulus256, exponent: modulus256)
+        }
+        #expect(throws: JWKError.invalidRSAKey(reason: "the public exponent is not smaller than the modulus")) {
+            try RSAPublicKey(modulus: modulus256, exponent: Data([0x01]) + modulus256)
         }
     }
 
@@ -284,12 +334,12 @@ struct RSATests {
         #expect(key.publicKey.exponent == Data([0x01, 0x00, 0x01]))
         let message = Data("generated".utf8)
         let signature = try await RSASigner<PS256>(privateKey: key).sign(message)
-        try RSAVerifier<PS256>(publicKey: key.publicKey).verify(signature, for: message)
+        try await RSAVerifier<PS256>(publicKey: key.publicKey).verify(signature, for: message)
 
         let other = try RSAPrivateKey()
         #expect(other.publicKey != key.publicKey)
-        #expect(throws: VerificationError.self) {
-            try RSAVerifier<PS256>(publicKey: other.publicKey).verify(signature, for: message)
+        await #expect(throws: VerificationError.self) {
+            try await RSAVerifier<PS256>(publicKey: other.publicKey).verify(signature, for: message)
         }
 
         let roundTripped = try PrivateJWK(json: try PrivateJWK(.rsa(key)).jsonRepresentation())

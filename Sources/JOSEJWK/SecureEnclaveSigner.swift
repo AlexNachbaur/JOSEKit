@@ -198,7 +198,7 @@
             do {
                 raw = try key.rawSignature(for: message)
             } catch {
-                throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: error)
+                throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnderlyingError(error))
             }
             do {
                 return try Signature(rawRepresentation: raw)

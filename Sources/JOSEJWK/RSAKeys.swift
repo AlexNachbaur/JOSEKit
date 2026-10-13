@@ -46,6 +46,13 @@ public struct RSAPublicKey: Sendable, Hashable {
         guard exponent != Data([0x01]) else {
             throw .invalidRSAKey(reason: "the public exponent is 1")
         }
+        // RFC 8017 §3.1: 1 < e < n. Both are minimal big-endian, so length then bytes compares them.
+        let exponentIsSmaller =
+            exponent.count < modulus.count
+            || (exponent.count == modulus.count && exponent.lexicographicallyPrecedes(modulus))
+        guard exponentIsSmaller else {
+            throw .invalidRSAKey(reason: "the public exponent is not smaller than the modulus")
+        }
 
         self.modulus = Data(modulus)
         self.exponent = Data(exponent)
@@ -60,7 +67,7 @@ public struct RSAPublicKey: Sendable, Hashable {
 
     static func requireMinimal(_ value: Data, member: String) throws(JWKError) {
         guard let first = value.first else {
-            throw .wrongByteCount(member: member, curve: "RSA", expected: 1, found: 0)
+            throw .invalidRSAKey(reason: "\"\(member)\" is empty")
         }
         guard first != 0 else {
             throw .nonMinimalInteger(member: member)
@@ -115,8 +122,18 @@ public struct RSAPrivateKey: Sendable {
         self.components = components
 
         // Checking that the private values belong to the public ones needs big-number arithmetic
-        // this package does not have. Signing with the private half and verifying with the public
-        // half establishes the same thing using the platform's implementation.
+        // this package does not have, so the platform's implementation is asked instead: sign
+        // with the private half, verify with the public half. In practice the trial signature is
+        // what catches an inconsistent key (BoringSSL refuses it on import, Security.framework
+        // refuses to sign with it); the comparison at the end stays because neither documents
+        // that as guaranteed.
+        //
+        // What this does not establish, on Apple platforms, is that `d` itself is right:
+        // Security.framework signs with the CRT values (p, q, dp, dq, qi), never consults `d`,
+        // and re-exports whatever `d` it was given. A JWK with a wrong `d` is accepted and
+        // re-exported there, while BoringSSL (`RSA_check_key`) rejects it. This package never
+        // uses `d` for an operation, so the inconsistency only matters if the exported JWK is
+        // handed to an implementation that does.
         let probe = Data("JOSEJWK RSA key consistency check".utf8)
         let signature: Data
         do {
@@ -200,7 +217,7 @@ public struct RSASigner<Algorithm: RSASignatureAlgorithm>: Signer {
         do {
             raw = try key.signature(for: message, padding: Algorithm.padding, hash: Algorithm.hash)
         } catch {
-            throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: error)
+            throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnderlyingError(error))
         }
         do {
             return try Signature(rawRepresentation: raw)
@@ -229,7 +246,7 @@ public struct RSAVerifier<Algorithm: RSASignatureAlgorithm>: Verifier {
         try self.init(publicKey: publicKey, keyID: jwk.keyID)
     }
 
-    public func verify(_ signature: Signature<Algorithm>, for message: Data) throws(VerificationError) {
+    public func verify(_ signature: Signature<Algorithm>, for message: Data) async throws(VerificationError) {
         let isValid = key.isValid(
             signature: signature.rawRepresentation,
             for: message,

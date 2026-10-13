@@ -93,7 +93,7 @@ public struct JWK: Sendable, Hashable {
             case P521Curve.name:
                 key = .p521(try Self.ecPublicKey(members, keyType: keyType))
             default:
-                key = Self.unrecognized(members, keyType: keyType)
+                key = try Self.unrecognized(members, keyType: keyType)
                 return
             }
             recognizedNames.formUnion(["crv", "x", "y"])
@@ -107,7 +107,7 @@ public struct JWK: Sendable, Hashable {
                 try members.requireAbsent("d", keyType: keyType)
                 key = .x25519(try X25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType)))
             default:
-                key = Self.unrecognized(members, keyType: keyType)
+                key = try Self.unrecognized(members, keyType: keyType)
                 return
             }
             recognizedNames.formUnion(["crv", "x"])
@@ -125,10 +125,17 @@ public struct JWK: Sendable, Hashable {
         case "oct":
             throw .symmetricKeyInPublicKey
         default:
-            key = Self.unrecognized(members, keyType: keyType)
+            key = try Self.unrecognized(members, keyType: keyType)
             return
         }
 
+        // Names the typed properties own are not carried as extras: `setAdditionalParameter`
+        // refuses them, and what parses must be what can be built.
+        for name in Self.reservedNames
+        where !recognizedNames.contains(name) && !JWKMembers.metadataNames.contains(name) && members.values[name] != nil
+        {
+            throw .reservedParameterName(name)
+        }
         additionalParameters = members.values.filter { name, _ in
             !recognizedNames.contains(name) && !JWKMembers.metadataNames.contains(name)
         }
@@ -145,7 +152,15 @@ public struct JWK: Sendable, Hashable {
         )
     }
 
-    private static func unrecognized(_ members: JWKMembers, keyType: String) -> Key {
+    /// The names RFC 7517 and RFC 7518 reserve for private material, whatever the key type.
+    /// A `JWK` holds public keys only, so these are refused even for key types this package
+    /// does not implement.
+    static let privateMemberNames = ["d", "k", "p", "q", "dp", "dq", "qi", "oth"]
+
+    private static func unrecognized(_ members: JWKMembers, keyType: String) throws(JWKError) -> Key {
+        for name in privateMemberNames {
+            try members.requireAbsent(name, keyType: keyType)
+        }
         let parameters = members.values.filter { name, _ in
             name != "kty" && !JWKMembers.metadataNames.contains(name)
         }

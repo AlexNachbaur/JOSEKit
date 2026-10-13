@@ -87,9 +87,14 @@ public struct SymmetricKeyMaterial: Sendable {
         self.rawRepresentation = Data(rawRepresentation)
     }
 
-    /// Generates a random key of `byteCount` bytes.
+    /// Generates a random key of `byteCount` bytes. A count of zero or less gives an empty key,
+    /// which every use of this type then refuses as too short.
     public init(randomByteCount byteCount: Int) {
-        rawRepresentation = SymmetricKey(size: SymmetricKeySize(bitCount: max(byteCount, 0) * 8))
+        guard byteCount > 0 else {
+            rawRepresentation = Data()
+            return
+        }
+        rawRepresentation = SymmetricKey(size: SymmetricKeySize(bitCount: byteCount * 8))
             .withUnsafeBytes { Data($0) }
     }
 }

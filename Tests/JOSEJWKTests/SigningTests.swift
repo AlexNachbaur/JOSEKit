@@ -13,11 +13,11 @@ struct SigningTests {
         for testCase in key.signatures {
             let message = try Data(hex: testCase.message)
             let good = try Signature<Curve.Algorithm>(rawRepresentation: try Data(hex: testCase.signature))
-            try verifier.verify(good, for: message)
+            try await verifier.verify(good, for: message)
 
             let tampered = try Signature<Curve.Algorithm>(rawRepresentation: try Data(hex: testCase.tamperedSignature))
-            #expect(throws: VerificationError.self) { try verifier.verify(tampered, for: message) }
-            #expect(throws: VerificationError.self) { try verifier.verify(good, for: message + [0x00]) }
+            await #expect(throws: VerificationError.self) { try await verifier.verify(tampered, for: message) }
+            await #expect(throws: VerificationError.self) { try await verifier.verify(good, for: message + [0x00]) }
         }
 
         // The private JWK from jose signs things its public JWK verifies.
@@ -30,7 +30,7 @@ struct SigningTests {
         let message = Data("signed in Swift".utf8)
         let signature = try await signer.sign(message)
         #expect(signature.rawRepresentation.count == Curve.coordinateByteCount * 2)
-        try verifier.verify(signature, for: message)
+        try await verifier.verify(signature, for: message)
         #expect(signer.keyID == "k")
     }
 
@@ -83,13 +83,13 @@ struct SigningTests {
                 let message = try Data(hex: testCase.message)
                 let bytes = try Data(hex: testCase.signature)
                 let tampered = try Data(hex: testCase.tamperedSignature)
-                try modern.verify(try Signature(rawRepresentation: bytes), for: message)
-                try legacy.verify(try Signature(rawRepresentation: bytes), for: message)
-                #expect(throws: VerificationError.self) {
-                    try modern.verify(try Signature(rawRepresentation: tampered), for: message)
+                try await modern.verify(try Signature(rawRepresentation: bytes), for: message)
+                try await legacy.verify(try Signature(rawRepresentation: bytes), for: message)
+                await #expect(throws: VerificationError.self) {
+                    try await modern.verify(try Signature(rawRepresentation: tampered), for: message)
                 }
-                #expect(throws: VerificationError.self) {
-                    try legacy.verify(try Signature(rawRepresentation: tampered), for: message)
+                await #expect(throws: VerificationError.self) {
+                    try await legacy.verify(try Signature(rawRepresentation: tampered), for: message)
                 }
             }
 
@@ -99,19 +99,19 @@ struct SigningTests {
             }
             let message = Data("signed in Swift".utf8)
             let signature = try await Ed25519Signer<JOSECore.Ed25519>(privateKey: privateKey).sign(message)
-            try modern.verify(signature, for: message)
+            try await modern.verify(signature, for: message)
             let legacySignature = try await Ed25519Signer<EdDSA>(privateKey: privateKey).sign(message)
             #expect(legacySignature.rawRepresentation.count == 64)
-            try legacy.verify(legacySignature, for: message)
+            try await legacy.verify(legacySignature, for: message)
         }
     }
 
     @Test("an EdDSA signature of the wrong length is refused by the verifier rather than the type")
-    func edDSAWrongLength() throws {
+    func edDSAWrongLength() async throws {
         let key = try Ed25519PrivateKey()
         let verifier = try Ed25519Verifier<EdDSA>(publicKey: key.publicKey)
         let short = try Signature<EdDSA>(rawRepresentation: Data(count: 10))
-        #expect(throws: VerificationError.self) { try verifier.verify(short, for: Data()) }
+        await #expect(throws: VerificationError.self) { try await verifier.verify(short, for: Data()) }
         #expect(throws: SignatureError.wrongLength(algorithm: "Ed25519", expected: 64, found: 10)) {
             try Signature<JOSECore.Ed25519>(rawRepresentation: Data(count: 10))
         }
@@ -130,12 +130,15 @@ struct SigningTests {
         #expect(signature.rawRepresentation == tag)
 
         let verifier = try HMACVerifier<Algorithm>(jwk: jwk)
-        try verifier.verify(try Signature(rawRepresentation: tag), for: message)
-        #expect(throws: VerificationError.self) {
-            try verifier.verify(try Signature(rawRepresentation: try Data(hex: testCase.tamperedTag)), for: message)
+        try await verifier.verify(try Signature(rawRepresentation: tag), for: message)
+        await #expect(throws: VerificationError.self) {
+            try await verifier.verify(
+                try Signature(rawRepresentation: try Data(hex: testCase.tamperedTag)),
+                for: message
+            )
         }
-        #expect(throws: VerificationError.self) {
-            try verifier.verify(try Signature(rawRepresentation: tag), for: message + [0x00])
+        await #expect(throws: VerificationError.self) {
+            try await verifier.verify(try Signature(rawRepresentation: tag), for: message + [0x00])
         }
     }
 
@@ -178,6 +181,9 @@ struct SigningTests {
         let second = SymmetricKeyMaterial(randomByteCount: 48)
         #expect(first.rawRepresentation.count == 48)
         #expect(first.rawRepresentation != second.rawRepresentation)
+        // Zero and negative counts give an empty key rather than trapping.
+        #expect(SymmetricKeyMaterial(randomByteCount: 0).rawRepresentation.isEmpty)
+        #expect(SymmetricKeyMaterial(randomByteCount: -5).rawRepresentation.isEmpty)
     }
 
     @Test("a signature from one key does not verify under another")
@@ -187,9 +193,9 @@ struct SigningTests {
         let own = try ECDSAVerifier(publicKey: signer.publicKey)
         let message = Data("message".utf8)
         let signature = try await signer.sign(message)
-        try own.verify(signature, for: message)
+        try await own.verify(signature, for: message)
         do {
-            try other.verify(signature, for: message)
+            try await other.verify(signature, for: message)
             Issue.record("verified under the wrong key")
         } catch {
             guard case .signatureMismatch(let algorithm) = error else {
@@ -281,7 +287,7 @@ struct SigningTests {
             let der = try signature.derRepresentation
             let roundTripped = try Signature<Curve.Algorithm>(derRepresentation: der)
             #expect(roundTripped.rawRepresentation == signature.rawRepresentation)
-            try verifier.verify(roundTripped, for: message)
+            try await verifier.verify(roundTripped, for: message)
             #expect(try PlatformDER.matches(curve, raw: signature.rawRepresentation, der: der))
             let raw = signature.rawRepresentation
             sawShortComponent = sawShortComponent || raw[0] == 0 || raw[Curve.coordinateByteCount] == 0

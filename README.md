@@ -8,14 +8,18 @@ Module: `JOSEJWS`. Depends on `jose-core` and `jose-jwk`.
 ## Verification is a type-state
 
 ```swift
-let unverified = try JWS<EmptyHeaderParameters>.Unverified(compact: token)
+let unverified = try SimpleJWS.Unverified(compact: token)
 unverified.header                    // readable, for choosing a key; not yet trustworthy
-let verified = try unverified.verify(with: keys)
+let verified = try await unverified.verify(with: keys)
 verified.payload                     // exists only here
 ```
 
-The payload before verification is reachable only as `unverifiedPayload`. The signature is
-checked over the bytes received, never over a re-encoded header.
+`SimpleJWS` is `JWS<EmptyHeaderParameters>`, for headers with registered parameters only. The
+payload before verification is reachable only as `unverifiedPayload`. The signature is checked
+over the bytes received, never over a re-encoded header.
+
+Verification is `async`, like signing, so that a key held by a remote service or in hardware can
+conform to `Verifier`.
 
 ## Keys and algorithms
 
@@ -31,13 +35,20 @@ let keys = try VerificationKeys {
 }
 ```
 
+For a JWK Set at a URL you know in advance, such as an OpenID Connect issuer's `jwks_uri`:
+
+```swift
+let provider = CachingJWKSetProvider(URLSessionJWKSetProvider())
+let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [RS256.self, ES256.self])
+```
+
 `alg: none` has no type and cannot be constructed. A token naming a `kid` is tried only against
 keys with that ID or with none.
 
 ## Signing
 
 ```swift
-let signed = try await JWS<EmptyHeaderParameters>.sign(payload, with: signer, header: JWSHeaderParameters(type: "JWT"))
+let signed = try await SimpleJWS.sign(payload, with: signer, header: JWSHeaderParameters(type: "JWT"))
 try signed.compactSerialization()
 try signed.flattenedJSONSerialization(detached: true)
 try await signed.adding(signatureWith: other, header: JWSHeaderParameters()).generalJSONSerialization()
@@ -63,10 +74,14 @@ let resolver = HeaderKeyResolver(
 let verified = try await unverified.verify(resolving: resolver)
 ```
 
+With several signatures, each is checked against the keys its own header names.
+
 `JWKSetProvider` and `CertificateChainValidator` are protocols; supply your own to change the
-transport, the caching or the trust rules. `SecTrustCertificateChainValidator` exists on Apple
-platforms and trusts only the anchors it is given. An embedded `jwk` is used only when
-`allowsEmbeddedKey` is on.
+transport, the caching or the trust rules. `URLSessionJWKSetProvider` uses a body only when it
+comes from the URL requested; on Apple platforms it also refuses redirects and stops reading at
+`maximumByteCount`. `SecTrustCertificateChainValidator` exists on Apple platforms, trusts only
+the anchors it is given and does not fetch anything from the network. An embedded `jwk` is used
+only when `allowsEmbeddedKey` is on.
 
 ## Testing
 

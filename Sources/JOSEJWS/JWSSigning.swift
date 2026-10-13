@@ -150,12 +150,11 @@ extension JWS {
         // Parsing our own header back keeps one definition of what a header means, and refuses to
         // sign anything this package would not itself accept.
         let parsed = try JWSHeader<Custom>.parse(protected: protectedJSON, unprotected: nil)
-        let payloadText = try encodePayload(payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
-
         let unsigned = SignatureEntry(protectedEncoded: protectedEncoded, header: parsed, signature: Data())
+        let signingPayload = signingPayload(payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
         let signature: Signature<S.Algorithm>
         do {
-            signature = try await signer.sign(unsigned.signingInput(payloadText: payloadText))
+            signature = try await signer.sign(unsigned.signingInput(payload: signingPayload))
         } catch {
             throw .signingFailed(error)
         }

@@ -50,7 +50,7 @@ extension Data {
 }
 
 /// The name of an error's enum case, so that tests can assert which case was thrown without
-/// `JWSError` having to be `Equatable` (it carries underlying errors that are not).
+/// having to spell out the case's associated values.
 func caseName(_ error: JWSError) -> String {
     // Cases without associated values have no mirror children, and every string conversion of
     // the error goes through its message, so they are named here by hand.
@@ -75,9 +75,9 @@ func caseName(_ error: JWSError) -> String {
 }
 
 /// Runs `body` and returns the name of the `JWSError` case it threw, or `nil` if it returned.
-func thrownCase<T>(_ body: () throws(JWSError) -> T) -> String? {
+func thrownCase<T>(_ body: () async throws(JWSError) -> T) async -> String? {
     do {
-        _ = try body()
+        _ = try await body()
         return nil
     } catch {
         return caseName(error)

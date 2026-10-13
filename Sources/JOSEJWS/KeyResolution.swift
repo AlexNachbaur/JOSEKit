@@ -3,16 +3,16 @@ import JOSECore
 import JOSEJWK
 
 /// Why verification keys could not be obtained from a header.
-public enum KeyResolutionError: Error, Sendable {
+public enum KeyResolutionError: Error, Sendable, Equatable {
     /// The header names no key source this resolver is configured to use.
     case noUsableKeySource(headerParameters: [String])
     /// `jku` is not an HTTPS URL on the resolver's allow-list (RFC 8725 §3.10).
     case jwkSetURLNotAllowed(String)
     case jwkSetURLInvalid(String)
     /// The ``JWKSetProvider`` failed.
-    case jwkSetUnavailable(url: String, underlying: any Error)
+    case jwkSetUnavailable(url: String, underlying: UnderlyingError)
     /// The ``CertificateChainValidator`` refused the chain.
-    case certificateChainRejected(underlying: any Error)
+    case certificateChainRejected(underlying: UnderlyingError)
     /// `x5c` is present but not an array of base64 strings.
     case certificateChainMalformed(reason: String)
     /// `x5t` or `x5t#S256` does not match the first certificate in `x5c` (RFC 7515 §4.1.7, §4.1.8).
@@ -53,6 +53,28 @@ extension KeyResolutionError: CustomStringConvertible {
 /// or storage; ``URLSessionJWKSetProvider`` is the stock implementation.
 public protocol JWKSetProvider: Sendable {
     func jwkSet(at url: URL) async throws -> JWKSet
+}
+
+extension VerificationKeys {
+    /// Fetches the JWK Set at a URL known out of band, such as an OpenID Connect issuer's
+    /// `jwks_uri`, and builds verifiers from it for the named algorithms, as
+    /// ``init(jwks:allowing:)`` does.
+    ///
+    /// The URL comes from your configuration, never from a token. Pass a
+    /// ``CachingJWKSetProvider`` so that the set is not fetched for every token.
+    public init(
+        jwksAt url: URL,
+        provider: any JWKSetProvider,
+        allowing algorithms: [any JWKVerifiableAlgorithm.Type]
+    ) async throws(KeyResolutionError) {
+        let set: JWKSet
+        do {
+            set = try await provider.jwkSet(at: url)
+        } catch {
+            throw .jwkSetUnavailable(url: url.absoluteString, underlying: UnderlyingError(error))
+        }
+        self.init(jwks: set, allowing: algorithms)
+    }
 }
 
 /// Validates an X.509 certificate chain and returns the public key of its first certificate.
@@ -156,7 +178,7 @@ public struct HeaderKeyResolver: Sendable {
         do {
             return try await provider.jwkSet(at: url)
         } catch {
-            throw .jwkSetUnavailable(url: urlString, underlying: error)
+            throw .jwkSetUnavailable(url: urlString, underlying: UnderlyingError(error))
         }
     }
 
@@ -189,7 +211,7 @@ public struct HeaderKeyResolver: Sendable {
         do {
             return try await validator.validate(chain: certificates)
         } catch {
-            throw .certificateChainRejected(underlying: error)
+            throw .certificateChainRejected(underlying: UnderlyingError(error))
         }
     }
 
@@ -200,10 +222,11 @@ public struct HeaderKeyResolver: Sendable {
         if key.metadata.keyID == nil {
             key.metadata.keyID = keyID
         }
-        let verifiers = VerificationKeys(jwks: JWKSet(keys: [key]), allowing: algorithms).verifiers
+        let (verifiers, failures) = VerificationKeys.verifiers(for: key, allowing: algorithms)
         guard !verifiers.isEmpty else {
             throw .keyNotUsable(
-                .keyTypeMismatch(expected: "a key for one of the allowed algorithms", found: key.keyType)
+                failures.first
+                    ?? .keyTypeMismatch(expected: "a key for one of the allowed algorithms", found: key.keyType)
             )
         }
         return verifiers

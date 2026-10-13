@@ -5,11 +5,14 @@ import JOSEJWK
 extension JWS.Unverified {
     /// Parses the JWS Compact Serialization: `header.payload.signature`.
     public init(compact: String) throws(JWSError) {
-        let segments = compact.split(separator: ".", omittingEmptySubsequences: false)
+        // Split on the byte, not the Character: a period followed by a combining mark is one
+        // Character to Swift but a separator to every other JWS implementation.
+        let segments = compact.utf8.split(separator: UInt8(ascii: "."), omittingEmptySubsequences: false)
+            .map { String(decoding: $0, as: UTF8.self) }
         guard segments.count == 3 else {
             throw .invalidCompactSerialization(segmentCount: segments.count)
         }
-        let protectedEncoded = String(segments[0])
+        let protectedEncoded = segments[0]
         guard !protectedEncoded.isEmpty else {
             throw .missingProtectedHeader
         }
@@ -112,10 +115,10 @@ extension JWS {
     ) throws(JWSError) -> SignatureEntry {
         var protectedJSON: Data?
         if !protectedEncoded.isEmpty {
-            protectedJSON = try decodeBase64URL(protectedEncoded, part: .protectedHeader)
+            protectedJSON = try decodeBase64URL(protectedEncoded, part: "protected header")
         }
         let header = try JWSHeader<Custom>.parse(protected: protectedJSON, unprotected: unprotected)
-        let signature = try decodeBase64URL(signatureEncoded, part: .signature)
+        let signature = try decodeBase64URL(signatureEncoded, part: "signature")
         return SignatureEntry(protectedEncoded: protectedEncoded, header: header, signature: signature)
     }
 }

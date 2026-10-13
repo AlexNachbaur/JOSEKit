@@ -30,19 +30,50 @@ public struct JWSHeaderParameters<Custom: HeaderParameters>: Sendable {
         type: MediaType? = nil,
         contentType: MediaType? = nil,
         jwk: JWK? = nil,
+        jwkSetURL: String? = nil,
+        x509URL: String? = nil,
+        x509CertificateChain: [String]? = nil,
+        x509CertificateSHA1Thumbprint: String? = nil,
+        x509CertificateSHA256Thumbprint: String? = nil,
         custom: Custom
     ) {
         self.keyID = keyID
         self.type = type
         self.contentType = contentType
         self.jwk = jwk
+        self.jwkSetURL = jwkSetURL
+        self.x509URL = x509URL
+        self.x509CertificateChain = x509CertificateChain
+        self.x509CertificateSHA1Thumbprint = x509CertificateSHA1Thumbprint
+        self.x509CertificateSHA256Thumbprint = x509CertificateSHA256Thumbprint
         self.custom = custom
     }
 }
 
 extension JWSHeaderParameters where Custom == EmptyHeaderParameters {
-    public init(keyID: KeyID? = nil, type: MediaType? = nil, contentType: MediaType? = nil, jwk: JWK? = nil) {
-        self.init(keyID: keyID, type: type, contentType: contentType, jwk: jwk, custom: EmptyHeaderParameters())
+    public init(
+        keyID: KeyID? = nil,
+        type: MediaType? = nil,
+        contentType: MediaType? = nil,
+        jwk: JWK? = nil,
+        jwkSetURL: String? = nil,
+        x509URL: String? = nil,
+        x509CertificateChain: [String]? = nil,
+        x509CertificateSHA1Thumbprint: String? = nil,
+        x509CertificateSHA256Thumbprint: String? = nil
+    ) {
+        self.init(
+            keyID: keyID,
+            type: type,
+            contentType: contentType,
+            jwk: jwk,
+            jwkSetURL: jwkSetURL,
+            x509URL: x509URL,
+            x509CertificateChain: x509CertificateChain,
+            x509CertificateSHA1Thumbprint: x509CertificateSHA1Thumbprint,
+            x509CertificateSHA256Thumbprint: x509CertificateSHA256Thumbprint,
+            custom: EmptyHeaderParameters()
+        )
     }
 }
 
@@ -130,9 +161,6 @@ extension JWSHeader {
         }
         let unprotectedNames = Set((unprotected ?? [:]).keys)
 
-        guard values["alg"] != nil else {
-            throw .missingAlgorithm
-        }
         guard let algorithm = try string("alg", in: values) else {
             throw .missingAlgorithm
         }
@@ -263,6 +291,11 @@ extension JWSHeader {
             }
             guard values[name] != nil else {
                 throw .invalidCritical(reason: "\"\(name)\" is listed but is not in the header")
+            }
+            // A parameter the application must understand is one it will act on, so it has to be
+            // covered by the signature.
+            guard !unprotectedNames.contains(name) else {
+                throw .headerParameterNotProtected(name: name)
             }
             guard name == unencodedPayloadName || Custom.criticalParameterNames.contains(name) else {
                 throw .unsupportedCriticalParameter(name: name)

@@ -7,12 +7,16 @@ import JOSEJWK
 #endif
 
 /// Why ``URLSessionJWKSetProvider`` could not supply a JWK Set.
-public enum JWKSetFetchError: Error, Sendable {
+public enum JWKSetFetchError: Error, Sendable, Equatable {
     case notHTTPS(URL)
-    case transportFailure(URL, underlying: any Error)
+    case transportFailure(URL, underlying: UnderlyingError)
+    /// The response came from a URL other than the one requested.
+    case respondedFromDifferentURL(URL, actual: URL?)
+    /// The server answered with a status outside 200–299. A redirect is reported this way too,
+    /// on platforms where redirects are refused.
     case unexpectedStatus(URL, status: Int)
     /// The response is larger than ``URLSessionJWKSetProvider/maximumByteCount``.
-    case responseTooLarge(URL, byteCount: Int, maximum: Int)
+    case responseTooLarge(URL, maximum: Int)
     case invalidJWKSet(URL, JWKError)
 }
 
@@ -23,10 +27,12 @@ extension JWKSetFetchError: CustomStringConvertible {
             return "JWK Set URL \(url) is not HTTPS"
         case .transportFailure(let url, let underlying):
             return "JWK Set at \(url) could not be fetched: \(underlying)"
+        case .respondedFromDifferentURL(let url, let actual):
+            return "JWK Set request to \(url) was answered from \(actual.map(\.absoluteString) ?? "an unknown URL")"
         case .unexpectedStatus(let url, let status):
             return "JWK Set at \(url) returned HTTP status \(status)"
-        case .responseTooLarge(let url, let byteCount, let maximum):
-            return "JWK Set at \(url) is \(byteCount) bytes; at most \(maximum) are accepted"
+        case .responseTooLarge(let url, let maximum):
+            return "JWK Set at \(url) is larger than the \(maximum) bytes accepted"
         case .invalidJWKSet(let url, let error):
             return "JWK Set at \(url) is not a valid JWK Set: \(error)"
         }
@@ -35,12 +41,17 @@ extension JWKSetFetchError: CustomStringConvertible {
 
 /// Fetches JWK Sets over HTTPS with `URLSession`.
 ///
+/// The body is used only when it comes from the URL requested, so a redirect cannot substitute
+/// keys from somewhere the caller did not allow. On Apple platforms redirects are not followed
+/// at all, and reading stops as soon as the response exceeds ``maximumByteCount``. The
+/// swift-corelibs-foundation `URLSession` used elsewhere offers neither, so there a redirect is
+/// followed (and its answer refused) and the size is checked once the body has arrived.
+///
 /// There is no caching here. Wrap it in ``CachingJWKSetProvider`` so that a key set is not
 /// fetched for every token.
 public struct URLSessionJWKSetProvider: JWKSetProvider {
     public let session: URLSession
-    /// Responses above this size are refused. A JWK Set is a few kilobytes; a limit keeps a
-    /// misconfigured or hostile endpoint from filling memory.
+    /// Responses above this size are refused. A JWK Set is a few kilobytes.
     public let maximumByteCount: Int
     public let timeout: TimeInterval
 
@@ -56,26 +67,86 @@ public struct URLSessionJWKSetProvider: JWKSetProvider {
         }
         var request = URLRequest(url: url, timeoutInterval: timeout)
         request.setValue("application/json, application/jwk-set+json", forHTTPHeaderField: "Accept")
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw JWKSetFetchError.transportFailure(url, underlying: error)
-        }
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw JWKSetFetchError.unexpectedStatus(url, status: http.statusCode)
-        }
-        guard data.count <= maximumByteCount else {
-            throw JWKSetFetchError.responseTooLarge(url, byteCount: data.count, maximum: maximumByteCount)
-        }
+        let data = try await body(of: request, url: url)
         do {
             return try JWKSet(json: data)
         } catch {
             throw JWKSetFetchError.invalidJWKSet(url, error)
         }
     }
+
+    /// Checks what can be known before the body is read.
+    private func check(_ response: URLResponse, url: URL) throws(JWKSetFetchError) {
+        // The body must have come from the URL that was asked for, which is the one the caller
+        // allow-listed; a response from anywhere else is not used.
+        guard response.url == url else {
+            throw .respondedFromDifferentURL(url, actual: response.url)
+        }
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw .unexpectedStatus(url, status: http.statusCode)
+        }
+        guard response.expectedContentLength <= Int64(maximumByteCount) else {
+            throw .responseTooLarge(url, maximum: maximumByteCount)
+        }
+    }
+
+    #if canImport(FoundationNetworking)
+        private func body(of request: URLRequest, url: URL) async throws(JWKSetFetchError) -> Data {
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await session.data(for: request)
+            } catch {
+                throw .transportFailure(url, underlying: UnderlyingError(error))
+            }
+            try check(response, url: url)
+            guard data.count <= maximumByteCount else {
+                throw .responseTooLarge(url, maximum: maximumByteCount)
+            }
+            return data
+        }
+    #else
+        private func body(of request: URLRequest, url: URL) async throws(JWKSetFetchError) -> Data {
+            let bytes: URLSession.AsyncBytes
+            let response: URLResponse
+            do {
+                (bytes, response) = try await session.bytes(for: request, delegate: RedirectRefusal())
+            } catch {
+                throw .transportFailure(url, underlying: UnderlyingError(error))
+            }
+            try check(response, url: url)
+            var data = Data()
+            do {
+                for try await byte in bytes {
+                    guard data.count < maximumByteCount else {
+                        bytes.task.cancel()
+                        throw JWKSetFetchError.responseTooLarge(url, maximum: maximumByteCount)
+                    }
+                    data.append(byte)
+                }
+            } catch let error as JWKSetFetchError {
+                throw error
+            } catch {
+                throw .transportFailure(url, underlying: UnderlyingError(error))
+            }
+            return data
+        }
+    #endif
 }
+
+#if !canImport(FoundationNetworking)
+    /// Declines every redirect, so the redirect response itself is what the request returns.
+    private final class RedirectRefusal: NSObject, URLSessionTaskDelegate, Sendable {
+        func urlSession(
+            _ session: URLSession,
+            task: URLSessionTask,
+            willPerformHTTPRedirection response: HTTPURLResponse,
+            newRequest request: URLRequest
+        ) async -> URLRequest? {
+            nil
+        }
+    }
+#endif
 
 /// Remembers each JWK Set for a while, so that one fetch serves many tokens.
 ///

@@ -7,13 +7,13 @@ import JOSEJWK
 public struct AnyVerifier: Sendable {
     public let algorithm: AlgorithmIdentifier
     public let keyID: KeyID?
-    private let check: @Sendable (Data, Data) throws(JWSError) -> Void
+    private let check: @Sendable (Data, Data) async throws(JWSError) -> Void
 
     public init<V: Verifier>(_ verifier: V) {
         algorithm = V.Algorithm.identifier
         keyID = verifier.keyID
-        check = { (signatureBytes: Data, message: Data) throws(JWSError) in
-            try Self.verify(signatureBytes, for: message, with: verifier)
+        check = { (signatureBytes: Data, message: Data) async throws(JWSError) in
+            try await Self.verify(signatureBytes, for: message, with: verifier)
         }
     }
 
@@ -23,7 +23,7 @@ public struct AnyVerifier: Sendable {
         _ signatureBytes: Data,
         for message: Data,
         with verifier: V
-    ) throws(JWSError) {
+    ) async throws(JWSError) {
         let signature: Signature<V.Algorithm>
         do {
             signature = try Signature(rawRepresentation: signatureBytes)
@@ -31,7 +31,7 @@ public struct AnyVerifier: Sendable {
             throw .malformedSignature(error)
         }
         do {
-            try verifier.verify(signature, for: message)
+            try await verifier.verify(signature, for: message)
         } catch {
             switch error {
             case .signatureMismatch:
@@ -42,8 +42,8 @@ public struct AnyVerifier: Sendable {
         }
     }
 
-    func verify(signature: Data, message: Data) throws(JWSError) {
-        try check(signature, message)
+    func verify(signature: Data, message: Data) async throws(JWSError) {
+        try await check(signature, message)
     }
 }
 
@@ -142,18 +142,30 @@ public struct VerificationKeys: Sendable {
     public init(jwks: JWKSet, allowing algorithms: [any JWKVerifiableAlgorithm.Type]) {
         var verifiers: [AnyVerifier] = []
         for jwk in jwks.keys {
-            for algorithm in algorithms {
-                do {
-                    verifiers.append(try algorithm.verifier(for: jwk))
-                } catch {
-                    // Expected for most pairs: a P-256 key is not an ES384 key. A key that suits
-                    // no algorithm contributes no verifier, and a token needing it then fails
-                    // with an error naming its algorithm and key ID.
-                    continue
-                }
-            }
+            // A key that suits no algorithm contributes no verifier, and a token needing it then
+            // fails with an error naming its algorithm and key ID.
+            verifiers += Self.verifiers(for: jwk, allowing: algorithms).verifiers
         }
         self.verifiers = verifiers
+    }
+
+    /// The verifiers one key yields for `algorithms`, and why it yielded none for the others.
+    /// Most failures are expected (a P-256 key is not an ES384 key); they are returned so that a
+    /// caller with a single key can report the real reason it was unusable.
+    static func verifiers(
+        for jwk: JWK,
+        allowing algorithms: [any JWKVerifiableAlgorithm.Type]
+    ) -> (verifiers: [AnyVerifier], failures: [JWKError]) {
+        var verifiers: [AnyVerifier] = []
+        var failures: [JWKError] = []
+        for algorithm in algorithms {
+            do {
+                verifiers.append(try algorithm.verifier(for: jwk))
+            } catch {
+                failures.append(error)
+            }
+        }
+        return (verifiers, failures)
     }
 
     /// The algorithms a token may use with these keys.

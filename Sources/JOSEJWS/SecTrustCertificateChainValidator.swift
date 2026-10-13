@@ -84,12 +84,24 @@
                     description: "SecTrustCreateWithCertificates: \(creation)"
                 )
             }
-            SecTrustSetAnchorCertificates(trust, anchors.certificates as CFArray)
-            // Only the given anchors, not these plus the system's. No test fails when this is
-            // turned off: the fixtures contain no chain to a system root, so there is nothing
-            // the system store could wrongly accept. It is kept on its documented behaviour.
-            SecTrustSetAnchorCertificatesOnly(trust, true)
-            SecTrustSetVerifyDate(trust, clock() as CFDate)
+            // Each setting is checked: a failed call would leave the evaluation running with
+            // the framework's defaults, which are the opposite of what this validator promises.
+            let settings: [(String, OSStatus)] = [
+                ("anchors", SecTrustSetAnchorCertificates(trust, anchors.certificates as CFArray)),
+                // Only the given anchors, not these plus the system's. No test fails when this is
+                // turned off: the fixtures contain no chain to a system root, so there is nothing
+                // the system store could wrongly accept. It is kept on its documented behaviour.
+                ("anchors only", SecTrustSetAnchorCertificatesOnly(trust, true)),
+                // A missing intermediate must not make this process fetch it from a URL the
+                // certificate names; the chain in `x5c` has to stand on its own.
+                ("network fetch", SecTrustSetNetworkFetchAllowed(trust, false)),
+                ("verify date", SecTrustSetVerifyDate(trust, clock() as CFDate)),
+            ]
+            for (setting, status) in settings where status != errSecSuccess {
+                throw CertificateValidationError.trustEvaluationFailed(
+                    description: "could not set \(setting): \(status)"
+                )
+            }
 
             var error: CFError?
             guard SecTrustEvaluateWithError(trust, &error) else {

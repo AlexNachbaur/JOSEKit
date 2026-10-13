@@ -21,8 +21,6 @@ private struct CompactFixture: Decodable {
 
 @Suite("Against jose")
 struct CounterpartTests {
-    typealias Plain = JWS<EmptyHeaderParameters>
-
     /// Tokens jose 6.2.12 accepts and this package refuses, with the error case expected here.
     ///
     /// - Duplicate `alg`: jose (`JSON.parse`) takes the last value. RFC 7515 §4 allows that or
@@ -42,7 +40,7 @@ struct CounterpartTests {
     ]
 
     @Test("compact JWSs: accepts and rejects what jose does, apart from the documented stricter cases")
-    func compactVerdictsAgree() throws {
+    func compactVerdictsAgree() async throws {
         let fixture = try Fixtures.load(CompactFixture.self, named: "compact-verification")
         let keys = VerificationKeys([try TestKeys.verifier(algorithm: "ES256", jwk: fixture.jwk)])
         var accepted = 0
@@ -52,7 +50,7 @@ struct CounterpartTests {
             let label = Comment(rawValue: testCase.name)
             let outcome: Result<Data, JWSError>
             do {
-                outcome = .success(try Plain.Unverified(compact: testCase.token).verify(with: keys).payload)
+                outcome = .success(try await SimpleJWS.Unverified(compact: testCase.token).verify(with: keys).payload)
             } catch {
                 outcome = .failure(error)
             }
@@ -87,50 +85,52 @@ struct CounterpartTests {
     }
 
     @Test("the well-known forgeries fail for the reason they should")
-    func forgeriesFailSpecifically() throws {
+    func forgeriesFailSpecifically() async throws {
         let fixture = try Fixtures.load(CompactFixture.self, named: "compact-verification")
         let keys = VerificationKeys([try TestKeys.verifier(algorithm: "ES256", jwk: fixture.jwk)])
-        func outcome(_ name: String) throws -> String? {
+        func outcome(_ name: String) async throws -> String? {
             let token = try #require(fixture.cases.first { $0.name == name }).token
-            return thrownCase { () throws(JWSError) in try Plain.Unverified(compact: token).verify(with: keys) }
+            return await thrownCase { () async throws(JWSError) in
+                try await SimpleJWS.Unverified(compact: token).verify(with: keys)
+            }
         }
-        #expect(try outcome("valid (positive control)") == nil)
-        #expect(try outcome("alg none, no signature") == "noVerifierForAlgorithm")
-        #expect(try outcome("alg none, original signature") == "noVerifierForAlgorithm")
-        #expect(try outcome("alg None (mixed case)") == "noVerifierForAlgorithm")
-        #expect(try outcome("alg es256 (lower case)") == "noVerifierForAlgorithm")
-        #expect(try outcome("alg HS256 keyed with the public key") == "noVerifierForAlgorithm")
-        #expect(try outcome("alg ES384 with a P-256 signature") == "noVerifierForAlgorithm")
-        #expect(try outcome("payload altered") == "signatureInvalid")
-        #expect(try outcome("signature altered") == "signatureInvalid")
-        #expect(try outcome("signed by a different key") == "signatureInvalid")
-        #expect(try outcome("header altered") == "noVerifierForKeyID")
-        #expect(try outcome("signature in DER") == "malformedSignature")
-        #expect(try outcome("signature truncated") == "malformedSignature")
-        #expect(try outcome("signature empty") == "malformedSignature")
-        #expect(try outcome("alg missing") == "missingAlgorithm")
-        #expect(try outcome("alg is a number") == "headerParameterWrongType")
-        #expect(try outcome("two segments") == "invalidCompactSerialization")
-        #expect(try outcome("four segments") == "invalidCompactSerialization")
-        #expect(try outcome("header empty") == "missingProtectedHeader")
-        #expect(try outcome("header is not JSON") == "invalidHeaderStructure")
-        #expect(try outcome("header is a JSON array") == "invalidHeaderStructure")
-        #expect(try outcome("header has duplicate alg") == "invalidHeaderStructure")
-        #expect(try outcome("header segment padded") == "paddingNotAllowed")
-        #expect(try outcome("payload segment padded") == "paddingNotAllowed")
-        #expect(try outcome("header segment in standard base64") == "invalidBase64URL")
-        #expect(try outcome("leading space") == "invalidBase64URL")
-        #expect(try outcome("crit names an unknown extension") == "unsupportedCriticalParameter")
-        #expect(try outcome("crit is empty") == "invalidCritical")
-        #expect(try outcome("crit is not an array") == "headerParameterWrongType")
-        #expect(try outcome("crit names alg") == "invalidCritical")
-        #expect(try outcome("crit names a parameter that is absent") == "invalidCritical")
-        #expect(try outcome("crit names b64 but b64 is absent") == "invalidCritical")
-        #expect(try outcome("b64 is a string") == "headerParameterWrongType")
+        #expect(try await outcome("valid (positive control)") == nil)
+        #expect(try await outcome("alg none, no signature") == "noVerifierForAlgorithm")
+        #expect(try await outcome("alg none, original signature") == "noVerifierForAlgorithm")
+        #expect(try await outcome("alg None (mixed case)") == "noVerifierForAlgorithm")
+        #expect(try await outcome("alg es256 (lower case)") == "noVerifierForAlgorithm")
+        #expect(try await outcome("alg HS256 keyed with the public key") == "noVerifierForAlgorithm")
+        #expect(try await outcome("alg ES384 with a P-256 signature") == "noVerifierForAlgorithm")
+        #expect(try await outcome("payload altered") == "signatureInvalid")
+        #expect(try await outcome("signature altered") == "signatureInvalid")
+        #expect(try await outcome("signed by a different key") == "signatureInvalid")
+        #expect(try await outcome("header altered") == "noVerifierForKeyID")
+        #expect(try await outcome("signature in DER") == "malformedSignature")
+        #expect(try await outcome("signature truncated") == "malformedSignature")
+        #expect(try await outcome("signature empty") == "malformedSignature")
+        #expect(try await outcome("alg missing") == "missingAlgorithm")
+        #expect(try await outcome("alg is a number") == "headerParameterWrongType")
+        #expect(try await outcome("two segments") == "invalidCompactSerialization")
+        #expect(try await outcome("four segments") == "invalidCompactSerialization")
+        #expect(try await outcome("header empty") == "missingProtectedHeader")
+        #expect(try await outcome("header is not JSON") == "invalidHeaderStructure")
+        #expect(try await outcome("header is a JSON array") == "invalidHeaderStructure")
+        #expect(try await outcome("header has duplicate alg") == "invalidHeaderStructure")
+        #expect(try await outcome("header segment padded") == "paddingNotAllowed")
+        #expect(try await outcome("payload segment padded") == "paddingNotAllowed")
+        #expect(try await outcome("header segment in standard base64") == "invalidBase64URL")
+        #expect(try await outcome("leading space") == "invalidBase64URL")
+        #expect(try await outcome("crit names an unknown extension") == "unsupportedCriticalParameter")
+        #expect(try await outcome("crit is empty") == "invalidCritical")
+        #expect(try await outcome("crit is not an array") == "headerParameterWrongType")
+        #expect(try await outcome("crit names alg") == "invalidCritical")
+        #expect(try await outcome("crit names a parameter that is absent") == "invalidCritical")
+        #expect(try await outcome("crit names b64 but b64 is absent") == "invalidCritical")
+        #expect(try await outcome("b64 is a string") == "headerParameterWrongType")
     }
 
     @Test("every serialization jose produces verifies, for every algorithm")
-    func validTokens() throws {
+    func validTokens() async throws {
         let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
         #expect(
             fixture.tokens.map(\.algorithm) == [
@@ -145,7 +145,7 @@ struct CounterpartTests {
 
             // Compact, with a custom header type reading the extension parameter jose wrote.
             let compact = try JWS<ExampleHeader>.Unverified(compact: token.compact)
-            let verified = try compact.verify(with: keys)
+            let verified = try await compact.verify(with: keys)
             #expect(verified.payload == payload, label)
             #expect(verified.header.algorithm.rawValue == token.algorithm, label)
             #expect(verified.header.keyID == KeyID(rawValue: "\(token.algorithm)-key"), label)
@@ -156,17 +156,19 @@ struct CounterpartTests {
             #expect(verified.header.isPayloadBase64URLEncoded, label)
 
             // Compact with the payload removed and supplied separately.
-            let detached = try Plain.Unverified(compact: token.compactDetached)
-            #expect(try detached.verify(with: keys, detachedPayload: payload).payload == payload, label)
+            let detached = try SimpleJWS.Unverified(compact: token.compactDetached)
+            #expect(try await detached.verify(with: keys, detachedPayload: payload).payload == payload, label)
             #expect(
-                thrownCase { () throws(JWSError) in try detached.verify(with: keys, detachedPayload: payload + [0]) }
+                await thrownCase { () async throws(JWSError) in
+                    try await detached.verify(with: keys, detachedPayload: payload + [0])
+                }
                     == "signatureInvalid",
                 label
             )
 
             // Flattened JSON, where jose put `kid` in the unprotected header.
-            let flattened = try Plain.Unverified(json: Data(token.flattened.utf8))
-            let flattenedVerified = try flattened.verify(with: keys)
+            let flattened = try SimpleJWS.Unverified(json: Data(token.flattened.utf8))
+            let flattenedVerified = try await flattened.verify(with: keys)
             #expect(flattenedVerified.payload == payload, label)
             #expect(flattenedVerified.header.keyID == KeyID(rawValue: "\(token.algorithm)-key"), label)
             #expect(
@@ -176,29 +178,31 @@ struct CounterpartTests {
 
             // RFC 7797 unencoded payload, carried and detached.
             let unencodedPayload = try Data(hex: token.unencodedPayload)
-            let unencoded = try Plain.Unverified(json: Data(token.unencodedFlattened.utf8))
-            let unencodedVerified = try unencoded.verify(with: keys)
+            let unencoded = try SimpleJWS.Unverified(json: Data(token.unencodedFlattened.utf8))
+            let unencodedVerified = try await unencoded.verify(with: keys)
             #expect(unencodedVerified.payload == unencodedPayload, label)
             #expect(!unencodedVerified.header.isPayloadBase64URLEncoded, label)
             #expect(unencodedVerified.header.critical == ["b64"], label)
 
-            let unencodedDetached = try Plain.Unverified(json: Data(token.unencodedFlattenedDetached.utf8))
+            let unencodedDetached = try SimpleJWS.Unverified(json: Data(token.unencodedFlattenedDetached.utf8))
             #expect(
-                try unencodedDetached.verify(with: keys, detachedPayload: unencodedPayload).payload == unencodedPayload,
+                try await unencodedDetached.verify(with: keys, detachedPayload: unencodedPayload).payload
+                    == unencodedPayload,
                 label
             )
             #expect(
-                thrownCase { () throws(JWSError) in try unencodedDetached.verify(with: keys) } == "payloadMissing",
+                await thrownCase { () async throws(JWSError) in try await unencodedDetached.verify(with: keys) }
+                    == "payloadMissing",
                 label
             )
         }
     }
 
     @Test("a general-serialization JWS from jose verifies with any one of its signers' keys")
-    func generalSerialization() throws {
+    func generalSerialization() async throws {
         let general = try Fixtures.load(ValidFixture.self, named: "valid").general
         let payload = try Data(hex: general.payload)
-        let jws = try Plain.Unverified(json: Data(general.json.utf8))
+        let jws = try SimpleJWS.Unverified(json: Data(general.json.utf8))
         #expect(jws.headers.count == general.signers.count)
         #expect(general.signers.count == 11)
 
@@ -206,17 +210,17 @@ struct CounterpartTests {
         for signer in general.signers {
             let verifier = try TestKeys.verifier(algorithm: signer.algorithm, jwk: signer.jwk)
             all.append(verifier)
-            let verified = try jws.verify(with: VerificationKeys([verifier]))
+            let verified = try await jws.verify(with: VerificationKeys([verifier]))
             #expect(verified.payload == payload)
             #expect(verified.verifiedHeaders.count == 1)
             #expect(verified.header.algorithm.rawValue == signer.algorithm)
         }
-        #expect(try jws.verify(with: VerificationKeys(all)).verifiedHeaders.count == general.signers.count)
+        #expect(try await jws.verify(with: VerificationKeys(all)).verifiedHeaders.count == general.signers.count)
 
         // A key that belongs to none of the signers verifies nothing.
         let stranger = AnyVerifier(try ECDSAVerifier(publicKey: (try ECPrivateKey<P256Curve>()).publicKey))
         do {
-            _ = try jws.verify(with: VerificationKeys([stranger]))
+            _ = try await jws.verify(with: VerificationKeys([stranger]))
             Issue.record("verified with an unrelated key")
         } catch {
             guard case .noSignatureVerified(let reasons) = error else {

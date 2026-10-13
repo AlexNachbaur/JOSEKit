@@ -97,8 +97,6 @@ func text(_ data: Data) -> String {
     String(decoding: data, as: UTF8.self)
 }
 
-typealias Plain = JWS<EmptyHeaderParameters>
-
 let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
 let payload = try bytes(fromHex: challenge.payload)
 let unencodedPayload = Data(challenge.unencodedPayload.utf8)
@@ -108,9 +106,9 @@ let secondSigner = try ECDSASigner(privateKey: secondKey, keyID: "second")
 let secondJWK = text(try JWK(.p256(secondKey.publicKey)).jsonRepresentation())
 
 func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produced {
-    let signed = try await Plain.sign(payload, with: signer, header: JWSHeaderParameters(type: "example+jws"))
+    let signed = try await SimpleJWS.sign(payload, with: signer, header: JWSHeaderParameters(type: "example+jws"))
     let both = try await signed.adding(signatureWith: secondSigner, header: JWSHeaderParameters())
-    let unencoded = try await Plain.sign(unencodedPayload, with: signer, payloadEncoding: .unencoded)
+    let unencoded = try await SimpleJWS.sign(unencodedPayload, with: signer, payloadEncoding: .unencoded)
     let custom = try await JWS<LevelHeader>.sign(
         payload,
         with: signer,
@@ -216,16 +214,16 @@ func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
 for item in challenge.verify {
     let keys = VerificationKeys([try verifier(algorithm: item.algorithm, jwk: item.jwk)])
     do {
-        let unverified: Plain.Unverified
+        let unverified: SimpleJWS.Unverified
         switch item.serialization {
         case "compact":
-            unverified = try Plain.Unverified(compact: item.token)
+            unverified = try SimpleJWS.Unverified(compact: item.token)
         case "json":
-            unverified = try Plain.Unverified(json: Data(item.token.utf8))
+            unverified = try SimpleJWS.Unverified(json: Data(item.token.utf8))
         default:
             throw InteropError(description: "unknown serialization \(item.serialization)")
         }
-        let verified = try unverified.verify(with: keys)
+        let verified = try await unverified.verify(with: keys)
         response.verdicts.append(Response.Verdict(accepted: true, payload: hex(verified.payload)))
     } catch is JWSError {
         response.verdicts.append(Response.Verdict(accepted: false, payload: nil))

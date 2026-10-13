@@ -7,7 +7,8 @@ public enum PayloadEncoding: Sendable {
     /// The payload is base64url-encoded, as in every ordinary JWS.
     case base64URL
     /// The payload is signed and carried as it is (RFC 7797, `b64: false`). Meant for detached
-    /// payloads; in the compact form it can only hold printable ASCII without `.`.
+    /// payloads, which may be any bytes. A carried payload must be UTF-8, and in the compact
+    /// form printable ASCII without `.`.
     case unencoded
 }
 
@@ -27,9 +28,19 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         let header: JWSHeader<Custom>
         let signature: Data
 
-        func signingInput(payloadText: String) -> Data {
-            Data((protectedEncoded + "." + payloadText).utf8)
+        /// The JWS Signing Input: the protected header as received, a period, and the payload
+        /// as it enters the signature: its base64url text, or the bytes themselves under RFC 7797.
+        func signingInput(payload: Data) -> Data {
+            Data((protectedEncoded + ".").utf8) + payload
         }
+    }
+
+    /// The bytes that stand for the payload in the signing input.
+    static func signingPayload(_ payload: Data, isBase64URLEncoded: Bool) -> Data {
+        guard isBase64URLEncoded else {
+            return payload
+        }
+        return Data(Base64URL.encode(payload).utf8)
     }
 
     /// A parsed JWS whose signature has not been checked.
@@ -53,13 +64,14 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
             }
         }
 
-        /// The header of the first signature that parsed.
-        public var header: JWSHeader<Custom>? {
-            headers.first
-        }
+        /// The header of the first signature that parsed. A JWS in which no signature's header
+        /// parses is refused when it is parsed, so there always is one.
+        public let header: JWSHeader<Custom>
 
-        /// The payload **without any assurance that it is authentic**. `nil` when the payload is
-        /// detached. Use ``verify(with:detachedPayload:)`` to obtain a payload that can be trusted.
+        /// The payload **without any assurance that it is authentic**. `nil` when a JSON
+        /// serialization has no `payload` member; empty when the compact form's payload segment
+        /// is empty, which is how a detached compact JWS looks. Use
+        /// ``verify(with:detachedPayload:)`` to obtain a payload that can be trusted.
         public var unverifiedPayload: Data? {
             get throws(JWSError) {
                 guard let payloadText else {
@@ -70,16 +82,26 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         }
 
         init(entries: [Result<SignatureEntry, JWSError>], payloadText: String?) throws(JWSError) {
-            var encodings: Set<Bool> = []
-            for case .success(let entry) in entries {
-                encodings.insert(entry.header.isPayloadBase64URLEncoded)
+            var headers: [JWSHeader<Custom>] = []
+            var failures: [JWSError] = []
+            for entry in entries {
+                switch entry {
+                case .success(let entry):
+                    headers.append(entry.header)
+                case .failure(let error):
+                    failures.append(error)
+                }
             }
-            guard encodings.count <= 1 else {
+            guard let first = headers.first else {
+                throw .noUsableSignature(reasons: failures)
+            }
+            guard Set(headers.map(\.isPayloadBase64URLEncoded)).count == 1 else {
                 throw .inconsistentPayloadEncoding
             }
             self.entries = entries
+            self.header = first
             self.payloadText = payloadText
-            self.isPayloadBase64URLEncoded = encodings.first ?? true
+            self.isPayloadBase64URLEncoded = first.isPayloadBase64URLEncoded
             if let payloadText {
                 // Fail at parse time rather than at verification for a payload that is not base64url.
                 _ = try JWS.decodePayload(payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
@@ -95,62 +117,71 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         public func verify(
             with keys: VerificationKeys,
             detachedPayload: Data? = nil
-        ) throws(JWSError) -> Verified {
-            let payload: Data
-            let text: String
-            if let detachedPayload {
-                guard payloadText == nil || payloadText == "" else {
-                    throw .payloadSuppliedTwice
-                }
-                payload = detachedPayload
-                text = try JWS.encodePayload(detachedPayload, isBase64URLEncoded: isPayloadBase64URLEncoded)
-            } else {
-                guard let payloadText else {
-                    throw .payloadMissing
-                }
-                payload = try JWS.decodePayload(payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
-                text = payloadText
-            }
-
+        ) async throws(JWSError) -> Verified {
+            let (payload, signingPayload) = try resolvePayload(detached: detachedPayload)
             var verifiedHeaders: [JWSHeader<Custom>] = []
             var failures: [JWSError] = []
             for entry in entries {
                 do {
                     let entry = try entry.get()
-                    try JWS.verify(entry, payloadText: text, with: keys)
+                    try await JWS.verify(entry, signingPayload: signingPayload, with: keys)
                     verifiedHeaders.append(entry.header)
                 } catch {
                     failures.append(error)
                 }
             }
-
-            guard let header = verifiedHeaders.first else {
-                if failures.count == 1 {
-                    throw failures[0]
-                }
-                throw .noSignatureVerified(reasons: failures)
-            }
-            return Verified(header: header, verifiedHeaders: verifiedHeaders, payload: payload)
+            return try Verified.first(of: verifiedHeaders, failures: failures, payload: payload)
         }
 
-        /// Resolves keys from the header's `jku`, `x5c` or `jwk` with `resolver`, then verifies.
-        ///
-        /// Keys are resolved for the first signature's header. With several signatures, resolve and
-        /// verify per header instead.
+        /// The payload to return and the bytes that stand for it in the signing input, from the
+        /// carried payload or the detached one. A detached payload is taken as bytes, so a binary
+        /// `b64: false` payload needs no text form.
+        private func resolvePayload(detached: Data?) throws(JWSError) -> (payload: Data, signingPayload: Data) {
+            if let detached {
+                guard payloadText == nil || payloadText == "" else {
+                    throw .payloadSuppliedTwice
+                }
+                return (detached, JWS.signingPayload(detached, isBase64URLEncoded: isPayloadBase64URLEncoded))
+            }
+            guard let payloadText else {
+                throw .payloadMissing
+            }
+            let payload = try JWS.decodePayload(payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
+            return (payload, Data(payloadText.utf8))
+        }
+
+        /// Resolves keys from each signature's own `jku`, `x5c` or `jwk` with `resolver`, then
+        /// verifies that signature with them.
         public func verify(
             resolving resolver: HeaderKeyResolver,
             detachedPayload: Data? = nil
         ) async throws(JWSError) -> Verified {
-            guard let header else {
-                throw .missingAlgorithm
+            let (payload, signingPayload) = try resolvePayload(detached: detachedPayload)
+            var verifiedHeaders: [JWSHeader<Custom>] = []
+            var failures: [JWSError] = []
+            for entry in entries {
+                do {
+                    let entry = try entry.get()
+                    let keys = try await Self.keys(for: entry.header, resolving: resolver)
+                    try await JWS.verify(entry, signingPayload: signingPayload, with: keys)
+                    verifiedHeaders.append(entry.header)
+                } catch {
+                    failures.append(error)
+                }
             }
-            let keys: VerificationKeys
+            return try Verified.first(of: verifiedHeaders, failures: failures, payload: payload)
+        }
+
+        // Separate so that the loop above has one error type to catch.
+        private static func keys(
+            for header: JWSHeader<Custom>,
+            resolving resolver: HeaderKeyResolver
+        ) async throws(JWSError) -> VerificationKeys {
             do {
-                keys = try await resolver.verificationKeys(for: header)
+                return try await resolver.verificationKeys(for: header)
             } catch {
                 throw .keyResolutionFailed(error)
             }
-            return try verify(with: keys, detachedPayload: detachedPayload)
         }
     }
 
@@ -162,19 +193,35 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         /// compare this with what your application requires.
         public let verifiedHeaders: [JWSHeader<Custom>]
         public let payload: Data
+
+        /// The result for the signatures that verified, or the reason none did: the single
+        /// signature's own error, or one reason per signature.
+        static func first(
+            of verifiedHeaders: [JWSHeader<Custom>],
+            failures: [JWSError],
+            payload: Data
+        ) throws(JWSError) -> Verified {
+            guard let header = verifiedHeaders.first else {
+                if failures.count == 1 {
+                    throw failures[0]
+                }
+                throw .noSignatureVerified(reasons: failures)
+            }
+            return Verified(header: header, verifiedHeaders: verifiedHeaders, payload: payload)
+        }
     }
 
     private static func verify(
         _ entry: SignatureEntry,
-        payloadText: String,
+        signingPayload: Data,
         with keys: VerificationKeys
-    ) throws(JWSError) {
+    ) async throws(JWSError) {
         let candidates = try keys.candidates(algorithm: entry.header.algorithm, keyID: entry.header.keyID)
-        let message = entry.signingInput(payloadText: payloadText)
+        let message = entry.signingInput(payload: signingPayload)
         var lastError = JWSError.signatureInvalid(algorithm: entry.header.algorithm, keyID: entry.header.keyID)
         for candidate in candidates {
             do {
-                try candidate.verify(signature: entry.signature, message: message)
+                try await candidate.verify(signature: entry.signature, message: message)
                 return
             } catch {
                 lastError = error
@@ -187,7 +234,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         guard isBase64URLEncoded else {
             return Data(text.utf8)
         }
-        return try decodeBase64URL(text, part: .payload)
+        return try decodeBase64URL(text, part: "payload")
     }
 
     static func encodePayload(_ payload: Data, isBase64URLEncoded: Bool) throws(JWSError) -> String {
@@ -200,7 +247,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         return Base64URL.encode(payload)
     }
 
-    static func decodeBase64URL(_ text: String, part: JWSError.Part) throws(JWSError) -> Data {
+    static func decodeBase64URL(_ text: String, part: String) throws(JWSError) -> Data {
         // JOSECore accepts correct padding; JWS does not allow any (RFC 7515 §2).
         guard !text.utf8.contains(UInt8(ascii: "=")) else {
             throw .paddingNotAllowed(part: part)
@@ -212,6 +259,9 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         }
     }
 }
+
+/// A JWS with registered header parameters only, which is the common case.
+public typealias SimpleJWS = JWS<EmptyHeaderParameters>
 
 /// Decodes UTF-8 without repairing or dropping anything. Foundation's `String(data:encoding:)`
 /// is not used because it removes a leading byte order mark, which would change a signed payload.

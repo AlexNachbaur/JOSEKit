@@ -5,6 +5,10 @@ import Testing
 
 @testable import JOSEJWS
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 private struct CertificateFixture: Decodable {
     struct Leaf: Decodable {
         let der: String
@@ -48,6 +52,94 @@ private final class MemoryJWKSetProvider: JWKSetProvider, @unchecked Sendable {
     }
 }
 
+/// Serves canned responses by URL and records every URL requested.
+///
+/// - ``directURL``: an empty JWK Set.
+/// - ``movedURL``: an empty JWK Set whose response names ``elsewhereURL``, which is how a
+///   followed redirect looks to the caller.
+/// - ``redirectingURL``: a 302 to ``redirectTargetURL``, which serves an empty JWK Set.
+/// - ``declaredLargeURL``: a small body whose `Content-Length` claims 4096 bytes.
+/// - ``largeURL``: 3000 bytes with no `Content-Length`.
+private final class StubJWKSetProtocol: URLProtocol {
+    static let directURL = URL(string: "https://issuer.example/direct")!
+    static let movedURL = URL(string: "https://issuer.example/moved")!
+    static let elsewhereURL = URL(string: "https://elsewhere.example/jwks")!
+    static let redirectingURL = URL(string: "https://issuer.example/redirecting")!
+    static let redirectTargetURL = URL(string: "https://target.example/jwks")!
+    static let declaredLargeURL = URL(string: "https://issuer.example/declared-large")!
+    static let largeURL = URL(string: "https://issuer.example/large")!
+    static let emptySet = Data(#"{"keys":[]}"#.utf8)
+
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var requested: [URL] = []
+
+    static var requestedURLs: [URL] {
+        lock.withLock { requested }
+    }
+
+    static func session() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubJWKSetProtocol.self]
+        return URLSession(configuration: configuration)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    private func respond(from url: URL, status: Int = 200, headers: [String: String] = [:], body: Data) {
+        guard
+            let client,
+            let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)
+        else {
+            return
+        }
+        client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client.urlProtocol(self, didLoad: body)
+        client.urlProtocolDidFinishLoading(self)
+    }
+
+    override func startLoading() {
+        guard let url = request.url, let client else {
+            return
+        }
+        Self.lock.withLock { Self.requested.append(url) }
+        switch url {
+        case Self.movedURL:
+            respond(from: Self.elsewhereURL, body: Self.emptySet)
+        case Self.redirectingURL:
+            guard
+                let redirect = HTTPURLResponse(
+                    url: url,
+                    statusCode: 302,
+                    httpVersion: "HTTP/1.1",
+                    headerFields: ["Location": Self.redirectTargetURL.absoluteString]
+                )
+            else {
+                return
+            }
+            client.urlProtocol(
+                self,
+                wasRedirectedTo: URLRequest(url: Self.redirectTargetURL),
+                redirectResponse: redirect
+            )
+            respond(from: url, status: 302, body: Data())
+        case Self.declaredLargeURL:
+            respond(from: url, headers: ["Content-Length": "4096"], body: Self.emptySet)
+        case Self.largeURL:
+            respond(from: url, body: Data(repeating: 0x20, count: 3000))
+        default:
+            respond(from: url, body: Self.emptySet)
+        }
+    }
+
+    override func stopLoading() {}
+}
+
 /// Accepts any chain and returns a fixed key, or refuses everything.
 private struct StubValidator: CertificateChainValidator {
     struct Refused: Error {}
@@ -63,8 +155,6 @@ private struct StubValidator: CertificateChainValidator {
 
 @Suite("Key resolution")
 struct KeyResolutionTests {
-    typealias Plain = JWS<EmptyHeaderParameters>
-
     private let jwksURL = URL(string: "https://issuer.example/.well-known/jwks.json")!
     private let signingKey: ECPrivateKey<P256Curve>
     private let signer: ECDSASigner<P256Curve>
@@ -76,32 +166,28 @@ struct KeyResolutionTests {
         publicJWK = JWK(.p256(signingKey.publicKey), metadata: JWKMetadata(keyID: "k1"))
     }
 
-    private func token(header: JWSHeaderParameters<EmptyHeaderParameters>) async throws -> Plain.Unverified {
-        let signed = try await Plain.sign(Data("payload".utf8), with: signer, header: header)
-        return try Plain.Unverified(compact: try signed.compactSerialization())
+    private func token(header: JWSHeaderParameters<EmptyHeaderParameters>) async throws -> SimpleJWS.Unverified {
+        let signed = try await SimpleJWS.sign(Data("payload".utf8), with: signer, header: header)
+        return try SimpleJWS.Unverified(compact: try signed.compactSerialization())
     }
 
     private func caseName(_ error: KeyResolutionError) -> String {
         Mirror(reflecting: error).children.first?.label ?? "\(error)"
     }
 
-    /// The number of verifiers resolved, or `nil` on failure. `KeyResolutionError` carries
-    /// underlying errors and so is not `Equatable`; failures are pattern-matched instead.
-    private func resolvedCount(_ resolver: HeaderKeyResolver, _ jws: Plain.Unverified) async -> Int? {
+    /// The number of verifiers resolved, or `nil` on failure.
+    private func resolvedCount(_ resolver: HeaderKeyResolver, _ jws: SimpleJWS.Unverified) async -> Int? {
         guard case .success(let count) = await resolution(resolver, jws) else {
             return nil
         }
         return count
     }
 
-    private func resolution(_ resolver: HeaderKeyResolver, _ jws: Plain.Unverified) async -> Result<
+    private func resolution(_ resolver: HeaderKeyResolver, _ jws: SimpleJWS.Unverified) async -> Result<
         Int, KeyResolutionError
     > {
-        guard let header = jws.header else {
-            return .success(-1)
-        }
         do {
-            return .success(try await resolver.verificationKeys(for: header).verifiers.count)
+            return .success(try await resolver.verificationKeys(for: jws.header).verifiers.count)
         } catch {
             return .failure(error)
         }
@@ -274,10 +360,41 @@ struct KeyResolutionTests {
 
         // The embedded key is still subject to the algorithm list and to the signature check.
         let other = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>(), keyID: "k1")
-        let forged = try Plain.Unverified(
-            compact: try await Plain.sign(Data("x".utf8), with: other, header: header).compactSerialization()
+        let forged = try SimpleJWS.Unverified(
+            compact: try await SimpleJWS.sign(Data("x".utf8), with: other, header: header).compactSerialization()
         )
         await #expect(throws: JWSError.self) { try await forged.verify(resolving: resolver) }
+    }
+
+    @Test("with several signatures, each is verified with the keys its own header names")
+    func perSignatureResolution() async throws {
+        let otherKey = try ECPrivateKey<P256Curve>()
+        let otherSigner = try ECDSASigner(privateKey: otherKey, keyID: "k2")
+        let signed = try await SimpleJWS.sign(
+            Data("payload".utf8),
+            with: signer,
+            header: JWSHeaderParameters(jwk: publicJWK)
+        )
+        .adding(
+            signatureWith: otherSigner,
+            header: JWSHeaderParameters(jwk: JWK(.p256(otherKey.publicKey), metadata: JWKMetadata(keyID: "k2")))
+        )
+        let jws = try SimpleJWS.Unverified(json: try signed.generalJSONSerialization())
+        let resolver = HeaderKeyResolver(algorithms: [ES256.self], allowsEmbeddedKey: true)
+        let verified = try await jws.verify(resolving: resolver)
+        #expect(verified.verifiedHeaders.map(\.keyID) == ["k1", "k2"])
+
+        // A signature whose own header names the wrong key fails on its own; the other still verifies.
+        let swapped = try await SimpleJWS.sign(
+            Data("payload".utf8),
+            with: signer,
+            header: JWSHeaderParameters(jwk: publicJWK)
+        )
+        .adding(signatureWith: otherSigner, header: JWSHeaderParameters(jwk: publicJWK))
+        let partly = try await SimpleJWS.Unverified(json: try swapped.generalJSONSerialization()).verify(
+            resolving: resolver
+        )
+        #expect(partly.verifiedHeaders.map(\.keyID) == ["k1"])
     }
 
     @Test("a header without any key source, and a JWT, report resolution failure as a JWS error")
@@ -341,6 +458,73 @@ struct KeyResolutionTests {
         }
     }
 
+    @Test("the URLSession provider uses a response only when it comes from the URL requested")
+    func urlSessionProviderResponseURL() async throws {
+        let provider = URLSessionJWKSetProvider(session: StubJWKSetProtocol.session())
+        let direct = try await provider.jwkSet(at: StubJWKSetProtocol.directURL)
+        #expect(direct.keys.isEmpty)
+        #expect(
+            await fetchError(provider, StubJWKSetProtocol.movedURL)
+                == .respondedFromDifferentURL(StubJWKSetProtocol.movedURL, actual: StubJWKSetProtocol.elsewhereURL)
+        )
+    }
+
+    /// The error a fetch failed with, or `nil` if it succeeded.
+    private func fetchError(_ provider: URLSessionJWKSetProvider, _ url: URL) async -> JWKSetFetchError? {
+        do {
+            _ = try await provider.jwkSet(at: url)
+            return nil
+        } catch let error as JWKSetFetchError {
+            return error
+        } catch {
+            Issue.record("unexpected error \(error)")
+            return nil
+        }
+    }
+
+    @Test("the URLSession provider refuses a response above its size limit")
+    func urlSessionProviderSizeLimit() async {
+        let provider = URLSessionJWKSetProvider(session: StubJWKSetProtocol.session(), maximumByteCount: 1024)
+        let url = StubJWKSetProtocol.largeURL
+        #expect(await fetchError(provider, url) == .responseTooLarge(url, maximum: 1024))
+        // The declared length alone is enough to refuse; the body here is small.
+        let declared = StubJWKSetProtocol.declaredLargeURL
+        #expect(await fetchError(provider, declared) == .responseTooLarge(declared, maximum: 1024))
+    }
+
+    #if !canImport(FoundationNetworking)
+        @Test("on Apple platforms the URLSession provider does not follow redirects")
+        func urlSessionProviderRedirect() async {
+            let provider = URLSessionJWKSetProvider(session: StubJWKSetProtocol.session())
+            let url = StubJWKSetProtocol.redirectingURL
+            #expect(await fetchError(provider, url) == .unexpectedStatus(url, status: 302))
+            #expect(!StubJWKSetProtocol.requestedURLs.contains(StubJWKSetProtocol.redirectTargetURL))
+        }
+    #endif
+
+    @Test("verification keys can be built from a JWK Set URL known out of band")
+    func keysFromConfiguredURL() async throws {
+        let provider = MemoryJWKSetProvider([jwksURL: JWKSet(keys: [publicJWK])])
+        let keys = try await VerificationKeys(jwksAt: jwksURL, provider: provider, allowing: [ES256.self, EdDSA.self])
+        #expect(keys.algorithms == ["ES256"])
+        let jws = try await token(header: JWSHeaderParameters(keyID: "k1"))
+        #expect(try await jws.verify(with: keys).payload == Data("payload".utf8))
+
+        let missing = URL(string: "https://issuer.example/missing")!
+        do {
+            _ = try await VerificationKeys(jwksAt: missing, provider: provider, allowing: [ES256.self])
+            Issue.record("a missing JWK Set produced keys")
+        } catch {
+            #expect(
+                error
+                    == .jwkSetUnavailable(
+                        url: missing.absoluteString,
+                        underlying: UnderlyingError(MemoryJWKSetProvider.Missing())
+                    )
+            )
+        }
+    }
+
     @Test("every error has a message naming what was wrong")
     func descriptions() {
         struct Underlying: Error {}
@@ -348,8 +532,8 @@ struct KeyResolutionTests {
             (.noUsableKeySource(headerParameters: ["jku"]), "jku"),
             (.jwkSetURLNotAllowed("https://x"), "https://x"),
             (.jwkSetURLInvalid("::"), "::"),
-            (.jwkSetUnavailable(url: "https://y", underlying: Underlying()), "https://y"),
-            (.certificateChainRejected(underlying: Underlying()), "rejected"),
+            (.jwkSetUnavailable(url: "https://y", underlying: UnderlyingError(Underlying())), "https://y"),
+            (.certificateChainRejected(underlying: UnderlyingError(Underlying())), "rejected"),
             (.certificateChainMalformed(reason: "empty"), "empty"),
             (.certificateThumbprintMismatch(parameter: "x5t"), "x5t"),
             (.embeddedKeyDoesNotMatchCertificate, "different keys"),
@@ -360,9 +544,7 @@ struct KeyResolutionTests {
         }
         #expect(JWKSetFetchError.unexpectedStatus(URL(string: "https://x")!, status: 503).description.contains("503"))
         #expect(
-            JWKSetFetchError.responseTooLarge(URL(string: "https://x")!, byteCount: 9, maximum: 8).description.contains(
-                "9"
-            )
+            JWKSetFetchError.responseTooLarge(URL(string: "https://x")!, maximum: 8).description.contains("8 bytes")
         )
     }
 }
@@ -393,8 +575,6 @@ private final class Clock: @unchecked Sendable {
 #if canImport(Security)
     @Suite("SecTrust certificate validation")
     struct SecTrustValidatorTests {
-        typealias Plain = JWS<EmptyHeaderParameters>
-
         private func der(_ hex: String) throws -> Data {
             try Data(hex: hex)
         }
@@ -460,8 +640,9 @@ private final class Clock: @unchecked Sendable {
             header.x509CertificateChain = [try der(fixture.ecLeaf.der).base64EncodedString()]
             header.x509CertificateSHA256Thumbprint = fixture.ecLeaf.sha256
             header.x509CertificateSHA1Thumbprint = fixture.ecLeaf.sha1
-            let jws = try Plain.Unverified(
-                compact: try await Plain.sign(Data("signed".utf8), with: signer, header: header).compactSerialization()
+            let jws = try SimpleJWS.Unverified(
+                compact: try await SimpleJWS.sign(Data("signed".utf8), with: signer, header: header)
+                    .compactSerialization()
             )
 
             let trusted = HeaderKeyResolver(
@@ -478,8 +659,8 @@ private final class Clock: @unchecked Sendable {
 
             // The certificate is trusted, but the token was not signed by its key.
             let impostor = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>())
-            let forged = try Plain.Unverified(
-                compact: try await Plain.sign(Data("signed".utf8), with: impostor, header: header)
+            let forged = try SimpleJWS.Unverified(
+                compact: try await SimpleJWS.sign(Data("signed".utf8), with: impostor, header: header)
                     .compactSerialization()
             )
             await #expect(throws: JWSError.self) { try await forged.verify(resolving: trusted) }

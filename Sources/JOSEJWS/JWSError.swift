@@ -2,23 +2,17 @@ import JOSECore
 import JOSEJWK
 
 /// Why a JWS could not be parsed, verified or produced.
-public enum JWSError: Error, Sendable {
-    /// One of the base64url-encoded parts of a JWS.
-    public enum Part: String, Sendable {
-        case protectedHeader = "protected header"
-        case payload
-        case signature
-    }
-
+public enum JWSError: Error, Sendable, Equatable {
     // MARK: Parsing
 
     /// A compact JWS is exactly three segments separated by `.`.
     case invalidCompactSerialization(segmentCount: Int)
     /// A compact JWS must have a protected header.
     case missingProtectedHeader
-    case invalidBase64URL(part: Part, Base64URLError)
+    /// `part` names the base64url-encoded part: "protected header", "payload" or "signature".
+    case invalidBase64URL(part: String, Base64URLError)
     /// The part contains `=`. JWS uses base64url without padding (RFC 7515 §2).
-    case paddingNotAllowed(part: Part)
+    case paddingNotAllowed(part: String)
     /// The JWS JSON Serialization is not a JSON object with unique member names.
     case invalidJSONStructure(JSONStructureError)
     /// The JWS JSON Serialization has a member of the wrong type, is missing a required member,
@@ -73,6 +67,9 @@ public enum JWSError: Error, Sendable {
     case verificationFailed(VerificationError)
     /// The JWS has several signatures and none verified. One reason per signature, in order.
     case noSignatureVerified(reasons: [JWSError])
+    /// The JWS has several signatures and none of their headers could be read, so none could
+    /// ever verify. One reason per signature, in order.
+    case noUsableSignature(reasons: [JWSError])
     /// Keys could not be obtained from the header's `jku`, `x5c` or `jwk`.
     case keyResolutionFailed(KeyResolutionError)
 
@@ -96,9 +93,9 @@ extension JWSError: CustomStringConvertible {
         case .missingProtectedHeader:
             return "compact JWS has an empty protected header"
         case .invalidBase64URL(let part, let error):
-            return "JWS \(part.rawValue) is not valid base64url: \(error)"
+            return "JWS \(part) is not valid base64url: \(error)"
         case .paddingNotAllowed(let part):
-            return "JWS \(part.rawValue) contains '='; JWS base64url is unpadded"
+            return "JWS \(part) contains '='; JWS base64url is unpadded"
         case .invalidJSONStructure(let error):
             return "JWS JSON serialization is not a well-formed JSON object: \(error)"
         case .invalidJSONSerialization(let reason):
@@ -149,6 +146,9 @@ extension JWSError: CustomStringConvertible {
             return "JWS verification could not be performed: \(error)"
         case .noSignatureVerified(let reasons):
             return "none of the JWS's \(reasons.count) signatures verified: "
+                + reasons.map(\.description).joined(separator: "; ")
+        case .noUsableSignature(let reasons):
+            return "none of the JWS's \(reasons.count) signatures has a usable header: "
                 + reasons.map(\.description).joined(separator: "; ")
         case .keyResolutionFailed(let error):
             return "JWS verification keys could not be resolved from the header: \(error)"

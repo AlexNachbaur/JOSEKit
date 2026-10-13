@@ -7,7 +7,6 @@ import Testing
 
 @Suite("JWS")
 struct JWSTests {
-    typealias Plain = JWS<EmptyHeaderParameters>
 
     private struct Keys {
         let signer: ECDSASigner<P256Curve>
@@ -39,7 +38,7 @@ struct JWSTests {
     func roundTrip() async throws {
         let keys = try Keys(keyID: "k1")
         let payload = Data("hello".utf8)
-        let signed = try await Plain.sign(payload, with: keys.signer, header: JWSHeaderParameters(type: "example"))
+        let signed = try await SimpleJWS.sign(payload, with: keys.signer, header: JWSHeaderParameters(type: "example"))
 
         #expect(signed.header.algorithm == "ES256")
         #expect(signed.header.keyID == "k1")
@@ -48,19 +47,19 @@ struct JWSTests {
 
         let compact = try signed.compactSerialization()
         #expect(compact.split(separator: ".").count == 3)
-        #expect(try Plain.Unverified(compact: compact).verify(with: keys.verification).payload == payload)
+        #expect(try await SimpleJWS.Unverified(compact: compact).verify(with: keys.verification).payload == payload)
 
-        let flattened = try Plain.Unverified(json: try signed.flattenedJSONSerialization())
-        #expect(try flattened.verify(with: keys.verification).payload == payload)
+        let flattened = try SimpleJWS.Unverified(json: try signed.flattenedJSONSerialization())
+        #expect(try await flattened.verify(with: keys.verification).payload == payload)
 
-        let general = try Plain.Unverified(json: try signed.generalJSONSerialization())
-        #expect(try general.verify(with: keys.verification).payload == payload)
+        let general = try SimpleJWS.Unverified(json: try signed.generalJSONSerialization())
+        #expect(try await general.verify(with: keys.verification).payload == payload)
     }
 
     @Test("the protected header is written with sorted members and alg from the signer")
     func protectedHeaderBytes() async throws {
         let keys = try Keys(keyID: "k1")
-        let signed = try await Plain.sign(Data(), with: keys.signer, header: JWSHeaderParameters(type: "JWT"))
+        let signed = try await SimpleJWS.sign(Data(), with: keys.signer, header: JWSHeaderParameters(type: "JWT"))
         let headerSegment = String(try signed.compactSerialization().split(separator: ".")[0])
         let json = String(decoding: try Base64URL.decode(headerSegment), as: UTF8.self)
         #expect(json == #"{"alg":"ES256","kid":"k1","typ":"JWT"}"#)
@@ -69,7 +68,7 @@ struct JWSTests {
     @Test("an explicit kid in the header wins over the signer's, and no kid is written when neither has one")
     func keyIDPrecedence() async throws {
         let withKeyID = try Keys(keyID: "from-signer")
-        let explicit = try await Plain.sign(
+        let explicit = try await SimpleJWS.sign(
             Data(),
             with: withKeyID.signer,
             header: JWSHeaderParameters(keyID: "explicit")
@@ -77,7 +76,7 @@ struct JWSTests {
         #expect(explicit.header.keyID == "explicit")
 
         let without = try Keys()
-        let none = try await Plain.sign(Data(), with: without.signer)
+        let none = try await SimpleJWS.sign(Data(), with: without.signer)
         #expect(none.header.keyID == nil)
         #expect(none.header.rawParameters["kid"] == nil)
     }
@@ -87,7 +86,7 @@ struct JWSTests {
         let keys = try Keys()
         // Whitespace and member order that this package would never produce.
         let unusual = try await token(headerJSON: "{ \"typ\" : \"x\",\n\t\"alg\" : \"ES256\" }", signer: keys.signer)
-        let verified = try Plain.Unverified(compact: unusual).verify(with: keys.verification)
+        let verified = try await SimpleJWS.Unverified(compact: unusual).verify(with: keys.verification)
         #expect(verified.payload == Data("payload".utf8))
         #expect(verified.header.type == "x")
     }
@@ -95,11 +94,11 @@ struct JWSTests {
     @Test("the payload of an unverified JWS is only reachable under a name that says so")
     func unverifiedPayload() async throws {
         let keys = try Keys()
-        let signed = try await Plain.sign(Data("secret?".utf8), with: keys.signer)
-        let unverified = try Plain.Unverified(compact: try signed.compactSerialization())
+        let signed = try await SimpleJWS.sign(Data("secret?".utf8), with: keys.signer)
+        let unverified = try SimpleJWS.Unverified(compact: try signed.compactSerialization())
         #expect(try unverified.unverifiedPayload == Data("secret?".utf8))
-        #expect(unverified.header?.algorithm == "ES256")
-        let detached = try Plain.Unverified(json: try signed.flattenedJSONSerialization(detached: true))
+        #expect(unverified.header.algorithm == "ES256")
+        let detached = try SimpleJWS.Unverified(json: try signed.flattenedJSONSerialization(detached: true))
         #expect(try detached.unverifiedPayload == nil)
     }
 
@@ -111,13 +110,13 @@ struct JWSTests {
         #expect(signed.header.critical == ["urn:example:must"])
 
         let compact = try signed.compactSerialization()
-        let verified = try JWS<ExampleHeader>.Unverified(compact: compact).verify(with: keys.verification)
+        let verified = try await JWS<ExampleHeader>.Unverified(compact: compact).verify(with: keys.verification)
         #expect(verified.header.custom == ExampleHeader(level: 3, must: "understood"))
         #expect(verified.header.critical == ["urn:example:must"])
 
         // A reader that does not know the critical extension must refuse the token.
         #expect(
-            thrownCase { () throws(JWSError) in try Plain.Unverified(compact: compact) }
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: compact) }
                 == "unsupportedCriticalParameter"
         )
 
@@ -129,7 +128,22 @@ struct JWSTests {
         )
         #expect(ordinary.header.critical.isEmpty)
         #expect(ordinary.header.rawParameters["crit"] == nil)
-        _ = try Plain.Unverified(compact: try ordinary.compactSerialization()).verify(with: keys.verification)
+        _ = try await SimpleJWS.Unverified(compact: try ordinary.compactSerialization()).verify(with: keys.verification)
+    }
+
+    @Test("the compact form is split on the period byte, not on grapheme clusters")
+    func compactSplitOnBytes() async {
+        // A combining mark after the second period joins it into one grapheme cluster. Split by
+        // character, the token has two segments; split by byte, three.
+        let joined = "eyJhbGciOiJFUzI1NiJ9.\u{301}AA.AA"
+        #expect(
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: joined) }
+                == "invalidBase64URL"
+        )
+        #expect(
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: "a.b") }
+                == "invalidCompactSerialization"
+        )
     }
 
     @Test("a custom header type cannot set alg or any other parameter this package owns")
@@ -192,14 +206,20 @@ struct JWSTests {
     @Test("registered header parameters are written and read back, including an embedded public JWK")
     func registeredParameters() async throws {
         let keys = try Keys()
-        var header = JWSHeaderParameters(type: "t", contentType: "c", jwk: JWK(.p256(keys.signer.publicKey)))
-        header.jwkSetURL = "https://example.com/jwks"
-        header.x509URL = "https://example.com/cert"
-        header.x509CertificateChain = ["MIIB", "MIIC"]
-        header.x509CertificateSHA1Thumbprint = "sha1"
-        header.x509CertificateSHA256Thumbprint = "sha256"
-        let signed = try await Plain.sign(Data(), with: keys.signer, header: header)
-        let read = try Plain.Unverified(compact: try signed.compactSerialization()).verify(with: keys.verification)
+        let header = JWSHeaderParameters(
+            type: "t",
+            contentType: "c",
+            jwk: JWK(.p256(keys.signer.publicKey)),
+            jwkSetURL: "https://example.com/jwks",
+            x509URL: "https://example.com/cert",
+            x509CertificateChain: ["MIIB", "MIIC"],
+            x509CertificateSHA1Thumbprint: "sha1",
+            x509CertificateSHA256Thumbprint: "sha256"
+        )
+        let signed = try await SimpleJWS.sign(Data(), with: keys.signer, header: header)
+        let read = try await SimpleJWS.Unverified(compact: try signed.compactSerialization()).verify(
+            with: keys.verification
+        )
         let parameters = read.header.parameters
         #expect(parameters.type == "t")
         #expect(parameters.contentType == "c")
@@ -220,18 +240,21 @@ struct JWSTests {
         )
         let withPrivate = try await token(headerJSON: #"{"alg":"ES256","jwk":\#(privateJSON)}"#, signer: keys.signer)
         #expect(
-            thrownCase { () throws(JWSError) in try Plain.Unverified(compact: withPrivate) } == "invalidJWKParameter"
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: withPrivate) }
+                == "invalidJWKParameter"
         )
         let withSymmetric = try await token(
             headerJSON: #"{"alg":"ES256","jwk":{"kty":"oct","k":"AAAA"}}"#,
             signer: keys.signer
         )
         #expect(
-            thrownCase { () throws(JWSError) in try Plain.Unverified(compact: withSymmetric) } == "invalidJWKParameter"
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: withSymmetric) }
+                == "invalidJWKParameter"
         )
         let notObject = try await token(headerJSON: #"{"alg":"ES256","jwk":"x"}"#, signer: keys.signer)
         #expect(
-            thrownCase { () throws(JWSError) in try Plain.Unverified(compact: notObject) } == "headerParameterWrongType"
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: notObject) }
+                == "headerParameterWrongType"
         )
     }
 
@@ -244,13 +267,14 @@ struct JWSTests {
         ] {
             let bad = try await token(headerJSON: #"{"alg":"ES256",\#(parameter)}"#, signer: keys.signer)
             #expect(
-                thrownCase { () throws(JWSError) in try Plain.Unverified(compact: bad) } == "headerParameterWrongType",
+                await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(compact: bad) }
+                    == "headerParameterWrongType",
                 "\(parameter)"
             )
         }
         // Positive control: the same shape with valid types parses.
         let good = try await token(headerJSON: #"{"alg":"ES256","kid":"1","x5c":["a"]}"#, signer: keys.signer)
-        _ = try Plain.Unverified(compact: good)
+        _ = try SimpleJWS.Unverified(compact: good)
     }
 
     @Test("a custom header whose parameter has the wrong type is refused")
@@ -258,11 +282,11 @@ struct JWSTests {
         let keys = try Keys()
         let bad = try await token(headerJSON: #"{"alg":"ES256","urn:example:level":"high"}"#, signer: keys.signer)
         #expect(
-            thrownCase { () throws(JWSError) in try JWS<ExampleHeader>.Unverified(compact: bad) }
+            await thrownCase { () async throws(JWSError) in try JWS<ExampleHeader>.Unverified(compact: bad) }
                 == "invalidCustomParameters"
         )
         // The same token is fine for a reader that does not declare the parameter.
-        _ = try Plain.Unverified(compact: bad).verify(with: keys.verification)
+        _ = try await SimpleJWS.Unverified(compact: bad).verify(with: keys.verification)
     }
 
     // MARK: Detached and unencoded payloads
@@ -271,55 +295,61 @@ struct JWSTests {
     func detachedPayload() async throws {
         let keys = try Keys()
         let payload = Data("detached".utf8)
-        let signed = try await Plain.sign(payload, with: keys.signer)
+        let signed = try await SimpleJWS.sign(payload, with: keys.signer)
 
-        let detached = try Plain.Unverified(compact: try signed.compactSerialization(detached: true))
-        #expect(try detached.verify(with: keys.verification, detachedPayload: payload).payload == payload)
+        let detached = try SimpleJWS.Unverified(compact: try signed.compactSerialization(detached: true))
+        #expect(try await detached.verify(with: keys.verification, detachedPayload: payload).payload == payload)
 
-        let attached = try Plain.Unverified(compact: try signed.compactSerialization())
+        let attached = try SimpleJWS.Unverified(compact: try signed.compactSerialization())
         #expect(
-            thrownCase { () throws(JWSError) in try attached.verify(with: keys.verification, detachedPayload: payload) }
+            await thrownCase { () async throws(JWSError) in
+                try await attached.verify(with: keys.verification, detachedPayload: payload)
+            }
                 == "payloadSuppliedTwice"
         )
 
-        let detachedJSON = try Plain.Unverified(json: try signed.generalJSONSerialization(detached: true))
+        let detachedJSON = try SimpleJWS.Unverified(json: try signed.generalJSONSerialization(detached: true))
         #expect(
-            thrownCase { () throws(JWSError) in try detachedJSON.verify(with: keys.verification) } == "payloadMissing"
+            await thrownCase { () async throws(JWSError) in try await detachedJSON.verify(with: keys.verification) }
+                == "payloadMissing"
         )
-        #expect(try detachedJSON.verify(with: keys.verification, detachedPayload: payload).payload == payload)
+        #expect(try await detachedJSON.verify(with: keys.verification, detachedPayload: payload).payload == payload)
     }
 
     @Test("an unencoded payload is signed as it is and marked critical")
     func unencodedPayload() async throws {
         let keys = try Keys()
         let payload = Data("$.02 paid to é".utf8)
-        let signed = try await Plain.sign(payload, with: keys.signer, payloadEncoding: .unencoded)
+        let signed = try await SimpleJWS.sign(payload, with: keys.signer, payloadEncoding: .unencoded)
         #expect(signed.header.critical == ["b64"])
         #expect(!signed.header.isPayloadBase64URLEncoded)
         #expect(signed.header.rawParameters["b64"] == false)
 
         // Non-ASCII and '.' cannot sit between the periods of the compact form.
         #expect(
-            thrownCase { () throws(JWSError) in try signed.compactSerialization() }
+            await thrownCase { () async throws(JWSError) in try signed.compactSerialization() }
                 == "unencodedPayloadNotRepresentable"
         )
         let detached = try signed.compactSerialization(detached: true)
         #expect(detached.contains(".."))
-        let verified = try Plain.Unverified(compact: detached).verify(with: keys.verification, detachedPayload: payload)
+        let verified = try await SimpleJWS.Unverified(compact: detached).verify(
+            with: keys.verification,
+            detachedPayload: payload
+        )
         #expect(verified.payload == payload)
 
-        let json = try Plain.Unverified(json: try signed.flattenedJSONSerialization())
-        #expect(try json.verify(with: keys.verification).payload == payload)
+        let json = try SimpleJWS.Unverified(json: try signed.flattenedJSONSerialization())
+        #expect(try await json.verify(with: keys.verification).payload == payload)
 
         // The signature really is over the raw payload, not its base64url form.
-        let encodedInstead = try await Plain.sign(payload, with: keys.signer)
+        let encodedInstead = try await SimpleJWS.sign(payload, with: keys.signer)
         let swapped =
             try signed.compactSerialization(detached: true).split(separator: ".", omittingEmptySubsequences: false)
         let forged = swapped[0] + "." + Base64URL.encode(payload) + "." + swapped[2]
         _ = encodedInstead
         #expect(
-            thrownCase { () throws(JWSError) in
-                try Plain.Unverified(compact: String(forged)).verify(with: keys.verification)
+            await thrownCase { () async throws(JWSError) in
+                try await SimpleJWS.Unverified(compact: String(forged)).verify(with: keys.verification)
             }
                 == "signatureInvalid"
         )
@@ -329,34 +359,56 @@ struct JWSTests {
     func unencodedCompact() async throws {
         let keys = try Keys()
         let payload = Data("plain text payload".utf8)
-        let signed = try await Plain.sign(payload, with: keys.signer, payloadEncoding: .unencoded)
+        let signed = try await SimpleJWS.sign(payload, with: keys.signer, payloadEncoding: .unencoded)
         let compact = try signed.compactSerialization()
         #expect(compact.split(separator: ".", omittingEmptySubsequences: false)[1] == "plain text payload")
-        #expect(try Plain.Unverified(compact: compact).verify(with: keys.verification).payload == payload)
+        #expect(try await SimpleJWS.Unverified(compact: compact).verify(with: keys.verification).payload == payload)
 
         for unrepresentable in ["a.b", "line\nbreak", "é"] {
-            let other = try await Plain.sign(Data(unrepresentable.utf8), with: keys.signer, payloadEncoding: .unencoded)
+            let other = try await SimpleJWS.sign(
+                Data(unrepresentable.utf8),
+                with: keys.signer,
+                payloadEncoding: .unencoded
+            )
             #expect(
-                thrownCase { () throws(JWSError) in try other.compactSerialization() }
+                await thrownCase { () async throws(JWSError) in try other.compactSerialization() }
                     == "unencodedPayloadNotRepresentable"
             )
         }
     }
 
-    @Test("an unencoded payload that is not UTF-8 is refused at signing")
+    @Test("an unencoded payload that is not UTF-8 can be signed and carried detached, but not written")
     func unencodedNotUTF8() async throws {
         let keys = try Keys()
-        do {
-            _ = try await Plain.sign(Data([0xFF, 0xFE]), with: keys.signer, payloadEncoding: .unencoded)
-            Issue.record("non-UTF-8 unencoded payload was signed")
-        } catch {
-            #expect(caseName(error) == "unencodedPayloadNotRepresentable")
-        }
+        let binary = Data([0xFF, 0xFE, 0x00, 0x2E])
+        let signed = try await SimpleJWS.sign(binary, with: keys.signer, payloadEncoding: .unencoded)
+        #expect(
+            await thrownCase { () async throws(JWSError) in try signed.compactSerialization() }
+                == "unencodedPayloadNotRepresentable"
+        )
+        #expect(
+            await thrownCase { () async throws(JWSError) in try signed.flattenedJSONSerialization() }
+                == "unencodedPayloadNotRepresentable"
+        )
+        #expect(
+            await thrownCase { () async throws(JWSError) in try signed.generalJSONSerialization() }
+                == "unencodedPayloadNotRepresentable"
+        )
+        // Detached, the payload travels as bytes and is verified as bytes (RFC 7797 §5.2).
+        let compact = try SimpleJWS.Unverified(compact: try signed.compactSerialization(detached: true))
+        #expect(try await compact.verify(with: keys.verification, detachedPayload: binary).payload == binary)
+        let json = try SimpleJWS.Unverified(json: try signed.flattenedJSONSerialization(detached: true))
+        #expect(try await json.verify(with: keys.verification, detachedPayload: binary).payload == binary)
+        #expect(
+            await thrownCase { () async throws(JWSError) in
+                try await json.verify(with: keys.verification, detachedPayload: binary + [0])
+            } == "signatureInvalid"
+        )
         // A byte order mark is content and survives.
         let withBOM = Data([0xEF, 0xBB, 0xBF]) + Data("x".utf8)
-        let signed = try await Plain.sign(withBOM, with: keys.signer, payloadEncoding: .unencoded)
-        let json = try Plain.Unverified(json: try signed.flattenedJSONSerialization())
-        #expect(try json.verify(with: keys.verification).payload == withBOM)
+        let signedBOM = try await SimpleJWS.sign(withBOM, with: keys.signer, payloadEncoding: .unencoded)
+        let carried = try SimpleJWS.Unverified(json: try signedBOM.flattenedJSONSerialization())
+        #expect(try await carried.verify(with: keys.verification).payload == withBOM)
     }
 
     // MARK: Multiple signatures and the JSON serializations
@@ -371,26 +423,30 @@ struct JWSTests {
         )
 
         let payload = Data("two signers".utf8)
-        let signed = try await Plain.sign(payload, with: first.signer)
+        let signed = try await SimpleJWS.sign(payload, with: first.signer)
             .adding(signatureWith: second, header: JWSHeaderParameters())
         #expect(signed.headers.map(\.algorithm) == ["ES256", "Ed25519"])
 
-        #expect(thrownCase { () throws(JWSError) in try signed.compactSerialization() } == "singleSignatureRequired")
         #expect(
-            thrownCase { () throws(JWSError) in try signed.flattenedJSONSerialization() } == "singleSignatureRequired"
+            await thrownCase { () async throws(JWSError) in try signed.compactSerialization() }
+                == "singleSignatureRequired"
+        )
+        #expect(
+            await thrownCase { () async throws(JWSError) in try signed.flattenedJSONSerialization() }
+                == "singleSignatureRequired"
         )
 
-        let jws = try Plain.Unverified(json: try signed.generalJSONSerialization())
-        #expect(try jws.verify(with: first.verification).header.keyID == "a")
-        #expect(try jws.verify(with: VerificationKeys([secondVerifier])).header.keyID == "b")
-        let both = try jws.verify(with: VerificationKeys(first.verification.verifiers + [secondVerifier]))
+        let jws = try SimpleJWS.Unverified(json: try signed.generalJSONSerialization())
+        #expect(try await jws.verify(with: first.verification).header.keyID == "a")
+        #expect(try await jws.verify(with: VerificationKeys([secondVerifier])).header.keyID == "b")
+        let both = try await jws.verify(with: VerificationKeys(first.verification.verifiers + [secondVerifier]))
         #expect(both.verifiedHeaders.map(\.keyID) == ["a", "b"])
     }
 
     @Test("one unusable signature does not stop another from verifying")
     func unusableSignatureIsSkipped() async throws {
         let keys = try Keys()
-        let signed = try await Plain.sign(Data("p".utf8), with: keys.signer)
+        let signed = try await SimpleJWS.sign(Data("p".utf8), with: keys.signer)
         let parts = try signed.compactSerialization().split(separator: ".").map(String.init)
         let unknownCritical = encoded(#"{"alg":"ES256","crit":["x"],"x":1}"#)
         let json = """
@@ -398,22 +454,38 @@ struct JWSTests {
               {"protected":"\(unknownCritical)","signature":"AAAA"},
               {"protected":"\(parts[0])","signature":"\(parts[2])"}]}
             """
-        let jws = try Plain.Unverified(json: Data(json.utf8))
+        let jws = try SimpleJWS.Unverified(json: Data(json.utf8))
         #expect(jws.headers.count == 1)
-        #expect(try jws.verify(with: keys.verification).payload == Data("p".utf8))
+        #expect(try await jws.verify(with: keys.verification).payload == Data("p".utf8))
 
         // With only the unusable signature, the specific reason is reported.
         let alone = #"{"payload":"\#(parts[1])","signatures":[{"protected":"\#(unknownCritical)","signature":"AAAA"}]}"#
         #expect(
-            thrownCase { () throws(JWSError) in try Plain.Unverified(json: Data(alone.utf8)) }
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(json: Data(alone.utf8)) }
                 == "unsupportedCriticalParameter"
         )
+
+        // With several signatures and none usable, the JWS is refused, with every reason.
+        let noAlgorithm = encoded(#"{"kid":"k"}"#)
+        let none = """
+            {"payload":"\(parts[1])","signatures":[
+              {"protected":"\(unknownCritical)","signature":"AAAA"},
+              {"protected":"\(noAlgorithm)","signature":"AAAA"}]}
+            """
+        do {
+            _ = try SimpleJWS.Unverified(json: Data(none.utf8))
+            Issue.record("a JWS with no usable signature was accepted")
+        } catch {
+            #expect(
+                error == .noUsableSignature(reasons: [.unsupportedCriticalParameter(name: "x"), .missingAlgorithm])
+            )
+        }
     }
 
     @Test("unprotected header parameters are read, flagged, and restricted")
     func unprotectedHeader() async throws {
         let keys = try Keys()
-        let signed = try await Plain.sign(Data("p".utf8), with: keys.signer)
+        let signed = try await SimpleJWS.sign(Data("p".utf8), with: keys.signer)
         let parts = try signed.compactSerialization().split(separator: ".").map(String.init)
         func flattened(protected: String?, header: String) -> Data {
             var members = [#""payload":"\#(parts[1])""#, #""signature":"\#(parts[2])""#, #""header":\#(header)"#]
@@ -423,45 +495,63 @@ struct JWSTests {
             return Data(("{" + members.joined(separator: ",") + "}").utf8)
         }
 
-        let withExtra = try Plain.Unverified(json: flattened(protected: parts[0], header: #"{"kid":"u","typ":"t"}"#))
-        let verified = try withExtra.verify(with: keys.verification)
+        let withExtra = try SimpleJWS.Unverified(
+            json: flattened(protected: parts[0], header: #"{"kid":"u","typ":"t"}"#)
+        )
+        let verified = try await withExtra.verify(with: keys.verification)
         #expect(verified.header.unprotectedParameterNames == ["kid", "typ"])
         #expect(verified.header.keyID == "u")
 
         #expect(
-            thrownCase { () throws(JWSError) in
-                try Plain.Unverified(json: flattened(protected: parts[0], header: #"{"alg":"ES256"}"#))
+            await thrownCase { () async throws(JWSError) in
+                try SimpleJWS.Unverified(json: flattened(protected: parts[0], header: #"{"alg":"ES256"}"#))
             } == "headerParameterInBothHeaders"
         )
         let critProtected = encoded(#"{"alg":"ES256"}"#)
         #expect(
-            thrownCase { () throws(JWSError) in
-                try Plain.Unverified(
+            await thrownCase { () async throws(JWSError) in
+                try SimpleJWS.Unverified(
                     json: flattened(protected: critProtected, header: #"{"crit":["b64"],"b64":false}"#)
                 )
             } == "headerParameterNotProtected"
         )
         #expect(
-            thrownCase { () throws(JWSError) in
-                try Plain.Unverified(
+            await thrownCase { () async throws(JWSError) in
+                try SimpleJWS.Unverified(
                     json: flattened(protected: encoded(#"{"alg":"ES256","crit":["b64"]}"#), header: #"{"b64":false}"#)
                 )
             } == "headerParameterNotProtected"
         )
 
         // alg may come from the unprotected header alone (RFC 7515 §7.2.1), and is flagged as such.
-        let unprotectedOnly = try Plain.Unverified(json: flattened(protected: nil, header: #"{"alg":"ES256"}"#))
-        #expect(unprotectedOnly.header?.unprotectedParameterNames == ["alg"])
+        let unprotectedOnly = try SimpleJWS.Unverified(json: flattened(protected: nil, header: #"{"alg":"ES256"}"#))
+        #expect(unprotectedOnly.header.unprotectedParameterNames == ["alg"])
         #expect(
-            thrownCase { () throws(JWSError) in try unprotectedOnly.verify(with: keys.verification) }
+            await thrownCase { () async throws(JWSError) in try await unprotectedOnly.verify(with: keys.verification) }
                 == "signatureInvalid"
         )
+    }
+
+    @Test("a critical parameter must itself be protected, not only listed in a protected crit")
+    func criticalParameterMustBeProtected() async throws {
+        let keys = try Keys()
+        let signed = try await SimpleJWS.sign(Data("p".utf8), with: keys.signer)
+        let parts = try signed.compactSerialization().split(separator: ".").map(String.init)
+        let protected = encoded(#"{"alg":"ES256","crit":["urn:example:must"]}"#)
+        let json =
+            #"{"payload":"\#(parts[1])","signature":"\#(parts[2])","protected":"\#(protected)","header":{"urn:example:must":"x"}}"#
+        do {
+            _ = try JWS<ExampleHeader>.Unverified(json: Data(json.utf8))
+            Issue.record("an unprotected critical parameter was accepted")
+        } catch {
+            #expect(error == .headerParameterNotProtected(name: "urn:example:must"))
+        }
     }
 
     @Test("crit itself must be protected, and may not list a name twice")
     func criticalRules() async throws {
         let keys = try Keys()
-        let signed = try await Plain.sign(Data("p".utf8), with: keys.signer)
+        let signed = try await SimpleJWS.sign(Data("p".utf8), with: keys.signer)
         let parts = try signed.compactSerialization().split(separator: ".").map(String.init)
 
         // The critical parameter is protected and understood; only `crit` sits in the unprotected header.
@@ -483,7 +573,7 @@ struct JWSTests {
             headerJSON: #"{"alg":"ES256","crit":["urn:example:must"],"urn:example:must":"x"}"#,
             signer: keys.signer
         )
-        _ = try JWS<ExampleHeader>.Unverified(compact: allProtected).verify(with: keys.verification)
+        _ = try await JWS<ExampleHeader>.Unverified(compact: allProtected).verify(with: keys.verification)
 
         let repeated = try await token(
             headerJSON: #"{"alg":"ES256","crit":["urn:example:must","urn:example:must"],"urn:example:must":"x"}"#,
@@ -502,36 +592,37 @@ struct JWSTests {
     }
 
     @Test("malformed JSON serializations report what is wrong")
-    func invalidJSONSerialization() {
-        func parse(_ json: String) -> String? {
-            thrownCase { () throws(JWSError) in try Plain.Unverified(json: Data(json.utf8)) }
+    func invalidJSONSerialization() async {
+        func parse(_ json: String) async -> String? {
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(json: Data(json.utf8)) }
         }
-        #expect(parse("[]") == "invalidJSONStructure")
-        #expect(parse(#"{"payload":"","payload":""}"#) == "invalidJSONStructure")
-        #expect(parse(#"{"payload":1,"signature":"AA"}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":""}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":"","signature":1}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":"","signature":"AA","protected":1}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":"","signature":"AA","header":"x"}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":"","signatures":[]}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":"","signatures":{}}"#) == "invalidJSONSerialization")
-        #expect(parse(#"{"payload":"","signatures":[1]}"#) == "invalidJSONSerialization")
+        #expect(await parse("[]") == "invalidJSONStructure")
+        #expect(await parse(#"{"payload":"","payload":""}"#) == "invalidJSONStructure")
+        #expect(await parse(#"{"payload":1,"signature":"AA"}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":""}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":"","signature":1}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":"","signature":"AA","protected":1}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":"","signature":"AA","header":"x"}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":"","signatures":[]}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":"","signatures":{}}"#) == "invalidJSONSerialization")
+        #expect(await parse(#"{"payload":"","signatures":[1]}"#) == "invalidJSONSerialization")
         #expect(
-            parse(#"{"payload":"","signatures":[{"signature":"AA"}],"signature":"AA"}"#) == "invalidJSONSerialization"
+            await parse(#"{"payload":"","signatures":[{"signature":"AA"}],"signature":"AA"}"#)
+                == "invalidJSONSerialization"
         )
-        #expect(parse(#"{"payload":"","signature":"AA"}"#) == "missingAlgorithm")
-        #expect(parse(#"{"payload":"!","signature":"AA","header":{"alg":"ES256"}}"#) == "invalidBase64URL")
-        #expect(parse(#"{"payload":"","signature":"AA","header":{"alg":"ES256"}}"#) == nil)
+        #expect(await parse(#"{"payload":"","signature":"AA"}"#) == "missingAlgorithm")
+        #expect(await parse(#"{"payload":"!","signature":"AA","header":{"alg":"ES256"}}"#) == "invalidBase64URL")
+        #expect(await parse(#"{"payload":"","signature":"AA","header":{"alg":"ES256"}}"#) == nil)
     }
 
     @Test("signatures that disagree about b64 are refused")
-    func inconsistentPayloadEncoding() {
+    func inconsistentPayloadEncoding() async {
         let encodedHeader = encoded(#"{"alg":"ES256"}"#)
         let unencodedHeader = encoded(#"{"alg":"ES256","b64":false,"crit":["b64"]}"#)
         let json =
             #"{"payload":"AA","signatures":[{"protected":"\#(encodedHeader)","signature":"AA"},{"protected":"\#(unencodedHeader)","signature":"AA"}]}"#
         #expect(
-            thrownCase { () throws(JWSError) in try Plain.Unverified(json: Data(json.utf8)) }
+            await thrownCase { () async throws(JWSError) in try SimpleJWS.Unverified(json: Data(json.utf8)) }
                 == "inconsistentPayloadEncoding"
         )
     }
@@ -550,54 +641,61 @@ struct JWSTests {
         )
         let hmac = AnyVerifier(try HMACVerifier<HS256>(key: SymmetricKeyMaterial(randomByteCount: 32)))
 
-        let withKeyID = try Plain.Unverified(compact: try await Plain.sign(Data(), with: signer).compactSerialization())
-        func verify(_ jws: Plain.Unverified, _ verifiers: [AnyVerifier]) -> String? {
-            thrownCase { () throws(JWSError) in try jws.verify(with: VerificationKeys(verifiers)) }
+        let withKeyID = try SimpleJWS.Unverified(
+            compact: try await SimpleJWS.sign(Data(), with: signer).compactSerialization()
+        )
+        func verify(_ jws: SimpleJWS.Unverified, _ verifiers: [AnyVerifier]) async -> String? {
+            await thrownCase { () async throws(JWSError) in try await jws.verify(with: VerificationKeys(verifiers)) }
         }
-        #expect(verify(withKeyID, [right]) == nil)
-        #expect(verify(withKeyID, [unnamed]) == nil)
-        #expect(verify(withKeyID, [wrongKeyRightID, right]) == nil)
+        #expect(await verify(withKeyID, [right]) == nil)
+        #expect(await verify(withKeyID, [unnamed]) == nil)
+        #expect(await verify(withKeyID, [wrongKeyRightID, right]) == nil)
         // The right key under another ID is not tried: the token asked for a specific key.
-        #expect(verify(withKeyID, [sameKeyOtherID]) == "noVerifierForKeyID")
-        #expect(verify(withKeyID, [wrongKeyRightID]) == "signatureInvalid")
-        #expect(verify(withKeyID, [hmac]) == "noVerifierForAlgorithm")
-        #expect(verify(withKeyID, []) == "noVerifierForAlgorithm")
+        #expect(await verify(withKeyID, [sameKeyOtherID]) == "noVerifierForKeyID")
+        #expect(await verify(withKeyID, [wrongKeyRightID]) == "signatureInvalid")
+        #expect(await verify(withKeyID, [hmac]) == "noVerifierForAlgorithm")
+        #expect(await verify(withKeyID, []) == "noVerifierForAlgorithm")
 
         // A token without a key ID is tried against every verifier for its algorithm.
         let anonymousSigner = try ECDSASigner(privateKey: signerKey)
-        let withoutKeyID = try Plain.Unverified(
-            compact: try await Plain.sign(Data(), with: anonymousSigner).compactSerialization()
+        let withoutKeyID = try SimpleJWS.Unverified(
+            compact: try await SimpleJWS.sign(Data(), with: anonymousSigner).compactSerialization()
         )
-        #expect(verify(withoutKeyID, [wrongKeyRightID, sameKeyOtherID]) == nil)
-        #expect(verify(withoutKeyID, [wrongKeyRightID]) == "signatureInvalid")
+        #expect(await verify(withoutKeyID, [wrongKeyRightID, sameKeyOtherID]) == nil)
+        #expect(await verify(withoutKeyID, [wrongKeyRightID]) == "signatureInvalid")
     }
 
     @Test("an RSA token cannot be re-labelled between RS256 and PS256, and is refused when only EC keys are offered")
     func rsaAlgorithmBinding() async throws {
         let key = try RSAPrivateKey()
-        let signed = try await Plain.sign(Data("rsa".utf8), with: try RSASigner<RS256>(privateKey: key, keyID: "r"))
-        let jws = try Plain.Unverified(compact: try signed.compactSerialization())
+        let signed = try await SimpleJWS.sign(Data("rsa".utf8), with: try RSASigner<RS256>(privateKey: key, keyID: "r"))
+        let jws = try SimpleJWS.Unverified(compact: try signed.compactSerialization())
         let rs256 = AnyVerifier(try RSAVerifier<RS256>(publicKey: key.publicKey, keyID: "r"))
         let ps256 = AnyVerifier(try RSAVerifier<PS256>(publicKey: key.publicKey, keyID: "r"))
-        #expect(try jws.verify(with: VerificationKeys([rs256])).payload == Data("rsa".utf8))
+        #expect(try await jws.verify(with: VerificationKeys([rs256])).payload == Data("rsa".utf8))
         // The same key registered for a different RSA algorithm is not a verifier for this token.
         #expect(
-            thrownCase { () throws(JWSError) in try jws.verify(with: VerificationKeys([ps256])) }
+            await thrownCase { () async throws(JWSError) in try await jws.verify(with: VerificationKeys([ps256])) }
                 == "noVerifierForAlgorithm"
         )
         let ecOnly = try Keys().verification
-        #expect(thrownCase { () throws(JWSError) in try jws.verify(with: ecOnly) } == "noVerifierForAlgorithm")
+        #expect(
+            await thrownCase { () async throws(JWSError) in try await jws.verify(with: ecOnly) }
+                == "noVerifierForAlgorithm"
+        )
     }
 
     @Test("the error for an unsupported algorithm lists what was offered")
     func noVerifierMessage() async throws {
         let keys = try Keys()
-        let signed = try await Plain.sign(
+        let signed = try await SimpleJWS.sign(
             Data(),
             with: try HMACSigner<HS256>(key: SymmetricKeyMaterial(randomByteCount: 32))
         )
         do {
-            _ = try Plain.Unverified(compact: try signed.compactSerialization()).verify(with: keys.verification)
+            _ = try await SimpleJWS.Unverified(compact: try signed.compactSerialization()).verify(
+                with: keys.verification
+            )
             Issue.record("an HS256 token verified with only an ES256 key")
         } catch {
             guard case .noVerifierForAlgorithm(let algorithm, let offered) = error else {
@@ -670,13 +768,16 @@ struct JWSTests {
             typealias Algorithm = ES256
             let keyID: KeyID? = nil
             func verify(_ signature: Signature<ES256>, for message: Data) throws(VerificationError) {
-                throw .keyOperationFailed(algorithm: "ES256", underlying: Unavailable())
+                throw .keyOperationFailed(algorithm: "ES256", underlying: UnderlyingError(Unavailable()))
             }
         }
         let keys = try Keys()
-        let jws = try Plain.Unverified(compact: try await Plain.sign(Data(), with: keys.signer).compactSerialization())
+        let jws = try SimpleJWS.Unverified(
+            compact: try await SimpleJWS.sign(Data(), with: keys.signer).compactSerialization()
+        )
         #expect(
-            thrownCase { () throws(JWSError) in try jws.verify(with: VerificationKeys([AnyVerifier(BrokenVerifier())]))
+            await thrownCase { () async throws(JWSError) in
+                try await jws.verify(with: VerificationKeys([AnyVerifier(BrokenVerifier())]))
             }
                 == "verificationFailed"
         )
@@ -689,28 +790,30 @@ struct JWSTests {
             typealias Algorithm = ES256
             let keyID: KeyID? = nil
             func sign(_ message: Data) async throws(SigningError) -> Signature<ES256> {
-                throw .keyOperationFailed(algorithm: "ES256", underlying: Unavailable())
+                throw .keyOperationFailed(algorithm: "ES256", underlying: UnderlyingError(Unavailable()))
             }
         }
         do {
-            _ = try await Plain.sign(Data(), with: BrokenSigner())
+            _ = try await SimpleJWS.sign(Data(), with: BrokenSigner())
             Issue.record("signing should have failed")
         } catch {
             guard case .signingFailed(.keyOperationFailed(_, let underlying)) = error else {
                 Issue.record("unexpected error \(error)")
                 return
             }
-            #expect(underlying is Unavailable)
+            #expect(underlying == UnderlyingError(Unavailable()))
         }
     }
 
     @Test("every error has a message naming what was wrong")
     func descriptions() {
+        #expect(JWSError.paddingNotAllowed(part: "payload") == .paddingNotAllowed(part: "payload"))
+        #expect(JWSError.paddingNotAllowed(part: "payload") != .paddingNotAllowed(part: "signature"))
         let errors: [(JWSError, String)] = [
             (.invalidCompactSerialization(segmentCount: 2), "2 segments"),
             (.missingProtectedHeader, "empty protected header"),
-            (.invalidBase64URL(part: .signature, .invalidLength(count: 1)), "signature"),
-            (.paddingNotAllowed(part: .payload), "payload"),
+            (.invalidBase64URL(part: "signature", .invalidLength(count: 1)), "signature"),
+            (.paddingNotAllowed(part: "payload"), "payload"),
             (.invalidJSONStructure(.rootNotObject), "object"),
             (.invalidJSONSerialization(reason: "why"), "why"),
             (.invalidHeaderStructure(.duplicateMember(name: "alg", offset: 3)), "alg"),
@@ -735,6 +838,7 @@ struct JWSTests {
             (.signatureInvalid(algorithm: "ES256", keyID: nil), "ES256"),
             (.verificationFailed(.signatureMismatch(algorithm: "ES256")), "ES256"),
             (.noSignatureVerified(reasons: [.payloadMissing, .missingAlgorithm]), "2 signatures"),
+            (.noUsableSignature(reasons: [.missingAlgorithm, .missingAlgorithm]), "usable header"),
             (.signingFailed(.invalidSignature(.wrongLength(algorithm: "ES256", expected: 64, found: 1))), "64"),
             (.headerEncodingFailed(description: "enc"), "enc"),
             (.customParameterCollision(name: "alg"), "alg"),

@@ -60,8 +60,6 @@ private struct DecryptionFixture: Decodable {
 
 @Suite("Against jose")
 struct CounterpartTests {
-    typealias Plain = JWE<EmptyHeaderParameters>
-
     @Test("every pairing of key management and content encryption from jose decrypts")
     func compactTokens() async throws {
         let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
@@ -90,8 +88,8 @@ struct CounterpartTests {
         #expect(fixture.withPartyInfo.count == 2)
         for item in fixture.withPartyInfo {
             let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: item.algorithm, jwk: item.jwk)])
-            let jwe = try Plain.Encrypted(compact: item.token)
-            #expect(jwe.header?.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
+            let jwe = try SimpleJWE.Encrypted(compact: item.token)
+            #expect(jwe.header.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
             #expect(try await jwe.decrypt(with: keys).plaintext.hex == item.plaintext, "\(item.algorithm)")
         }
     }
@@ -100,7 +98,7 @@ struct CounterpartTests {
     func flattened() async throws {
         let item = try Fixtures.load(ValidFixture.self, named: "valid").flattened
         let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: "A256KW", jwk: item.jwk)])
-        let jwe = try Plain.Encrypted(json: Data(item.json.utf8))
+        let jwe = try SimpleJWE.Encrypted(json: Data(item.json.utf8))
         let decrypted = try await jwe.decrypt(with: keys)
         #expect(decrypted.plaintext.hex == item.plaintext)
         #expect(decrypted.additionalAuthenticatedData?.hex == item.aad)
@@ -111,7 +109,7 @@ struct CounterpartTests {
         // The additional data is authenticated: changing it must make decryption fail.
         var document = try JSONDecoder().decode([String: JSONValue].self, from: Data(item.json.utf8))
         document["aad"] = .string(Base64URL.encode(Data("different".utf8)))
-        let altered = try Plain.Encrypted(json: try JSONEncoder().encode(document))
+        let altered = try SimpleJWE.Encrypted(json: try JSONEncoder().encode(document))
         #expect(
             await thrown { () async throws(JWEError) in try await altered.decrypt(with: keys) } == .decryptionFailed
         )
@@ -120,7 +118,7 @@ struct CounterpartTests {
     @Test("a general JWE from jose decrypts with any one of its three recipients' keys")
     func general() async throws {
         let item = try Fixtures.load(ValidFixture.self, named: "valid").general
-        let jwe = try Plain.Encrypted(json: Data(item.json.utf8))
+        let jwe = try SimpleJWE.Encrypted(json: Data(item.json.utf8))
         #expect(jwe.headers.map(\.algorithm) == ["RSA-OAEP-256", "ECDH-ES+A128KW", "A128KW"])
         for recipient in item.recipients {
             let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: recipient.algorithm, jwk: recipient.jwk)])
@@ -131,7 +129,9 @@ struct CounterpartTests {
         }
         // A key that belongs to none of the recipients decrypts nothing.
         let stranger = DecryptionKeys([
-            AnyKeyDecrypter(try AESKeyWrapKey<A128KW>(key: SymmetricKeyMaterial(randomByteCount: 16), keyID: "kw"))
+            AnyKeyDecrypter(
+                try AESKeyWrapDecrypter<A128KW>(key: SymmetricKeyMaterial(randomByteCount: 16), keyID: "kw")
+            )
         ])
         guard
             case .noRecipientDecrypted(let reasons) = await thrown({ () async throws(JWEError) in
@@ -180,7 +180,9 @@ struct CounterpartTests {
             }
             let outcome: Result<Data, JWEError>
             do {
-                outcome = .success(try await Plain.Encrypted(compact: testCase.token).decrypt(with: selected).plaintext)
+                outcome = .success(
+                    try await SimpleJWE.Encrypted(compact: testCase.token).decrypt(with: selected).plaintext
+                )
             } catch {
                 outcome = .failure(error)
             }
@@ -224,7 +226,7 @@ struct CounterpartTests {
                 selected = wrong
             }
             return await thrown { () async throws(JWEError) in
-                try await Plain.Encrypted(compact: testCase.token).decrypt(with: selected)
+                try await SimpleJWE.Encrypted(compact: testCase.token).decrypt(with: selected)
             }
         }
         #expect(try await outcome("valid A256KW / A256GCM (positive control)") == nil)

@@ -59,10 +59,7 @@ extension ECPublicKey: ECDHRecipientPublicKey where Curve: KeyAgreementCurve {
     public func ephemeralAgreement() throws(JWKError) -> (ephemeralPublicKey: JWK, sharedSecret: Data) {
         let ephemeral = try ECPrivateKey<Curve>()
         let secret = try ephemeral.sharedSecret(with: self)
-        // Round-tripping through JSON is how a typed key becomes a `JWK` without this package
-        // having to know every curve's enum case.
-        let jwk = try JWK(json: try ECDHJSON.ecPublicKey(ephemeral.publicKey))
-        return (jwk, secret)
+        return (try ECDHJSON.jwk(for: ephemeral.publicKey), secret)
     }
 }
 
@@ -112,6 +109,21 @@ extension X25519PrivateKey: ECDHRecipientPrivateKey {
 
 struct ECDHJSON {
     private init() {}
+
+    /// A typed public key as a `JWK`. The curves this package knows have their own case; a curve
+    /// added outside it goes through JSON, which is the only form every curve shares.
+    static func jwk<Curve: EllipticCurve>(for key: ECPublicKey<Curve>) throws(JWKError) -> JWK {
+        if let key = key as? ECPublicKey<P256Curve> {
+            return JWK(.p256(key))
+        }
+        if let key = key as? ECPublicKey<P384Curve> {
+            return JWK(.p384(key))
+        }
+        if let key = key as? ECPublicKey<P521Curve> {
+            return JWK(.p521(key))
+        }
+        return try JWK(json: try ecPublicKey(key))
+    }
 
     static func ecPublicKey<Curve: EllipticCurve>(_ key: ECPublicKey<Curve>) throws(JWKError) -> Data {
         let members: [String: JSONValue] = [
@@ -181,6 +193,57 @@ private func derivationParameters<Algorithm: ECDHESAlgorithm>(
     return (contentEncryption.rawValue, contentKeyByteCount)
 }
 
+/// Key agreement is permitted by `key_ops` `deriveKey` or `deriveBits` (RFC 7517 §4.3), since
+/// both describe what ECDH-ES does with the key.
+private func requireAgreementPermission(
+    _ metadata: JWKMetadata,
+    algorithm: AlgorithmIdentifier
+) throws(JWKError) {
+    if let use = metadata.use {
+        guard use == .encryption else {
+            throw .useNotPermitted(use: use.rawValue, required: KeyUse.encryption.rawValue)
+        }
+    }
+    if let operations = metadata.keyOperations {
+        guard operations.contains(.deriveKey) || operations.contains(.deriveBits) else {
+            throw .keyOperationNotPermitted(
+                operations: operations.map(\.rawValue),
+                required: KeyOperation.deriveKey.rawValue
+            )
+        }
+    }
+    if let keyAlgorithm = metadata.algorithm {
+        guard keyAlgorithm == algorithm else {
+            throw .algorithmMismatch(keyAlgorithm: keyAlgorithm, required: algorithm)
+        }
+    }
+}
+
+extension ECDHESAlgorithm {
+    /// A decrypter for a private EC or X25519 JWK, honouring its `use`, `key_ops` and `alg`.
+    public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+        try requireAgreementPermission(jwk.metadata, algorithm: identifier)
+        let keyID = jwk.metadata.keyID
+        switch jwk.key {
+        case .p256(let key):
+            return AnyKeyDecrypter(ECDHESDecrypter<Self, ECPrivateKey<P256Curve>>(privateKey: key, keyID: keyID))
+        case .p384(let key):
+            return AnyKeyDecrypter(ECDHESDecrypter<Self, ECPrivateKey<P384Curve>>(privateKey: key, keyID: keyID))
+        case .p521(let key):
+            return AnyKeyDecrypter(ECDHESDecrypter<Self, ECPrivateKey<P521Curve>>(privateKey: key, keyID: keyID))
+        case .x25519(let key):
+            return AnyKeyDecrypter(ECDHESDecrypter<Self, X25519PrivateKey>(privateKey: key, keyID: keyID))
+        case .ed25519, .rsa:
+            throw .keyTypeMismatch(expected: "EC or OKP X25519", found: jwk.publicJWK.keyType)
+        }
+    }
+}
+
+extension ECDHES: JWKDecryptableAlgorithm {}
+extension ECDHESA128KW: JWKDecryptableAlgorithm {}
+extension ECDHESA192KW: JWKDecryptableAlgorithm {}
+extension ECDHESA256KW: JWKDecryptableAlgorithm {}
+
 /// Encrypts to a recipient's EC or X25519 public key with ECDH-ES.
 public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
     public let keyID: KeyID?
@@ -206,24 +269,7 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
     /// Builds an encrypter from a recipient's published JWK, honouring its `use`, `key_ops` and
     /// `alg` restrictions.
     public init(jwk: JWK) throws(JWKError) {
-        if let use = jwk.metadata.use {
-            guard use == .encryption else {
-                throw .useNotPermitted(use: use.rawValue, required: KeyUse.encryption.rawValue)
-            }
-        }
-        if let operations = jwk.metadata.keyOperations {
-            guard operations.contains(.deriveKey) || operations.contains(.deriveBits) else {
-                throw .keyOperationNotPermitted(
-                    operations: operations.map(\.rawValue),
-                    required: KeyOperation.deriveKey.rawValue
-                )
-            }
-        }
-        if let algorithm = jwk.metadata.algorithm {
-            guard algorithm == Algorithm.identifier else {
-                throw .algorithmMismatch(keyAlgorithm: algorithm, required: Algorithm.identifier)
-            }
-        }
+        try requireAgreementPermission(jwk.metadata, algorithm: Algorithm.identifier)
         switch jwk.key {
         case .p256(let key):
             self.init(recipient: key, keyID: jwk.keyID)
@@ -238,7 +284,7 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
         }
     }
 
-    public func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+    public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
         if Algorithm.keyWrapByteCount == nil {
             guard request.contentEncryptionKey == nil else {
                 throw .algorithmRequiresSingleRecipient(algorithm: Algorithm.identifier)
@@ -398,6 +444,16 @@ public struct RSAOAEP256: RSAOAEPAlgorithm {
     public static let hash = RSAOAEPHash.sha256
 }
 
+extension RSAOAEPAlgorithm {
+    /// A decrypter for a private RSA JWK, honouring its `use`, `key_ops` and `alg`.
+    public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+        AnyKeyDecrypter(try RSAOAEPDecrypter<Self>(jwk: jwk))
+    }
+}
+
+extension RSAOAEP: JWKDecryptableAlgorithm {}
+extension RSAOAEP256: JWKDecryptableAlgorithm {}
+
 /// Encrypts the content encryption key to a recipient's RSA public key.
 public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
     public let keyID: KeyID?
@@ -418,7 +474,7 @@ public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
         try self.init(publicKey: publicKey, keyID: jwk.keyID)
     }
 
-    public func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+    public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
         let contentKey = request.keyToWrap()
         do {
             return KeyEncryptionResult(
@@ -439,6 +495,15 @@ public struct RSAOAEPDecrypter<Algorithm: RSAOAEPAlgorithm>: KeyDecrypter {
     public init(privateKey: RSAPrivateKey, keyID: KeyID? = nil) throws(JWKError) {
         key = try RSAOAEPDecryptionKey(privateKey: privateKey)
         self.keyID = keyID
+    }
+
+    /// Builds a decrypter from a private JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: PrivateJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .unwrapKey, use: .encryption, algorithm: Algorithm.identifier)
+        guard case .rsa(let privateKey) = jwk.key else {
+            throw .keyTypeMismatch(expected: "RSA", found: jwk.publicJWK.keyType)
+        }
+        try self.init(privateKey: privateKey, keyID: jwk.metadata.keyID)
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {

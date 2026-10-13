@@ -98,19 +98,19 @@ struct TestKeys {
         }
         switch algorithm {
         case "dir":
-            return AnyKeyDecrypter(DirectKey(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(DirectDecrypter(key: try secret(), keyID: keyID))
         case "A128KW":
-            return AnyKeyDecrypter(try AESKeyWrapKey<A128KW>(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A128KW>(key: try secret(), keyID: keyID))
         case "A192KW":
-            return AnyKeyDecrypter(try AESKeyWrapKey<A192KW>(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A192KW>(key: try secret(), keyID: keyID))
         case "A256KW":
-            return AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: try secret(), keyID: keyID))
         case "A128GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapKey<A128GCMKW>(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A128GCMKW>(key: try secret(), keyID: keyID))
         case "A192GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapKey<A192GCMKW>(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A192GCMKW>(key: try secret(), keyID: keyID))
         case "A256GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapKey<A256GCMKW>(key: try secret(), keyID: keyID))
+            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: try secret(), keyID: keyID))
         case "ECDH-ES":
             return try ecdh(ECDHES.self, try PrivateJWK(json: json), keyID: keyID)
         case "ECDH-ES+A128KW":
@@ -125,15 +125,15 @@ struct TestKeys {
             return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try rsa(), keyID: keyID))
         case "PBES2-HS256+A128KW":
             return AnyKeyDecrypter(
-                try PBES2Key<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
+                PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
             )
         case "PBES2-HS384+A192KW":
             return AnyKeyDecrypter(
-                try PBES2Key<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID)
+                PBES2Decrypter<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID)
             )
         case "PBES2-HS512+A256KW":
             return AnyKeyDecrypter(
-                try PBES2Key<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID)
+                PBES2Decrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID)
             )
         default:
             throw FixtureError(description: "no decrypter for \(algorithm)")

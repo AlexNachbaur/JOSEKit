@@ -15,9 +15,19 @@ public struct Direct: KeyManagementAlgorithm {
     public static let identifier: AlgorithmIdentifier = "dir"
 }
 
-/// Encrypts and decrypts with a shared key used directly. The key must be exactly the size the
-/// content encryption algorithm needs.
-public struct DirectKey: KeyEncrypter, KeyDecrypter {
+/// The shared key, checked against the size the content encryption algorithm needs. That size
+/// depends on `enc`, so it can only be checked once a JWE is being produced or read.
+private func directKey(_ key: SymmetricKeyMaterial, byteCount: Int) throws(JWEError) -> Data {
+    guard key.rawRepresentation.count == byteCount else {
+        throw .keyWrongSize(algorithm: Direct.identifier, expected: byteCount, found: key.rawRepresentation.count)
+    }
+    return key.rawRepresentation
+}
+
+/// Encrypts with a shared key used directly as the content encryption key. The key must be
+/// exactly the size the content encryption algorithm needs, and the JWE can have no other
+/// recipient.
+public struct DirectEncrypter: KeyEncrypter {
     public typealias Algorithm = Direct
 
     public let keyID: KeyID?
@@ -28,25 +38,39 @@ public struct DirectKey: KeyEncrypter, KeyDecrypter {
         self.keyID = keyID
     }
 
-    private func checkedKey(byteCount: Int) throws(JWEError) -> Data {
-        guard key.rawRepresentation.count == byteCount else {
-            throw .keyWrongSize(
-                algorithm: Algorithm.identifier,
-                expected: byteCount,
-                found: key.rawRepresentation.count
-            )
-        }
-        return key.rawRepresentation
+    /// Builds an encrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: SymmetricJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .encrypt, use: .encryption, algorithm: Algorithm.identifier)
+        self.init(key: jwk.key, keyID: jwk.metadata.keyID)
     }
 
-    public func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+    public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
         guard request.contentEncryptionKey == nil else {
             throw .algorithmRequiresSingleRecipient(algorithm: Algorithm.identifier)
         }
         return KeyEncryptionResult(
-            contentEncryptionKey: try checkedKey(byteCount: request.keyByteCount),
+            contentEncryptionKey: try directKey(key, byteCount: request.keyByteCount),
             encryptedKey: Data()
         )
+    }
+}
+
+/// Decrypts with a shared key used directly as the content encryption key.
+public struct DirectDecrypter: KeyDecrypter {
+    public typealias Algorithm = Direct
+
+    public let keyID: KeyID?
+    private let key: SymmetricKeyMaterial
+
+    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) {
+        self.key = key
+        self.keyID = keyID
+    }
+
+    /// Builds a decrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: SymmetricJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .decrypt, use: .encryption, algorithm: Algorithm.identifier)
+        self.init(key: jwk.key, keyID: jwk.metadata.keyID)
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
@@ -54,7 +78,7 @@ public struct DirectKey: KeyEncrypter, KeyDecrypter {
         guard request.encryptedKey.isEmpty else {
             throw .encryptedKeyNotEmpty(algorithm: Algorithm.identifier)
         }
-        return try checkedKey(byteCount: request.keyByteCount)
+        return try directKey(key, byteCount: request.keyByteCount)
     }
 }
 
@@ -96,24 +120,35 @@ struct AESKeyWrapping {
     }
 }
 
-/// Wraps and unwraps the content encryption key with AES Key Wrap under a shared key.
-public struct AESKeyWrapKey<Algorithm: AESKeyWrapAlgorithm>: KeyEncrypter, KeyDecrypter {
+/// A key-wrapping key, checked to be exactly the size `algorithm` needs.
+private func wrappingKey(
+    _ key: SymmetricKeyMaterial,
+    for algorithm: AlgorithmIdentifier,
+    byteCount: Int
+) throws(JWKError) -> Data {
+    guard key.rawRepresentation.count == byteCount else {
+        throw .keyWrongSize(algorithm: algorithm, expectedByteCount: byteCount, found: key.rawRepresentation.count)
+    }
+    return key.rawRepresentation
+}
+
+/// Wraps the content encryption key with AES Key Wrap under a shared key.
+public struct AESKeyWrapEncrypter<Algorithm: AESKeyWrapAlgorithm>: KeyEncrypter {
     public let keyID: KeyID?
     private let key: Data
 
-    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) throws(JWEError) {
-        guard key.rawRepresentation.count == Algorithm.keyByteCount else {
-            throw .keyWrongSize(
-                algorithm: Algorithm.identifier,
-                expected: Algorithm.keyByteCount,
-                found: key.rawRepresentation.count
-            )
-        }
-        self.key = key.rawRepresentation
+    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) throws(JWKError) {
+        self.key = try wrappingKey(key, for: Algorithm.identifier, byteCount: Algorithm.keyByteCount)
         self.keyID = keyID
     }
 
-    public func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+    /// Builds an encrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: SymmetricJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .wrapKey, use: .encryption, algorithm: Algorithm.identifier)
+        try self.init(key: jwk.key, keyID: jwk.metadata.keyID)
+    }
+
+    public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
         let contentKey = request.keyToWrap()
         do {
             return KeyEncryptionResult(
@@ -123,6 +158,23 @@ public struct AESKeyWrapKey<Algorithm: AESKeyWrapAlgorithm>: KeyEncrypter, KeyDe
         } catch {
             throw .contentEncryptionFailed(description: "\(Algorithm.identifier) key wrap failed: \(error)")
         }
+    }
+}
+
+/// Unwraps the content encryption key with AES Key Wrap under a shared key.
+public struct AESKeyWrapDecrypter<Algorithm: AESKeyWrapAlgorithm>: KeyDecrypter {
+    public let keyID: KeyID?
+    private let key: Data
+
+    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) throws(JWKError) {
+        self.key = try wrappingKey(key, for: Algorithm.identifier, byteCount: Algorithm.keyByteCount)
+        self.keyID = keyID
+    }
+
+    /// Builds a decrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: SymmetricJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .unwrapKey, use: .encryption, algorithm: Algorithm.identifier)
+        try self.init(key: jwk.key, keyID: jwk.metadata.keyID)
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
@@ -152,24 +204,23 @@ public struct A256GCMKW: AESGCMKeyWrapAlgorithm {
     public static let keyByteCount = 32
 }
 
-/// Encrypts and decrypts the content encryption key with AES GCM under a shared key.
-public struct AESGCMKeyWrapKey<Algorithm: AESGCMKeyWrapAlgorithm>: KeyEncrypter, KeyDecrypter {
+/// Encrypts the content encryption key with AES GCM under a shared key.
+public struct AESGCMKeyWrapEncrypter<Algorithm: AESGCMKeyWrapAlgorithm>: KeyEncrypter {
     public let keyID: KeyID?
     private let key: Data
 
-    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) throws(JWEError) {
-        guard key.rawRepresentation.count == Algorithm.keyByteCount else {
-            throw .keyWrongSize(
-                algorithm: Algorithm.identifier,
-                expected: Algorithm.keyByteCount,
-                found: key.rawRepresentation.count
-            )
-        }
-        self.key = key.rawRepresentation
+    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) throws(JWKError) {
+        self.key = try wrappingKey(key, for: Algorithm.identifier, byteCount: Algorithm.keyByteCount)
         self.keyID = keyID
     }
 
-    public func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+    /// Builds an encrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: SymmetricJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .wrapKey, use: .encryption, algorithm: Algorithm.identifier)
+        try self.init(key: jwk.key, keyID: jwk.metadata.keyID)
+    }
+
+    public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
         let contentKey = request.keyToWrap()
         // A fresh random 96-bit IV for every wrap, as RFC 7518 §4.7.1.1 requires: reusing an IV
         // with the same key breaks GCM completely.
@@ -180,6 +231,23 @@ public struct AESGCMKeyWrapKey<Algorithm: AESGCMKeyWrapAlgorithm>: KeyEncrypter,
             encryptedKey: encryptedKey,
             headerParameters: ["iv": .string(Base64URL.encode(iv)), "tag": .string(Base64URL.encode(tag))]
         )
+    }
+}
+
+/// Decrypts the content encryption key with AES GCM under a shared key.
+public struct AESGCMKeyWrapDecrypter<Algorithm: AESGCMKeyWrapAlgorithm>: KeyDecrypter {
+    public let keyID: KeyID?
+    private let key: Data
+
+    public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) throws(JWKError) {
+        self.key = try wrappingKey(key, for: Algorithm.identifier, byteCount: Algorithm.keyByteCount)
+        self.keyID = keyID
+    }
+
+    /// Builds a decrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    public init(jwk: SymmetricJWK) throws(JWKError) {
+        try jwk.metadata.requirePermission(for: .unwrapKey, use: .encryption, algorithm: Algorithm.identifier)
+        try self.init(key: jwk.key, keyID: jwk.metadata.keyID)
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {

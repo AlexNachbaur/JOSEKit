@@ -47,13 +47,16 @@ public struct KeyEncryptionResult: Sendable {
 }
 
 /// Something that can make a content encryption key available to one recipient.
+///
+/// Encryption is `async`, like decryption, so that a key held by a remote service or in hardware
+/// can conform.
 public protocol KeyEncrypter<Algorithm>: Sendable {
     associatedtype Algorithm: KeyManagementAlgorithm
 
     /// Identifies the recipient's key. Written to the `kid` header parameter when present.
     var keyID: KeyID? { get }
 
-    func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult
+    func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult
 }
 
 /// What a ``KeyDecrypter`` is given to recover the content encryption key.
@@ -104,10 +107,21 @@ public struct KeyDecryptionRequest: Sendable {
     }
 }
 
+/// A key management algorithm whose decrypter can be built from a private JWK, so that it can
+/// be listed in ``DecryptionKeys/init(jwks:allowing:)``.
+public protocol JWKDecryptableAlgorithm: KeyManagementAlgorithm {
+    /// A decrypter for this algorithm, if the key's type and its `use`, `key_ops` and `alg`
+    /// allow it.
+    static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter
+}
+
 /// Something that can recover a content encryption key with one specific algorithm.
 ///
 /// Decryption is `async` for the same reason signing is: the private key may be in hardware or
 /// behind a service.
+///
+/// A key management algorithm that ships a key in two roles has two types, one conforming to
+/// ``KeyEncrypter`` and one to this protocol, named `…Encrypter` and `…Decrypter`.
 public protocol KeyDecrypter<Algorithm>: Sendable {
     associatedtype Algorithm: KeyManagementAlgorithm
 
@@ -125,18 +139,18 @@ public protocol KeyDecrypter<Algorithm>: Sendable {
 public struct AnyKeyEncrypter: Sendable {
     public let algorithm: AlgorithmIdentifier
     public let keyID: KeyID?
-    private let encrypt: @Sendable (KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult
+    private let encrypt: @Sendable (KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult
 
     public init<E: KeyEncrypter>(_ encrypter: E) {
         algorithm = E.Algorithm.identifier
         keyID = encrypter.keyID
-        encrypt = { (request: KeyEncryptionRequest) throws(JWEError) in
-            try encrypter.encryptKey(request)
+        encrypt = { (request: KeyEncryptionRequest) async throws(JWEError) in
+            try await encrypter.encryptKey(request)
         }
     }
 
-    func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
-        try encrypt(request)
+    func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
+        try await encrypt(request)
     }
 }
 
@@ -173,6 +187,27 @@ public struct DecryptionKeys: Sendable {
 
     public init(@DecryptionKeysBuilder _ build: () throws -> [AnyKeyDecrypter]) rethrows {
         decrypters = try build()
+    }
+
+    /// Builds decrypters from private JWKs, for the named algorithms only.
+    ///
+    /// Each key yields a decrypter for each listed algorithm it is suitable for: right key type,
+    /// and permitted by the key's `use`, `key_ops` and `alg`. Keys suitable for none are skipped.
+    /// Symmetric keys are built with their decrypter's `init(jwk:)`.
+    public init(jwks: [PrivateJWK], allowing algorithms: [any JWKDecryptableAlgorithm.Type]) {
+        var decrypters: [AnyKeyDecrypter] = []
+        for jwk in jwks {
+            for algorithm in algorithms {
+                do {
+                    decrypters.append(try algorithm.decrypter(for: jwk))
+                } catch {
+                    // A key that suits no algorithm contributes no decrypter, and a JWE needing
+                    // it then fails with an error naming its algorithm and key ID.
+                    continue
+                }
+            }
+        }
+        self.decrypters = decrypters
     }
 
     /// The key management algorithms a JWE may use with these keys.
@@ -214,6 +249,10 @@ public struct DecryptionKeysBuilder {
 
     public static func buildExpression(_ decrypters: [AnyKeyDecrypter]) -> [AnyKeyDecrypter] {
         decrypters
+    }
+
+    public static func buildExpression(_ keys: DecryptionKeys) -> [AnyKeyDecrypter] {
+        keys.decrypters
     }
 
     public static func buildBlock(_ components: [AnyKeyDecrypter]...) -> [AnyKeyDecrypter] {

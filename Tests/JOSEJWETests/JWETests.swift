@@ -7,12 +7,19 @@ import Testing
 
 @Suite("JWE")
 struct JWETests {
-    typealias Plain = JWE<EmptyHeaderParameters>
-
     static let plaintext = Data("the quick brown fox".utf8)
 
     private func secret(_ byteCount: Int) -> SymmetricKeyMaterial {
         SymmetricKeyMaterial(randomByteCount: byteCount)
+    }
+
+    /// An A256KW encrypter and decrypter over the same new key.
+    private func keyWrap(keyID: KeyID? = nil) throws -> (AESKeyWrapEncrypter<A256KW>, AESKeyWrapDecrypter<A256KW>) {
+        let material = secret(32)
+        return (
+            try AESKeyWrapEncrypter<A256KW>(key: material, keyID: keyID),
+            try AESKeyWrapDecrypter<A256KW>(key: material, keyID: keyID)
+        )
     }
 
     /// Encrypts with `encrypter`, round-trips through the compact form, and decrypts with `decrypter`.
@@ -21,34 +28,60 @@ struct JWETests {
         _ decrypter: D,
         _ encryption: C.Type
     ) async throws {
-        let sealed = try Plain.encrypt(Self.plaintext, to: encrypter, using: encryption)
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: encryption)
         let compact = try sealed.compactSerialization()
         #expect(compact.split(separator: ".", omittingEmptySubsequences: false).count == 5)
-        let parsed = try Plain.Encrypted(compact: compact)
-        #expect(parsed.header?.algorithm == E.Algorithm.identifier)
-        #expect(parsed.header?.contentEncryption == C.identifier)
+        let parsed = try SimpleJWE.Encrypted(compact: compact)
+        #expect(parsed.header.algorithm == E.Algorithm.identifier)
+        #expect(parsed.header.contentEncryption == C.identifier)
         let decrypted = try await parsed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(decrypter)]))
         #expect(decrypted.plaintext == Self.plaintext, "\(E.Algorithm.identifier) / \(C.identifier)")
     }
 
     @Test("every key management algorithm round-trips")
     func keyManagementRoundTrips() async throws {
-        let direct = DirectKey(key: secret(32))
-        try await roundTrip(direct, direct, A256GCM.self)
+        let direct = secret(32)
+        try await roundTrip(DirectEncrypter(key: direct), DirectDecrypter(key: direct), A256GCM.self)
 
-        let kw128 = try AESKeyWrapKey<A128KW>(key: secret(16))
-        try await roundTrip(kw128, kw128, A128GCM.self)
-        let kw192 = try AESKeyWrapKey<A192KW>(key: secret(24))
-        try await roundTrip(kw192, kw192, A192GCM.self)
-        let kw256 = try AESKeyWrapKey<A256KW>(key: secret(32))
-        try await roundTrip(kw256, kw256, A256CBCHS512.self)
+        let kw128 = secret(16)
+        try await roundTrip(
+            try AESKeyWrapEncrypter<A128KW>(key: kw128),
+            try AESKeyWrapDecrypter<A128KW>(key: kw128),
+            A128GCM.self
+        )
+        let kw192 = secret(24)
+        try await roundTrip(
+            try AESKeyWrapEncrypter<A192KW>(key: kw192),
+            try AESKeyWrapDecrypter<A192KW>(key: kw192),
+            A192GCM.self
+        )
+        let (kw256Encrypter, kw256Decrypter) = try keyWrap()
+        try await roundTrip(kw256Encrypter, kw256Decrypter, A256CBCHS512.self)
 
-        let gcm128 = try AESGCMKeyWrapKey<A128GCMKW>(key: secret(16))
-        try await roundTrip(gcm128, gcm128, A128CBCHS256.self)
-        let gcm192 = try AESGCMKeyWrapKey<A192GCMKW>(key: secret(24))
-        try await roundTrip(gcm192, gcm192, A192CBCHS384.self)
-        let gcm256 = try AESGCMKeyWrapKey<A256GCMKW>(key: secret(32))
-        try await roundTrip(gcm256, gcm256, A256GCM.self)
+        let gcm128 = secret(16)
+        try await roundTrip(
+            try AESGCMKeyWrapEncrypter<A128GCMKW>(key: gcm128),
+            try AESGCMKeyWrapDecrypter<A128GCMKW>(key: gcm128),
+            A128CBCHS256.self
+        )
+        let gcm192 = secret(24)
+        try await roundTrip(
+            try AESGCMKeyWrapEncrypter<A192GCMKW>(key: gcm192),
+            try AESGCMKeyWrapDecrypter<A192GCMKW>(key: gcm192),
+            A192CBCHS384.self
+        )
+        let gcm256 = secret(32)
+        try await roundTrip(
+            try AESGCMKeyWrapEncrypter<A256GCMKW>(key: gcm256),
+            try AESGCMKeyWrapDecrypter<A256GCMKW>(key: gcm256),
+            A256GCM.self
+        )
+
+        try await roundTrip(
+            try PBES2Encrypter<PBES2HS384A192KW>(password: "pw"),
+            PBES2Decrypter<PBES2HS384A192KW>(password: "pw"),
+            A192GCM.self
+        )
 
         let p256 = try ECPrivateKey<P256Curve>()
         try await roundTrip(
@@ -94,9 +127,9 @@ struct JWETests {
     }
 
     @Test("the protected header is written with sorted members; alg and enc come from the types")
-    func protectedHeader() throws {
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32), keyID: "k1")
-        let sealed = try Plain.encrypt(
+    func protectedHeader() async throws {
+        let (key, _) = try keyWrap(keyID: "k1")
+        let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: key,
             using: A256GCM.self,
@@ -106,39 +139,39 @@ struct JWETests {
         let json = String(decoding: try Base64URL.decode(headerSegment), as: UTF8.self)
         #expect(json == #"{"alg":"A256KW","enc":"A256GCM","kid":"k1","typ":"JWT"}"#)
 
-        let explicit = try Plain.encrypt(
+        let explicit = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: key,
             using: A256GCM.self,
             header: JWEHeaderParameters(keyID: "explicit")
         )
-        #expect(explicit.header?.keyID == "explicit")
+        #expect(explicit.header.keyID == "explicit")
     }
 
     @Test("encryption is randomised: the same input gives a different IV, key and ciphertext each time")
-    func randomised() throws {
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        let first = try Plain.encrypt(Self.plaintext, to: key, using: A256GCM.self)
-        let second = try Plain.encrypt(Self.plaintext, to: key, using: A256GCM.self)
+    func randomised() async throws {
+        let (key, _) = try keyWrap()
+        let first = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A256GCM.self)
+        let second = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A256GCM.self)
         #expect(first.initializationVector != second.initializationVector)
         #expect(first.ciphertext != second.ciphertext)
         #expect(first.initializationVector.count == 12)
         #expect(first.tag.count == 16)
-        let cbc = try Plain.encrypt(Self.plaintext, to: key, using: A128CBCHS256.self)
+        let cbc = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A128CBCHS256.self)
         #expect(cbc.initializationVector.count == 16)
         #expect(cbc.tag.count == 16)
         #expect(cbc.ciphertext.count == 32)
         // AES-GCM-KW uses a fresh IV for the key wrap too.
-        let gcmKey = try AESGCMKeyWrapKey<A256GCMKW>(key: secret(32))
-        let a = try Plain.encrypt(Self.plaintext, to: gcmKey, using: A256GCM.self)
-        let b = try Plain.encrypt(Self.plaintext, to: gcmKey, using: A256GCM.self)
-        #expect(a.header?.rawParameters["iv"] != b.header?.rawParameters["iv"])
+        let gcmKey = try AESGCMKeyWrapEncrypter<A256GCMKW>(key: secret(32))
+        let a = try await SimpleJWE.encrypt(Self.plaintext, to: gcmKey, using: A256GCM.self)
+        let b = try await SimpleJWE.encrypt(Self.plaintext, to: gcmKey, using: A256GCM.self)
+        #expect(a.header.rawParameters["iv"] != b.header.rawParameters["iv"])
     }
 
     @Test("a wrong key and a tampered JWE fail identically")
     func uniformFailure() async throws {
         let rsa = try RSAPrivateKey()
-        let sealed = try Plain.encrypt(
+        let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey),
             using: A256GCM.self
@@ -154,7 +187,7 @@ struct JWETests {
         var tag = try Base64URL.decode(parts[4])
         tag[0] ^= 0x01
         parts[4] = Base64URL.encode(tag)
-        let tampered = try Plain.Encrypted(compact: parts.joined(separator: "."))
+        let tampered = try SimpleJWE.Encrypted(compact: parts.joined(separator: "."))
         #expect(
             await thrown { () async throws(JWEError) in try await tampered.decrypt(with: right) } == .decryptionFailed
         )
@@ -169,14 +202,38 @@ struct JWETests {
                 Data(count: 5)
             }
         }
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        let sealed = try Plain.encrypt(Self.plaintext, to: key, using: A256GCM.self)
+        let (key, _) = try keyWrap()
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A256GCM.self)
         #expect(
             await thrown { () async throws(JWEError) in
                 try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(ShortKey())]))
             }
                 == .decryptionFailed
         )
+    }
+
+    @Test("an error knowable without the key is reported over a failed decryption, in either order")
+    func structuralErrorPreferred() async throws {
+        struct MissingParameter: KeyDecrypter {
+            typealias Algorithm = A256KW
+            let keyID: KeyID? = nil
+            func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
+                throw .missingHeaderParameter(name: "x", algorithm: "A256KW")
+            }
+        }
+        let (key, _) = try keyWrap()
+        let (_, wrongKey) = try keyWrap()
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A256GCM.self)
+        let structural = JWEError.missingHeaderParameter(name: "x", algorithm: "A256KW")
+        for decrypters in [
+            [AnyKeyDecrypter(MissingParameter()), AnyKeyDecrypter(wrongKey)],
+            [AnyKeyDecrypter(wrongKey), AnyKeyDecrypter(MissingParameter())],
+        ] {
+            #expect(
+                await thrown { () async throws(JWEError) in try await sealed.decrypt(with: DecryptionKeys(decrypters)) }
+                    == structural
+            )
+        }
     }
 
     @Test("a content encryption algorithm is never handed a key of the wrong size")
@@ -229,11 +286,11 @@ struct JWETests {
                 Data(count: 5)
             }
         }
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        let sealed = try Plain.encrypt(Self.plaintext, to: key, using: Careless.self)
+        let (key, unwrapKey) = try keyWrap()
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: Careless.self)
         // Positive control: the custom algorithm works with the right key.
         let opened = try await sealed.decrypt(
-            with: DecryptionKeys([AnyKeyDecrypter(key)]),
+            with: DecryptionKeys([AnyKeyDecrypter(unwrapKey)]),
             contentEncryptions: [Careless.self]
         )
         #expect(opened.plaintext == Self.plaintext)
@@ -248,24 +305,24 @@ struct JWETests {
     }
 
     @Test("a key encrypter that ignores the key chosen for an earlier recipient is caught")
-    func encrypterMustUseSharedKey() throws {
+    func encrypterMustUseSharedKey() async throws {
         struct OwnKey: KeyEncrypter {
             typealias Algorithm = A256KW
             let keyID: KeyID? = nil
-            func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+            func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
                 // Wrongly makes up its own content key instead of using `request.keyToWrap()`.
                 KeyEncryptionResult(contentEncryptionKey: Data(repeating: 7, count: 32), encryptedKey: Data(count: 40))
             }
         }
-        let wrap = AnyKeyEncrypter(try AESKeyWrapKey<A256KW>(key: secret(32)))
-        _ = try Plain.encrypt(
+        let wrap = AnyKeyEncrypter(try keyWrap().0)
+        _ = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: [AnyKeyEncrypter(OwnKey())],
             using: A256GCM.self,
             header: JWEHeaderParameters()
         )
-        #expect(throws: JWEError.algorithmRequiresSingleRecipient(algorithm: "A256KW")) {
-            try Plain.encrypt(
+        await #expect(throws: JWEError.algorithmRequiresSingleRecipient(algorithm: "A256KW")) {
+            try await SimpleJWE.encrypt(
                 Self.plaintext,
                 to: [wrap, AnyKeyEncrypter(OwnKey())],
                 using: A256GCM.self,
@@ -276,21 +333,31 @@ struct JWETests {
 
     @Test("keys of the wrong size are refused with the sizes named")
     func keySizes() async throws {
-        #expect(throws: JWEError.keyWrongSize(algorithm: "A128KW", expected: 16, found: 32)) {
-            try AESKeyWrapKey<A128KW>(key: secret(32))
+        #expect(throws: JWKError.keyWrongSize(algorithm: "A128KW", expectedByteCount: 16, found: 32)) {
+            try AESKeyWrapEncrypter<A128KW>(key: secret(32))
         }
-        #expect(throws: JWEError.keyWrongSize(algorithm: "A256GCMKW", expected: 32, found: 16)) {
-            try AESGCMKeyWrapKey<A256GCMKW>(key: secret(16))
+        #expect(throws: JWKError.keyWrongSize(algorithm: "A192KW", expectedByteCount: 24, found: 16)) {
+            try AESKeyWrapDecrypter<A192KW>(key: secret(16))
         }
-        let direct = DirectKey(key: secret(16))
-        #expect(throws: JWEError.keyWrongSize(algorithm: "dir", expected: 32, found: 16)) {
-            try Plain.encrypt(Self.plaintext, to: direct, using: A256GCM.self)
+        #expect(throws: JWKError.keyWrongSize(algorithm: "A256GCMKW", expectedByteCount: 32, found: 16)) {
+            try AESGCMKeyWrapEncrypter<A256GCMKW>(key: secret(16))
+        }
+        #expect(throws: JWKError.keyWrongSize(algorithm: "A128GCMKW", expectedByteCount: 16, found: 0)) {
+            try AESGCMKeyWrapDecrypter<A128GCMKW>(key: secret(0))
+        }
+        let short = secret(16)
+        await #expect(throws: JWEError.keyWrongSize(algorithm: "dir", expected: 32, found: 16)) {
+            try await SimpleJWE.encrypt(Self.plaintext, to: DirectEncrypter(key: short), using: A256GCM.self)
         }
         // And on the way in: a dir token for A256GCM cannot be opened with a 16-byte key.
-        let sealed = try Plain.encrypt(Self.plaintext, to: DirectKey(key: secret(32)), using: A256GCM.self)
+        let sealed = try await SimpleJWE.encrypt(
+            Self.plaintext,
+            to: DirectEncrypter(key: secret(32)),
+            using: A256GCM.self
+        )
         #expect(
             await thrown { () async throws(JWEError) in
-                try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(direct)]))
+                try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(DirectDecrypter(key: short))]))
             }
                 == .keyWrongSize(algorithm: "dir", expected: 32, found: 16)
         )
@@ -299,16 +366,16 @@ struct JWETests {
     @Test("a recipient is only tried with decrypters for its own algorithm and key ID")
     func keySelection() async throws {
         let material = secret(32)
-        let encrypter = try AESKeyWrapKey<A256KW>(key: material, keyID: "right")
-        let sealed = try Plain.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+        let encrypter = try AESKeyWrapEncrypter<A256KW>(key: material, keyID: "right")
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
         func outcome(_ decrypters: [AnyKeyDecrypter]) async -> JWEError? {
             await thrown { () async throws(JWEError) in try await sealed.decrypt(with: DecryptionKeys(decrypters)) }
         }
-        let right = AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: material, keyID: "right"))
-        let unnamed = AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: material))
-        let sameKeyOtherID = AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: material, keyID: "other"))
-        let wrongKeyRightID = AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: secret(32), keyID: "right"))
-        let otherAlgorithm = AnyKeyDecrypter(try AESGCMKeyWrapKey<A256GCMKW>(key: material, keyID: "right"))
+        let right = AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: material, keyID: "right"))
+        let unnamed = AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: material))
+        let sameKeyOtherID = AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: material, keyID: "other"))
+        let wrongKeyRightID = AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: secret(32), keyID: "right"))
+        let otherAlgorithm = AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: material, keyID: "right"))
 
         #expect(await outcome([right]) == nil)
         #expect(await outcome([unnamed]) == nil)
@@ -323,9 +390,9 @@ struct JWETests {
 
     @Test("content encryption can be restricted, and the default is everything this package implements")
     func contentEncryptionAllowList() async throws {
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        let keys = DecryptionKeys([AnyKeyDecrypter(key)])
-        let sealed = try Plain.encrypt(Self.plaintext, to: key, using: A128CBCHS256.self)
+        let (key, unwrapKey) = try keyWrap()
+        let keys = DecryptionKeys([AnyKeyDecrypter(unwrapKey)])
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A128CBCHS256.self)
         #expect(try await sealed.decrypt(with: keys).plaintext == Self.plaintext)
         #expect(
             try await sealed.decrypt(with: keys, contentEncryptions: [A128CBCHS256.self]).plaintext == Self.plaintext
@@ -342,20 +409,20 @@ struct JWETests {
 
     @Test("a single-recipient JWE round-trips through all three serializations, with additional data in JSON")
     func serializations() async throws {
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32), keyID: "k")
-        let keys = DecryptionKeys([AnyKeyDecrypter(key)])
-        let sealed = try Plain.encrypt(Self.plaintext, to: key, using: A256GCM.self)
+        let (key, unwrapKey) = try keyWrap(keyID: "k")
+        let keys = DecryptionKeys([AnyKeyDecrypter(unwrapKey)])
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: key, using: A256GCM.self)
         #expect(
-            try await Plain.Encrypted(json: try sealed.flattenedJSONSerialization()).decrypt(with: keys).plaintext
+            try await SimpleJWE.Encrypted(json: try sealed.flattenedJSONSerialization()).decrypt(with: keys).plaintext
                 == Self.plaintext
         )
         #expect(
-            try await Plain.Encrypted(json: try sealed.generalJSONSerialization()).decrypt(with: keys).plaintext
+            try await SimpleJWE.Encrypted(json: try sealed.generalJSONSerialization()).decrypt(with: keys).plaintext
                 == Self.plaintext
         )
 
         let aad = Data("bound context".utf8)
-        let withAAD = try Plain.encrypt(
+        let withAAD = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: key,
             using: A256GCM.self,
@@ -367,7 +434,9 @@ struct JWETests {
         ) {
             try withAAD.compactSerialization()
         }
-        let decrypted = try await Plain.Encrypted(json: try withAAD.flattenedJSONSerialization()).decrypt(with: keys)
+        let decrypted = try await SimpleJWE.Encrypted(json: try withAAD.flattenedJSONSerialization()).decrypt(
+            with: keys
+        )
         #expect(decrypted.plaintext == Self.plaintext)
         #expect(decrypted.additionalAuthenticatedData == aad)
 
@@ -376,7 +445,7 @@ struct JWETests {
             from: try withAAD.flattenedJSONSerialization()
         )
         document["aad"] = nil
-        let stripped = try Plain.Encrypted(json: try JSONEncoder().encode(document))
+        let stripped = try SimpleJWE.Encrypted(json: try JSONEncoder().encode(document))
         #expect(
             await thrown { () async throws(JWEError) in try await stripped.decrypt(with: keys) } == .decryptionFailed
         )
@@ -390,9 +459,9 @@ struct JWETests {
         let recipients = [
             AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey, keyID: "rsa")),
             AnyKeyEncrypter(ECDHESEncrypter<ECDHESA256KW>(recipient: ec.publicKey, keyID: "ec")),
-            AnyKeyEncrypter(try AESGCMKeyWrapKey<A256GCMKW>(key: shared, keyID: "shared")),
+            AnyKeyEncrypter(try AESGCMKeyWrapEncrypter<A256GCMKW>(key: shared, keyID: "shared")),
         ]
-        let sealed = try Plain.encrypt(
+        let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: recipients,
             using: A256GCM.self,
@@ -405,6 +474,16 @@ struct JWETests {
         #expect(sealed.headers[2].unprotectedParameterNames == ["alg", "kid", "iv", "tag"])
         #expect(sealed.headers[0].type == "example")
 
+        // A shared kid would apply to every recipient, and each already names its own.
+        await #expect(throws: JWEError.sharedKeyIDWithMultipleRecipients) {
+            try await SimpleJWE.encrypt(
+                Self.plaintext,
+                to: recipients,
+                using: A256GCM.self,
+                header: JWEHeaderParameters(keyID: "everyone")
+            )
+        }
+
         #expect(throws: JWEError.notRepresentable(serialization: "compact", reason: "it has 3 recipients")) {
             try sealed.compactSerialization()
         }
@@ -412,11 +491,11 @@ struct JWETests {
             try sealed.flattenedJSONSerialization()
         }
 
-        let parsed = try Plain.Encrypted(json: try sealed.generalJSONSerialization())
+        let parsed = try SimpleJWE.Encrypted(json: try sealed.generalJSONSerialization())
         let decrypters = [
             AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: rsa)),
             AnyKeyDecrypter(ECDHESDecrypter<ECDHESA256KW, ECPrivateKey<P256Curve>>(privateKey: ec)),
-            AnyKeyDecrypter(try AESGCMKeyWrapKey<A256GCMKW>(key: shared)),
+            AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: shared)),
         ]
         for (index, decrypter) in decrypters.enumerated() {
             let decrypted = try await parsed.decrypt(with: DecryptionKeys([decrypter]))
@@ -426,37 +505,45 @@ struct JWETests {
     }
 
     @Test("dir and ECDH-ES cannot share a JWE with other recipients, in either position")
-    func singleRecipientAlgorithms() throws {
-        let wrap = AnyKeyEncrypter(try AESKeyWrapKey<A256KW>(key: secret(32)))
-        let direct = AnyKeyEncrypter(DirectKey(key: secret(32)))
+    func singleRecipientAlgorithms() async throws {
+        /// Fails loudly if it is ever handed a key.
+        struct Tripwire: KeyEncrypter {
+            typealias Algorithm = A256KW
+            let keyID: KeyID? = nil
+            func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
+                throw .contentEncryptionFailed(description: "a recipient was handed the key")
+            }
+        }
+        let wrap = AnyKeyEncrypter(try keyWrap().0)
+        let direct = AnyKeyEncrypter(DirectEncrypter(key: secret(32)))
         let agreement = AnyKeyEncrypter(ECDHESEncrypter<ECDHES>(recipient: (try ECPrivateKey<P256Curve>()).publicKey))
-        func attempt(_ recipients: [AnyKeyEncrypter]) -> JWEError? {
-            do {
-                _ = try Plain.encrypt(
+        let tripwire = AnyKeyEncrypter(Tripwire())
+        func attempt(_ recipients: [AnyKeyEncrypter]) async -> JWEError? {
+            await thrown { () async throws(JWEError) in
+                try await SimpleJWE.encrypt(
                     Self.plaintext,
                     to: recipients,
                     using: A256GCM.self,
                     header: JWEHeaderParameters()
                 )
-                return nil
-            } catch {
-                return error
             }
         }
-        #expect(attempt([wrap, wrap]) == nil)
-        #expect(attempt([wrap, direct]) == .algorithmRequiresSingleRecipient(algorithm: "dir"))
-        #expect(attempt([wrap, agreement]) == .algorithmRequiresSingleRecipient(algorithm: "ECDH-ES"))
-        // First in line: the next recipient would be handed a key it did not choose, which a
-        // wrapping algorithm accepts, so it is the direct one that has to object.
-        #expect(attempt([direct, direct]) == .algorithmRequiresSingleRecipient(algorithm: "dir"))
-        #expect(attempt([agreement, agreement]) == .algorithmRequiresSingleRecipient(algorithm: "ECDH-ES"))
-        #expect(attempt([]) == .noRecipients)
+        #expect(await attempt([wrap, wrap]) == nil)
+        // Second in line: handed a key it did not choose, the direct recipient refuses it.
+        #expect(await attempt([wrap, direct]) == .algorithmRequiresSingleRecipient(algorithm: "dir"))
+        #expect(await attempt([wrap, agreement]) == .algorithmRequiresSingleRecipient(algorithm: "ECDH-ES"))
+        // First in line: its key would be wrapped for the others, so encryption stops before
+        // any other recipient sees it.
+        #expect(await attempt([direct, tripwire]) == .algorithmRequiresSingleRecipient(algorithm: "dir"))
+        #expect(await attempt([agreement, tripwire]) == .algorithmRequiresSingleRecipient(algorithm: "ECDH-ES"))
+        #expect(await attempt([direct, direct]) == .algorithmRequiresSingleRecipient(algorithm: "dir"))
+        #expect(await attempt([]) == .noRecipients)
     }
 
     @Test("one unusable recipient does not stop another from decrypting")
     func unusableRecipientIsSkipped() async throws {
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        let sealed = try Plain.encrypt(
+        let (key, unwrapKey) = try keyWrap()
+        let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: [AnyKeyEncrypter(key), AnyKeyEncrypter(key)],
             using: A256GCM.self,
@@ -471,16 +558,29 @@ struct JWETests {
         first["header"] = ["alg": "A256KW", "enc": "A256GCM"]
         recipients[0] = .object(first)
         document["recipients"] = .array(recipients)
-        let parsed = try Plain.Encrypted(json: try JSONEncoder().encode(document))
+        let parsed = try SimpleJWE.Encrypted(json: try JSONEncoder().encode(document))
         #expect(parsed.headers.count == 1)
-        #expect(try await parsed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(key)])).plaintext == Self.plaintext)
+        #expect(
+            try await parsed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(unwrapKey)])).plaintext == Self.plaintext
+        )
+
+        // With every recipient unusable, the JWE is refused, with every reason.
+        recipients[1] = .object(first)
+        document["recipients"] = .array(recipients)
+        #expect(
+            throws: JWEError.noUsableRecipient(reasons: [
+                .headerParameterInMultipleHeaders(name: "enc"), .headerParameterInMultipleHeaders(name: "enc"),
+            ])
+        ) {
+            try SimpleJWE.Encrypted(json: try JSONEncoder().encode(document))
+        }
     }
 
     @Test("malformed JSON serializations report what is wrong")
     func invalidJSON() {
         func parse(_ json: String) -> JWEError? {
             do {
-                _ = try Plain.Encrypted(json: Data(json.utf8))
+                _ = try SimpleJWE.Encrypted(json: Data(json.utf8))
                 return nil
             } catch {
                 return error
@@ -545,11 +645,11 @@ struct JWETests {
 
     @Test("a custom header type round-trips, and its critical parameters are enforced")
     func customHeader() async throws {
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        let keys = DecryptionKeys([AnyKeyDecrypter(key)])
+        let (key, unwrapKey) = try keyWrap()
+        let keys = DecryptionKeys([AnyKeyDecrypter(unwrapKey)])
         let header = JWEHeaderParameters(contentType: "JWT", custom: ExampleHeader(level: 3, must: "understood"))
-        let sealed = try JWE<ExampleHeader>.encrypt(Self.plaintext, to: key, using: A256GCM.self, header: header)
-        #expect(sealed.header?.critical == ["urn:example:must"])
+        let sealed = try await JWE<ExampleHeader>.encrypt(Self.plaintext, to: key, using: A256GCM.self, header: header)
+        #expect(sealed.header.critical == ["urn:example:must"])
         let compact = try sealed.compactSerialization()
 
         let decrypted = try await JWE<ExampleHeader>.Encrypted(compact: compact).decrypt(with: keys)
@@ -558,12 +658,58 @@ struct JWETests {
 
         // A reader that does not know the critical extension must refuse the JWE.
         #expect(throws: JWEError.unsupportedCriticalParameter(name: "urn:example:must")) {
-            try Plain.Encrypted(compact: compact)
+            try SimpleJWE.Encrypted(compact: compact)
         }
     }
 
+    @Test("registered header parameters are written and read back, including an embedded public JWK")
+    func registeredParameters() async throws {
+        let recipient = try ECPrivateKey<P256Curve>()
+        let publicJWK = JWK(.p256(recipient.publicKey))
+        let header = JWEHeaderParameters(
+            jwk: publicJWK,
+            jwkSetURL: "https://example.com/jwks",
+            x509URL: "https://example.com/cert",
+            x509CertificateChain: ["MIIB", "MIIC"],
+            x509CertificateSHA1Thumbprint: "sha1",
+            x509CertificateSHA256Thumbprint: "sha256"
+        )
+        let sealed = try await SimpleJWE.encrypt(
+            Self.plaintext,
+            to: ECDHESEncrypter<ECDHESA256KW>(recipient: recipient.publicKey),
+            using: A256GCM.self,
+            header: header
+        )
+        let parameters = try SimpleJWE.Encrypted(compact: try sealed.compactSerialization()).header.parameters
+        #expect(parameters.jwk == publicJWK)
+        #expect(parameters.jwkSetURL == "https://example.com/jwks")
+        #expect(parameters.x509URL == "https://example.com/cert")
+        #expect(parameters.x509CertificateChain == ["MIIB", "MIIC"])
+        #expect(parameters.x509CertificateSHA1Thumbprint == "sha1")
+        #expect(parameters.x509CertificateSHA256Thumbprint == "sha256")
+
+        func parse(_ members: String) -> JWEError? {
+            let protected = Base64URL.encode(Data(#"{"alg":"dir","enc":"A256GCM",\#(members)}"#.utf8))
+            do {
+                _ = try SimpleJWE.Encrypted(json: Data(#"{"protected":"\#(protected)","ciphertext":"AAAA"}"#.utf8))
+                return nil
+            } catch {
+                return error
+            }
+        }
+        let privateJSON = String(decoding: try PrivateJWK(.p256(recipient)).jsonRepresentation(), as: UTF8.self)
+        #expect(
+            parse(#""jwk":\#(privateJSON)"#)
+                == .invalidJWKParameter(.privateMemberInPublicKey(member: "d", keyType: "EC"))
+        )
+        #expect(parse(#""jwk":"key""#) == .headerParameterWrongType(name: "jwk", expected: "an object"))
+        #expect(parse(#""x5c":"MIIB""#) == .headerParameterWrongType(name: "x5c", expected: "an array of strings"))
+        #expect(parse(#""x5c":[1]"#) == .headerParameterWrongType(name: "x5c", expected: "an array of strings"))
+        #expect(parse(#""jku":1"#) == .headerParameterWrongType(name: "jku", expected: "a string"))
+    }
+
     @Test("a custom header type cannot set alg, enc or any other parameter this package owns")
-    func customHeaderCannotOverride() throws {
+    func customHeaderCannotOverride() async throws {
         struct Hostile: HeaderParameters {
             var values: [String: String]
 
@@ -580,8 +726,8 @@ struct JWETests {
                 try container.encode(values)
             }
         }
-        let key = try AESKeyWrapKey<A256KW>(key: secret(32))
-        _ = try JWE<Hostile>.encrypt(
+        let (key, _) = try keyWrap()
+        _ = try await JWE<Hostile>.encrypt(
             Self.plaintext,
             to: key,
             using: A256GCM.self,
@@ -590,8 +736,8 @@ struct JWETests {
         for name in [
             "alg", "enc", "zip", "kid", "typ", "cty", "crit", "epk", "apu", "apv", "iv", "tag", "jwk", "p2s", "p2c",
         ] {
-            #expect(throws: JWEError.customParameterCollision(name: name), "\(name)") {
-                try JWE<Hostile>.encrypt(
+            await #expect(throws: JWEError.customParameterCollision(name: name), "\(name)") {
+                try await JWE<Hostile>.encrypt(
                     Self.plaintext,
                     to: key,
                     using: A256GCM.self,
@@ -603,12 +749,12 @@ struct JWETests {
 
     // MARK: ECDH-ES details
 
-    private func ecdhToken(header: String, from sealed: Plain.Encrypted) throws -> Plain.Encrypted {
+    private func ecdhToken(header: String, from sealed: SimpleJWE.Encrypted) throws -> SimpleJWE.Encrypted {
         var parts = try sealed.compactSerialization().split(separator: ".", omittingEmptySubsequences: false).map(
             String.init
         )
         parts[0] = Base64URL.encode(Data(header.utf8))
-        return try Plain.Encrypted(compact: parts.joined(separator: "."))
+        return try SimpleJWE.Encrypted(compact: parts.joined(separator: "."))
     }
 
     @Test("a missing, malformed, private, off-curve or wrong-curve epk is refused with its cause")
@@ -617,7 +763,7 @@ struct JWETests {
         let keys = DecryptionKeys([
             AnyKeyDecrypter(ECDHESDecrypter<ECDHES, ECPrivateKey<P256Curve>>(privateKey: recipient))
         ])
-        let sealed = try Plain.encrypt(
+        let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: ECDHESEncrypter<ECDHES>(recipient: recipient.publicKey),
             using: A256GCM.self
@@ -675,7 +821,7 @@ struct JWETests {
         let keys = DecryptionKeys([
             AnyKeyDecrypter(ECDHESDecrypter<ECDHES, ECPrivateKey<P256Curve>>(privateKey: recipient))
         ])
-        let sealed = try Plain.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
         #expect(try await sealed.decrypt(with: keys).plaintext == Self.plaintext)
 
         // RFC 7516 §5.2 step 10: with direct key agreement the encrypted key must be empty.
@@ -684,7 +830,7 @@ struct JWETests {
         )
         #expect(parts[1].isEmpty)
         parts[1] = Base64URL.encode(Data(count: 40))
-        let withKey = try Plain.Encrypted(compact: parts.joined(separator: "."))
+        let withKey = try SimpleJWE.Encrypted(compact: parts.joined(separator: "."))
         #expect(
             await thrown { () async throws(JWEError) in try await withKey.decrypt(with: keys) }
                 == .encryptedKeyNotEmpty(algorithm: "ECDH-ES")
@@ -698,13 +844,13 @@ struct JWETests {
             keyByteCount: 32,
             contentEncryptionKey: existing
         )
-        #expect(throws: JWEError.algorithmRequiresSingleRecipient(algorithm: "ECDH-ES")) {
-            try encrypter.encryptKey(request)
+        await #expect(throws: JWEError.algorithmRequiresSingleRecipient(algorithm: "ECDH-ES")) {
+            try await encrypter.encryptKey(request)
         }
         let wrapping = ECDHESEncrypter<ECDHESA256KW>(recipient: recipient.publicKey)
-        #expect(try wrapping.encryptKey(request).contentEncryptionKey == existing)
-        #expect(throws: JWEError.algorithmRequiresSingleRecipient(algorithm: "dir")) {
-            try DirectKey(key: secret(32)).encryptKey(request)
+        #expect(try await wrapping.encryptKey(request).contentEncryptionKey == existing)
+        await #expect(throws: JWEError.algorithmRequiresSingleRecipient(algorithm: "dir")) {
+            try await DirectEncrypter(key: secret(32)).encryptKey(request)
         }
     }
 
@@ -712,7 +858,7 @@ struct JWETests {
     func smallOrderEphemeralKey() async throws {
         let recipient = try X25519PrivateKey()
         let keys = DecryptionKeys([AnyKeyDecrypter(ECDHESDecrypter<ECDHES, X25519PrivateKey>(privateKey: recipient))])
-        let sealed = try Plain.encrypt(
+        let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
             to: ECDHESEncrypter<ECDHES>(recipient: recipient.publicKey),
             using: A256GCM.self
@@ -736,12 +882,12 @@ struct JWETests {
             partyUInfo: Data("Alice".utf8),
             partyVInfo: Data("Bob".utf8)
         )
-        let sealed = try Plain.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
-        #expect(sealed.header?.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
-        #expect(sealed.header?.rawParameters["apv"] == .string(Base64URL.encode(Data("Bob".utf8))))
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+        #expect(sealed.header.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
+        #expect(sealed.header.rawParameters["apv"] == .string(Base64URL.encode(Data("Bob".utf8))))
         #expect(try await sealed.decrypt(with: keys).plaintext == Self.plaintext)
 
-        var raw = try #require(sealed.header?.rawParameters)
+        var raw = sealed.header.rawParameters
         raw["apu"] = .string(Base64URL.encode(Data("Mallory".utf8)))
         let header = String(decoding: try JSONEncoder().encode(raw), as: UTF8.self)
         let altered = try ecdhToken(header: header, from: sealed)
@@ -856,48 +1002,153 @@ struct JWETests {
         }
     }
 
+    @Test("symmetric encrypters and decrypters built from a JWK honour its restrictions and size")
+    func symmetricJWKRestrictions() async throws {
+        let material = secret(32)
+        func jwk(_ metadata: JWKMetadata) -> SymmetricJWK {
+            SymmetricJWK(material, metadata: metadata)
+        }
+        let wrapping = jwk(JWKMetadata(keyID: "w", use: .encryption, keyOperations: [.wrapKey, .unwrapKey]))
+        let encrypter = try AESKeyWrapEncrypter<A256KW>(jwk: wrapping)
+        let decrypter = try AESKeyWrapDecrypter<A256KW>(jwk: wrapping)
+        #expect(encrypter.keyID == "w")
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+        #expect(
+            try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(decrypter)])).plaintext == Self.plaintext
+        )
+
+        #expect(throws: JWKError.keyOperationNotPermitted(operations: ["unwrapKey"], required: "wrapKey")) {
+            try AESKeyWrapEncrypter<A256KW>(jwk: jwk(JWKMetadata(keyOperations: [.unwrapKey])))
+        }
+        #expect(throws: JWKError.keyOperationNotPermitted(operations: ["wrapKey"], required: "unwrapKey")) {
+            try AESGCMKeyWrapDecrypter<A256GCMKW>(jwk: jwk(JWKMetadata(keyOperations: [.wrapKey])))
+        }
+        #expect(throws: JWKError.useNotPermitted(use: "sig", required: "enc")) {
+            try AESGCMKeyWrapEncrypter<A256GCMKW>(jwk: jwk(JWKMetadata(use: .signature)))
+        }
+        #expect(throws: JWKError.algorithmMismatch(keyAlgorithm: "A256GCMKW", required: "A256KW")) {
+            try AESKeyWrapDecrypter<A256KW>(jwk: jwk(JWKMetadata(algorithm: "A256GCMKW")))
+        }
+        #expect(throws: JWKError.keyWrongSize(algorithm: "A128KW", expectedByteCount: 16, found: 32)) {
+            try AESKeyWrapEncrypter<A128KW>(jwk: jwk(JWKMetadata()))
+        }
+        #expect(throws: JWKError.keyOperationNotPermitted(operations: ["decrypt"], required: "encrypt")) {
+            try DirectEncrypter(jwk: jwk(JWKMetadata(keyOperations: [.decrypt])))
+        }
+        #expect(throws: JWKError.keyOperationNotPermitted(operations: ["encrypt"], required: "decrypt")) {
+            try DirectDecrypter(jwk: jwk(JWKMetadata(keyOperations: [.encrypt])))
+        }
+        _ = try DirectEncrypter(jwk: jwk(JWKMetadata(algorithm: "dir")))
+        _ = try DirectDecrypter(jwk: jwk(JWKMetadata(algorithm: "dir")))
+    }
+
+    @Test("decrypters can be built from private JWKs, for the listed algorithms only")
+    func decryptersFromJWKs() async throws {
+        let ec = try ECPrivateKey<P256Curve>()
+        let rsa = try RSAPrivateKey()
+        let ecJWK = PrivateJWK(.p256(ec), metadata: JWKMetadata(keyID: "ec", use: .encryption))
+        let rsaJWK = PrivateJWK(.rsa(rsa), metadata: JWKMetadata(keyID: "rsa", keyOperations: [.unwrapKey]))
+        let signingJWK = PrivateJWK(.p256(try ECPrivateKey<P256Curve>()), metadata: JWKMetadata(use: .signature))
+        let keys = DecryptionKeys(
+            jwks: [ecJWK, rsaJWK, signingJWK],
+            allowing: [ECDHESA256KW.self, RSAOAEP256.self]
+        )
+        // Each key suits one algorithm; the signing key suits none.
+        #expect(keys.decrypters.map(\.keyID) == ["ec", "rsa"])
+        #expect(keys.algorithms == ["ECDH-ES+A256KW", "RSA-OAEP-256"])
+
+        let toEC = try await SimpleJWE.encrypt(
+            Self.plaintext,
+            to: ECDHESEncrypter<ECDHESA256KW>(recipient: ec.publicKey, keyID: "ec"),
+            using: A256GCM.self
+        )
+        #expect(try await toEC.decrypt(with: keys).plaintext == Self.plaintext)
+        let toRSA = try await SimpleJWE.encrypt(
+            Self.plaintext,
+            to: try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey, keyID: "rsa"),
+            using: A256GCM.self
+        )
+        #expect(try await toRSA.decrypt(with: keys).plaintext == Self.plaintext)
+
+        #expect(throws: JWKError.keyOperationNotPermitted(operations: ["sign"], required: "unwrapKey")) {
+            try RSAOAEPDecrypter<RSAOAEP>(jwk: PrivateJWK(.rsa(rsa), metadata: JWKMetadata(keyOperations: [.sign])))
+        }
+        #expect(throws: JWKError.keyTypeMismatch(expected: "RSA", found: "EC")) {
+            try RSAOAEPDecrypter<RSAOAEP>(jwk: ecJWK)
+        }
+        #expect(throws: JWKError.keyTypeMismatch(expected: "EC or OKP X25519", found: "RSA")) {
+            try ECDHES.decrypter(for: PrivateJWK(.rsa(rsa)))
+        }
+        #expect(throws: JWKError.useNotPermitted(use: "sig", required: "enc")) {
+            try ECDHES.decrypter(for: signingJWK)
+        }
+
+        // The result builder takes a whole set of keys as well as single decrypters.
+        let combined = DecryptionKeys {
+            keys
+            DirectDecrypter(key: secret(32))
+        }
+        #expect(combined.algorithms == ["ECDH-ES+A256KW", "RSA-OAEP-256", "dir"])
+    }
+
     // MARK: Primitives
 
     @Test("PBES2 round-trips, writes its salt and count, and refuses the wrong password")
     func pbes2RoundTrip() async throws {
-        let key = try PBES2Key<PBES2HS256A128KW>(password: "correct horse battery staple", keyID: "pw")
-        let sealed = try Plain.encrypt(Self.plaintext, to: key, using: A128CBCHS256.self)
-        #expect(sealed.header?.rawParameters["p2c"] == 2048)
-        guard case .string(let salt) = try #require(sealed.header?.rawParameters["p2s"]) else {
+        let password = "correct horse battery staple"
+        let encrypter = try PBES2Encrypter<PBES2HS256A128KW>(password: password, keyID: "pw")
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A128CBCHS256.self)
+        #expect(sealed.header.rawParameters["p2c"] == 2048)
+        guard case .string(let salt) = try #require(sealed.header.rawParameters["p2s"]) else {
             Issue.record("p2s missing")
             return
         }
         #expect(try Base64URL.decode(salt).count == 16)
-        #expect(try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(key)])).plaintext == Self.plaintext)
+        let decrypter = PBES2Decrypter<PBES2HS256A128KW>(password: password, keyID: "pw")
+        #expect(
+            try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(decrypter)])).plaintext == Self.plaintext
+        )
 
-        let wrong = try PBES2Key<PBES2HS256A128KW>(password: "correct horse battery stapler")
+        let wrong = PBES2Decrypter<PBES2HS256A128KW>(password: "correct horse battery stapler")
         #expect(
             await thrown { () async throws(JWEError) in
                 try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(wrong)]))
             }
                 == .decryptionFailed
         )
-        let stronger = try PBES2Key<PBES2HS512A256KW>(password: "p", iterationCount: 5000, maximumIterationCount: 5000)
-        let strongSealed = try Plain.encrypt(Self.plaintext, to: stronger, using: A256GCM.self)
-        #expect(strongSealed.header?.rawParameters["p2c"] == 5000)
+        let stronger = try PBES2Encrypter<PBES2HS512A256KW>(password: "p", iterationCount: 5000)
+        let strongSealed = try await SimpleJWE.encrypt(Self.plaintext, to: stronger, using: A256GCM.self)
+        #expect(strongSealed.header.rawParameters["p2c"] == 5000)
+        let strongDecrypter = PBES2Decrypter<PBES2HS512A256KW>(password: "p", maximumIterationCount: 5000)
         #expect(
-            try await strongSealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(stronger)])).plaintext
+            try await strongSealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(strongDecrypter)])).plaintext
                 == Self.plaintext
+        )
+        // The default maximum is 10 000, which is below what this token asks for.
+        let cautious = PBES2Decrypter<PBES2HS512A256KW>(password: "p", maximumIterationCount: 4999)
+        #expect(
+            await thrown { () async throws(JWEError) in
+                try await strongSealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(cautious)]))
+            } == .invalidIterationCount(found: 5000, maximum: 4999)
         )
     }
 
     @Test("PBES2 iteration counts are bounded in both directions, and the salt input must be long enough")
     func pbes2Limits() async throws {
-        #expect(throws: JWEError.invalidIterationCount(found: 0, maximum: 10_000)) {
-            try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 0)
+        let limit = PBES2HS256A128KW.iterationCountLimit
+        #expect(limit == Int(clamping: UInt32.max))
+        #expect(throws: JWEError.invalidIterationCount(found: 0, maximum: limit)) {
+            try PBES2Encrypter<PBES2HS256A128KW>(password: "p", iterationCount: 0)
         }
-        #expect(throws: JWEError.invalidIterationCount(found: 20_000, maximum: 10_000)) {
-            try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 20_000)
-        }
-        _ = try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 20_000, maximumIterationCount: 20_000)
+        _ = try PBES2Encrypter<PBES2HS256A128KW>(password: "p", iterationCount: limit)
+        #expect(PBES2Decrypter<PBES2HS256A128KW>(password: "p").maximumIterationCount == 10_000)
+        // A maximum above what PBKDF2 can take is lowered to it, so no token can reach a count
+        // that would not fit.
+        let unbounded = PBES2Decrypter<PBES2HS256A128KW>(password: "p", maximumIterationCount: Int.max)
+        #expect(unbounded.maximumIterationCount == limit)
 
         // A received token is checked before any derivation: the count is attacker-controlled.
-        let key = try PBES2Key<PBES2HS256A128KW>(password: "p", iterationCount: 1000, maximumIterationCount: 1000)
+        let key = PBES2Decrypter<PBES2HS256A128KW>(password: "p", maximumIterationCount: 1000)
         func outcome(_ header: [String: JSONValue]) async -> JWEError? {
             let request = KeyDecryptionRequest(
                 encryptedKey: Data(count: 24),
@@ -925,11 +1176,23 @@ struct JWETests {
             await outcome(["p2s": .string(Base64URL.encode(Data(count: 7))), "p2c": 1000])
                 == .saltTooShort(algorithm: "PBES2-HS256+A128KW", minimum: 8, found: 7)
         )
+
+        let tooMany = Int64(UInt32.max) + 1
+        let request = KeyDecryptionRequest(
+            encryptedKey: Data(count: 24),
+            contentEncryption: "A128GCM",
+            keyByteCount: 16,
+            header: ["p2s": salt, "p2c": .integer(tooMany)]
+        )
+        #expect(
+            await thrown { () async throws(JWEError) in try await unbounded.decryptKey(request) }
+                == .invalidIterationCount(found: Int(clamping: tooMany), maximum: limit)
+        )
     }
 
     @Test("AES-GCM-KW needs its iv and tag, of the right sizes")
     func gcmKeyWrapParameters() async throws {
-        let key = try AESGCMKeyWrapKey<A256GCMKW>(key: secret(32))
+        let key = try AESGCMKeyWrapDecrypter<A256GCMKW>(key: secret(32))
         func outcome(_ header: [String: JSONValue]) async -> JWEError? {
             let request = KeyDecryptionRequest(
                 encryptedKey: Data(count: 32),
@@ -1040,13 +1303,13 @@ struct JWETests {
     func keysBuilder() throws {
         let includeRSA = false
         let keys = try DecryptionKeys {
-            DirectKey(key: secret(32))
-            try AESKeyWrapKey<A256KW>(key: secret(32), keyID: "a")
+            DirectDecrypter(key: secret(32))
+            try AESKeyWrapDecrypter<A256KW>(key: secret(32), keyID: "a")
             if includeRSA {
                 try RSAOAEPDecrypter<RSAOAEP>(privateKey: try RSAPrivateKey())
             }
             for keyID in ["x", "y"] {
-                try AESGCMKeyWrapKey<A128GCMKW>(key: secret(16), keyID: KeyID(rawValue: keyID))
+                try AESGCMKeyWrapDecrypter<A128GCMKW>(key: secret(16), keyID: KeyID(rawValue: keyID))
             }
         }
         #expect(keys.decrypters.count == 4)
@@ -1072,6 +1335,7 @@ struct JWETests {
             (.unsupportedCriticalParameter(name: "x"), "\"x\""),
             (.compressionNotSupported, "zip"),
             (.invalidCustomParameters(description: "bad"), "bad"),
+            (.invalidJWKParameter(.symmetricKeyInPublicKey), "oct"),
             (.missingHeaderParameter(name: "epk", algorithm: "ECDH-ES"), "epk"),
             (.invalidEphemeralKey(.pointNotOnCurve(curve: "P-256")), "P-256"),
             (.ephemeralKeyCurveMismatch(expected: "P-256", found: "P-384"), "P-384"),
@@ -1085,8 +1349,10 @@ struct JWETests {
             (.wrongInitializationVectorSize(algorithm: "A256GCM", expected: 12, found: 8), "8"),
             (.wrongAuthenticationTagSize(algorithm: "A256GCM", expected: 16, found: 12), "12"),
             (.noRecipientDecrypted(reasons: [.decryptionFailed, .missingAlgorithm]), "2 recipients"),
+            (.noUsableRecipient(reasons: [.missingAlgorithm, .missingAlgorithm]), "usable header"),
             (.algorithmRequiresSingleRecipient(algorithm: "dir"), "dir"),
             (.noRecipients, "recipient"),
+            (.sharedKeyIDWithMultipleRecipients, "\"kid\""),
             (.keyEncryptionFailed(algorithm: "RSA-OAEP", .rsaDecryptionFailed), "RSA-OAEP"),
             (.contentEncryptionFailed(description: "x9"), "x9"),
             (.headerEncodingFailed(description: "enc7"), "enc7"),

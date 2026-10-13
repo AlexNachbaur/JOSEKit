@@ -31,70 +31,24 @@ public struct PBES2HS512A256KW: PBES2Algorithm {
     public static let keyByteCount = 32
 }
 
-/// Encrypts and decrypts the content encryption key under a password.
-///
-/// The iteration count is the only defence a password has against guessing once a token is in
-/// an attacker's hands, and it is also what an attacker controls when *you* decrypt: a token can
-/// ask for billions of iterations. So there are two limits, both deliberate:
-///
-/// - ``iterationCount`` is written into tokens this key produces. The default matches what other
-///   implementations accept without configuration; raise it if every recipient is known to
-///   allow more.
-/// - ``maximumIterationCount`` bounds what a received token may ask for. A token above it is
-///   refused before any work is done.
-public struct PBES2Key<Algorithm: PBES2Algorithm>: KeyEncrypter, KeyDecrypter {
-    /// RFC 7518 §4.8.1.1 requires at least 8 bytes of salt input.
-    public static var minimumSaltByteCount: Int {
-        8
+extension PBES2Algorithm {
+    /// The largest iteration count PBKDF2 accepts here: CommonCrypto takes the count as a
+    /// `UInt32`.
+    public static var iterationCountLimit: Int {
+        Int(clamping: UInt32.max)
     }
+}
 
-    public let keyID: KeyID?
-    public let iterationCount: Int
-    public let maximumIterationCount: Int
-    private let password: Data
-
-    /// - Parameters:
-    ///   - password: The password as bytes; for text, its UTF-8 encoding.
-    ///   - iterationCount: The PBKDF2 iteration count written into tokens this key produces.
-    ///   - maximumIterationCount: The largest iteration count accepted when decrypting.
-    public init(
-        password: Data,
-        keyID: KeyID? = nil,
-        iterationCount: Int = 2048,
-        maximumIterationCount: Int = 10_000
-    ) throws(JWEError) {
-        guard iterationCount >= 1 else {
-            throw .invalidIterationCount(found: iterationCount, maximum: maximumIterationCount)
-        }
-        guard iterationCount <= maximumIterationCount else {
-            throw .invalidIterationCount(found: iterationCount, maximum: maximumIterationCount)
-        }
-        self.password = password
-        self.keyID = keyID
-        self.iterationCount = iterationCount
-        self.maximumIterationCount = maximumIterationCount
-    }
-
-    public init(
-        password: String,
-        keyID: KeyID? = nil,
-        iterationCount: Int = 2048,
-        maximumIterationCount: Int = 10_000
-    ) throws(JWEError) {
-        try self.init(
-            password: Data(password.utf8),
-            keyID: keyID,
-            iterationCount: iterationCount,
-            maximumIterationCount: maximumIterationCount
-        )
-    }
+/// The derivation both directions share.
+private struct PBES2Derivation<Algorithm: PBES2Algorithm> {
+    let password: Data
 
     /// The PBKDF2 salt of RFC 7518 §4.8.1.1: the algorithm name, a zero byte, then the salt input.
     private static func salt(from saltInput: Data) -> Data {
         Data(Algorithm.identifier.rawValue.utf8) + [0x00] + saltInput
     }
 
-    private func derivedKey(saltInput: Data, iterations: Int) throws(JWEError) -> Data {
+    func wrappingKey(saltInput: Data, iterations: Int) throws(JWEError) -> Data {
         do {
             return try PBKDF2.derive(
                 password: password,
@@ -107,10 +61,38 @@ public struct PBES2Key<Algorithm: PBES2Algorithm>: KeyEncrypter, KeyDecrypter {
             throw .contentEncryptionFailed(description: "\(Algorithm.identifier) key derivation failed: \(error)")
         }
     }
+}
 
-    public func encryptKey(_ request: KeyEncryptionRequest) throws(JWEError) -> KeyEncryptionResult {
+/// Encrypts the content encryption key under a password.
+///
+/// The iteration count is the only defence a password has against guessing once a token is in
+/// an attacker's hands. The default matches what other implementations accept without
+/// configuration; raise it if every recipient is known to allow more.
+public struct PBES2Encrypter<Algorithm: PBES2Algorithm>: KeyEncrypter {
+    public let keyID: KeyID?
+    /// The PBKDF2 iteration count written into tokens this encrypter produces.
+    public let iterationCount: Int
+    private let derivation: PBES2Derivation<Algorithm>
+
+    /// - Parameters:
+    ///   - password: The password as bytes; for text, its UTF-8 encoding.
+    ///   - iterationCount: Between 1 and ``PBES2Algorithm/iterationCountLimit``.
+    public init(password: Data, keyID: KeyID? = nil, iterationCount: Int = 2048) throws(JWEError) {
+        guard iterationCount >= 1, iterationCount <= Algorithm.iterationCountLimit else {
+            throw .invalidIterationCount(found: iterationCount, maximum: Algorithm.iterationCountLimit)
+        }
+        derivation = PBES2Derivation(password: password)
+        self.keyID = keyID
+        self.iterationCount = iterationCount
+    }
+
+    public init(password: String, keyID: KeyID? = nil, iterationCount: Int = 2048) throws(JWEError) {
+        try self.init(password: Data(password.utf8), keyID: keyID, iterationCount: iterationCount)
+    }
+
+    public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
         let saltInput = SymmetricKeyMaterial(randomByteCount: 16).rawRepresentation
-        let wrappingKey = try derivedKey(saltInput: saltInput, iterations: iterationCount)
+        let wrappingKey = try derivation.wrappingKey(saltInput: saltInput, iterations: iterationCount)
         let contentKey = request.keyToWrap()
         do {
             return KeyEncryptionResult(
@@ -124,6 +106,37 @@ public struct PBES2Key<Algorithm: PBES2Algorithm>: KeyEncrypter, KeyDecrypter {
         } catch {
             throw .contentEncryptionFailed(description: "\(Algorithm.identifier) key wrap failed: \(error)")
         }
+    }
+}
+
+/// Decrypts the content encryption key under a password.
+///
+/// A received token chooses its own iteration count, and so the work you do to decrypt it: a
+/// token can ask for billions. ``maximumIterationCount`` bounds that, and a token above it is
+/// refused before any work is done.
+public struct PBES2Decrypter<Algorithm: PBES2Algorithm>: KeyDecrypter {
+    /// RFC 7518 §4.8.1.1 requires at least 8 bytes of salt input.
+    public static var minimumSaltByteCount: Int {
+        8
+    }
+
+    public let keyID: KeyID?
+    /// The largest iteration count accepted, never above ``PBES2Algorithm/iterationCountLimit``.
+    public let maximumIterationCount: Int
+    private let derivation: PBES2Derivation<Algorithm>
+
+    /// - Parameters:
+    ///   - password: The password as bytes; for text, its UTF-8 encoding.
+    ///   - maximumIterationCount: The largest iteration count accepted. Values above
+    ///     ``PBES2Algorithm/iterationCountLimit`` are lowered to it.
+    public init(password: Data, keyID: KeyID? = nil, maximumIterationCount: Int = 10_000) {
+        derivation = PBES2Derivation(password: password)
+        self.keyID = keyID
+        self.maximumIterationCount = min(maximumIterationCount, Algorithm.iterationCountLimit)
+    }
+
+    public init(password: String, keyID: KeyID? = nil, maximumIterationCount: Int = 10_000) {
+        self.init(password: Data(password.utf8), keyID: keyID, maximumIterationCount: maximumIterationCount)
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
@@ -146,7 +159,7 @@ public struct PBES2Key<Algorithm: PBES2Algorithm>: KeyEncrypter, KeyDecrypter {
         guard count >= 1, count <= Int64(maximumIterationCount) else {
             throw .invalidIterationCount(found: Int(clamping: count), maximum: maximumIterationCount)
         }
-        let wrappingKey = try derivedKey(saltInput: saltInput, iterations: Int(count))
+        let wrappingKey = try derivation.wrappingKey(saltInput: saltInput, iterations: Int(count))
         return try AESKeyWrapping.unwrap(request.encryptedKey, with: wrappingKey)
     }
 }

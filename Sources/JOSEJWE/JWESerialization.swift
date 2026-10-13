@@ -27,7 +27,7 @@ extension JWE.Encrypted {
             encryptedKey: try JWEJSON.decodeBase64URL(segments[1], part: "encrypted key"),
             unprotected: [:]
         )
-        self.init(
+        try self.init(
             protectedEncoded: segments[0],
             sharedUnprotected: [:],
             recipients: [.success(recipient)],
@@ -138,7 +138,7 @@ extension JWE.Encrypted {
         if let additionalDataEncoded {
             _ = try JWEJSON.decodeBase64URL(additionalDataEncoded, part: "aad")
         }
-        self.init(
+        try self.init(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: sharedUnprotected,
             recipients: recipients,

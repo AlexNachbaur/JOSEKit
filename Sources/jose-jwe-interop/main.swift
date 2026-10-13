@@ -79,8 +79,6 @@ func hex(_ data: Data) -> String {
     .joined()
 }
 
-typealias Plain = JWE<EmptyHeaderParameters>
-
 func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> AnyKeyEncrypter {
     let json = Data(jwk.utf8)
     func secret() throws -> SymmetricKeyMaterial {
@@ -93,19 +91,19 @@ func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> An
     }
     switch algorithm {
     case "dir":
-        return AnyKeyEncrypter(DirectKey(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(DirectEncrypter(key: try secret(), keyID: keyID))
     case "A128KW":
-        return AnyKeyEncrypter(try AESKeyWrapKey<A128KW>(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(try AESKeyWrapEncrypter<A128KW>(key: try secret(), keyID: keyID))
     case "A192KW":
-        return AnyKeyEncrypter(try AESKeyWrapKey<A192KW>(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(try AESKeyWrapEncrypter<A192KW>(key: try secret(), keyID: keyID))
     case "A256KW":
-        return AnyKeyEncrypter(try AESKeyWrapKey<A256KW>(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(try AESKeyWrapEncrypter<A256KW>(key: try secret(), keyID: keyID))
     case "A128GCMKW":
-        return AnyKeyEncrypter(try AESGCMKeyWrapKey<A128GCMKW>(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(try AESGCMKeyWrapEncrypter<A128GCMKW>(key: try secret(), keyID: keyID))
     case "A192GCMKW":
-        return AnyKeyEncrypter(try AESGCMKeyWrapKey<A192GCMKW>(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(try AESGCMKeyWrapEncrypter<A192GCMKW>(key: try secret(), keyID: keyID))
     case "A256GCMKW":
-        return AnyKeyEncrypter(try AESGCMKeyWrapKey<A256GCMKW>(key: try secret(), keyID: keyID))
+        return AnyKeyEncrypter(try AESGCMKeyWrapEncrypter<A256GCMKW>(key: try secret(), keyID: keyID))
     case "ECDH-ES":
         return AnyKeyEncrypter(try ECDHESEncrypter<ECDHES>(jwk: try publicKey()))
     case "ECDH-ES+A128KW":
@@ -119,11 +117,17 @@ func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> An
     case "RSA-OAEP-256":
         return AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP256>(jwk: try publicKey()))
     case "PBES2-HS256+A128KW":
-        return AnyKeyEncrypter(try PBES2Key<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID))
+        return AnyKeyEncrypter(
+            try PBES2Encrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
+        )
     case "PBES2-HS384+A192KW":
-        return AnyKeyEncrypter(try PBES2Key<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID))
+        return AnyKeyEncrypter(
+            try PBES2Encrypter<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID)
+        )
     case "PBES2-HS512+A256KW":
-        return AnyKeyEncrypter(try PBES2Key<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID))
+        return AnyKeyEncrypter(
+            try PBES2Encrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID)
+        )
     default:
         throw InteropError(description: "unsupported algorithm \(algorithm)")
     }
@@ -158,19 +162,19 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     }
     switch algorithm {
     case "dir":
-        return AnyKeyDecrypter(DirectKey(key: try secret()))
+        return AnyKeyDecrypter(DirectDecrypter(key: try secret()))
     case "A128KW":
-        return AnyKeyDecrypter(try AESKeyWrapKey<A128KW>(key: try secret()))
+        return AnyKeyDecrypter(try AESKeyWrapDecrypter<A128KW>(key: try secret()))
     case "A192KW":
-        return AnyKeyDecrypter(try AESKeyWrapKey<A192KW>(key: try secret()))
+        return AnyKeyDecrypter(try AESKeyWrapDecrypter<A192KW>(key: try secret()))
     case "A256KW":
-        return AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: try secret()))
+        return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: try secret()))
     case "A128GCMKW":
-        return AnyKeyDecrypter(try AESGCMKeyWrapKey<A128GCMKW>(key: try secret()))
+        return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A128GCMKW>(key: try secret()))
     case "A192GCMKW":
-        return AnyKeyDecrypter(try AESGCMKeyWrapKey<A192GCMKW>(key: try secret()))
+        return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A192GCMKW>(key: try secret()))
     case "A256GCMKW":
-        return AnyKeyDecrypter(try AESGCMKeyWrapKey<A256GCMKW>(key: try secret()))
+        return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: try secret()))
     case "ECDH-ES":
         return try ecdhDecrypter(ECDHES.self, try PrivateJWK(json: json))
     case "ECDH-ES+A128KW":
@@ -184,11 +188,11 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "RSA-OAEP-256":
         return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try rsa()))
     case "PBES2-HS256+A128KW":
-        return AnyKeyDecrypter(try PBES2Key<PBES2HS256A128KW>(password: try secret().rawRepresentation))
+        return AnyKeyDecrypter(PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation))
     case "PBES2-HS384+A192KW":
-        return AnyKeyDecrypter(try PBES2Key<PBES2HS384A192KW>(password: try secret().rawRepresentation))
+        return AnyKeyDecrypter(PBES2Decrypter<PBES2HS384A192KW>(password: try secret().rawRepresentation))
     case "PBES2-HS512+A256KW":
-        return AnyKeyDecrypter(try PBES2Key<PBES2HS512A256KW>(password: try secret().rawRepresentation))
+        return AnyKeyDecrypter(PBES2Decrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation))
     default:
         throw InteropError(description: "unsupported algorithm \(algorithm)")
     }
@@ -199,11 +203,11 @@ func seal(
     to recipients: [AnyKeyEncrypter],
     encryption: String,
     additionalData: Data? = nil
-) throws -> Plain.Encrypted {
+) async throws -> SimpleJWE.Encrypted {
     let header = JWEHeaderParameters(type: "example+jwe")
     switch encryption {
     case "A128GCM":
-        return try Plain.encrypt(
+        return try await SimpleJWE.encrypt(
             plaintext,
             to: recipients,
             using: A128GCM.self,
@@ -211,7 +215,7 @@ func seal(
             additionalAuthenticatedData: additionalData
         )
     case "A192GCM":
-        return try Plain.encrypt(
+        return try await SimpleJWE.encrypt(
             plaintext,
             to: recipients,
             using: A192GCM.self,
@@ -219,7 +223,7 @@ func seal(
             additionalAuthenticatedData: additionalData
         )
     case "A256GCM":
-        return try Plain.encrypt(
+        return try await SimpleJWE.encrypt(
             plaintext,
             to: recipients,
             using: A256GCM.self,
@@ -227,7 +231,7 @@ func seal(
             additionalAuthenticatedData: additionalData
         )
     case "A128CBC-HS256":
-        return try Plain.encrypt(
+        return try await SimpleJWE.encrypt(
             plaintext,
             to: recipients,
             using: A128CBCHS256.self,
@@ -235,7 +239,7 @@ func seal(
             additionalAuthenticatedData: additionalData
         )
     case "A192CBC-HS384":
-        return try Plain.encrypt(
+        return try await SimpleJWE.encrypt(
             plaintext,
             to: recipients,
             using: A192CBCHS384.self,
@@ -243,7 +247,7 @@ func seal(
             additionalAuthenticatedData: additionalData
         )
     case "A256CBC-HS512":
-        return try Plain.encrypt(
+        return try await SimpleJWE.encrypt(
             plaintext,
             to: recipients,
             using: A256CBCHS512.self,
@@ -262,9 +266,14 @@ var response = Response()
 
 for item in challenge.encrypt {
     let recipient = try encrypter(algorithm: item.algorithm, jwk: item.jwk)
-    let compact = try seal(plaintext, to: [recipient], encryption: item.encryption).compactSerialization()
-    let flattened = try seal(plaintext, to: [recipient], encryption: item.encryption, additionalData: additionalData)
-        .flattenedJSONSerialization()
+    let compact = try await seal(plaintext, to: [recipient], encryption: item.encryption).compactSerialization()
+    let flattened = try await seal(
+        plaintext,
+        to: [recipient],
+        encryption: item.encryption,
+        additionalData: additionalData
+    )
+    .flattenedJSONSerialization()
     response.produced.append(Response.Produced(compact: compact, flattened: String(decoding: flattened, as: UTF8.self)))
 }
 
@@ -275,19 +284,19 @@ for (index, item) in challenge.multiple.enumerated() {
     )
 }
 if let encryption = challenge.multiple.first?.encryption {
-    let sealed = try seal(plaintext, to: recipients, encryption: encryption, additionalData: additionalData)
+    let sealed = try await seal(plaintext, to: recipients, encryption: encryption, additionalData: additionalData)
     response.multiple = String(decoding: try sealed.generalJSONSerialization(), as: UTF8.self)
 }
 
 for item in challenge.decrypt {
     let keys = DecryptionKeys([try decrypter(algorithm: item.algorithm, jwk: item.jwk)])
     do {
-        let jwe: Plain.Encrypted
+        let jwe: SimpleJWE.Encrypted
         switch item.serialization {
         case "compact":
-            jwe = try Plain.Encrypted(compact: item.token)
+            jwe = try SimpleJWE.Encrypted(compact: item.token)
         case "json":
-            jwe = try Plain.Encrypted(json: Data(item.token.utf8))
+            jwe = try SimpleJWE.Encrypted(json: Data(item.token.utf8))
         default:
             throw InteropError(description: "unknown serialization \(item.serialization)")
         }

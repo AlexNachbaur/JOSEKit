@@ -35,6 +35,8 @@ public enum JWEError: Error, Sendable, Equatable {
     /// an arbitrarily large plaintext and leaks plaintext through its length (RFC 8725 §3.6).
     case compressionNotSupported
     case invalidCustomParameters(description: String)
+    /// The `jwk` header parameter is not a valid public JWK.
+    case invalidJWKParameter(JWKError)
     /// A parameter the key management algorithm needs (`epk`, `iv`, `tag`) is absent.
     case missingHeaderParameter(name: String, algorithm: AlgorithmIdentifier)
     /// The `epk` header parameter is not a usable public key.
@@ -55,7 +57,8 @@ public enum JWEError: Error, Sendable, Equatable {
     case noDecrypterForAlgorithm(algorithm: AlgorithmIdentifier, offered: [AlgorithmIdentifier])
     /// Decrypters for the algorithm exist, but all of them are for other key IDs.
     case noDecrypterForKeyID(keyID: KeyID, algorithm: AlgorithmIdentifier)
-    /// A key supplied by the caller is not the size the algorithm requires.
+    /// A `dir` key is not the size the content encryption algorithm requires. Keys whose size
+    /// the key management algorithm alone fixes are checked when they are constructed instead.
     case keyWrongSize(algorithm: AlgorithmIdentifier, expected: Int, found: Int)
     /// The algorithm defines the encrypted key as empty, and this JWE has one.
     case encryptedKeyNotEmpty(algorithm: AlgorithmIdentifier)
@@ -66,6 +69,9 @@ public enum JWEError: Error, Sendable, Equatable {
     case decryptionFailed
     /// The JWE has several recipients and none could be decrypted. One reason per recipient.
     case noRecipientDecrypted(reasons: [JWEError])
+    /// The JWE has several recipients and none of their headers could be read, so none could
+    /// ever be decrypted. One reason per recipient.
+    case noUsableRecipient(reasons: [JWEError])
 
     // MARK: Encryption
 
@@ -73,6 +79,9 @@ public enum JWEError: Error, Sendable, Equatable {
     /// can have no other recipient.
     case algorithmRequiresSingleRecipient(algorithm: AlgorithmIdentifier)
     case noRecipients
+    /// A `kid` was set in the shared header of a JWE with several recipients. Each recipient's
+    /// key ID goes in its own header, taken from its encrypter.
+    case sharedKeyIDWithMultipleRecipients
     case keyEncryptionFailed(algorithm: AlgorithmIdentifier, JWKError)
     case contentEncryptionFailed(description: String)
     case headerEncodingFailed(description: String)
@@ -117,6 +126,8 @@ extension JWEError: CustomStringConvertible {
             return "JWE uses \"zip\"; compressed JWEs are not supported"
         case .invalidCustomParameters(let description):
             return "JWE header could not be decoded as the custom header type: \(description)"
+        case .invalidJWKParameter(let error):
+            return "JWE \"jwk\" header parameter is not a valid public key: \(error)"
         case .missingHeaderParameter(let name, let algorithm):
             return "JWE header has no \"\(name)\" parameter, which \(algorithm) requires"
         case .invalidEphemeralKey(let error):
@@ -148,10 +159,15 @@ extension JWEError: CustomStringConvertible {
         case .noRecipientDecrypted(let reasons):
             return "none of the JWE's \(reasons.count) recipients could be decrypted: "
                 + reasons.map(\.description).joined(separator: "; ")
+        case .noUsableRecipient(let reasons):
+            return "none of the JWE's \(reasons.count) recipients has a usable header: "
+                + reasons.map(\.description).joined(separator: "; ")
         case .algorithmRequiresSingleRecipient(let algorithm):
             return "\(algorithm) determines the content encryption key and cannot be combined with other recipients"
         case .noRecipients:
             return "a JWE needs at least one recipient"
+        case .sharedKeyIDWithMultipleRecipients:
+            return "a JWE with several recipients cannot have a shared \"kid\"; each recipient's key ID is its own"
         case .keyEncryptionFailed(let algorithm, let error):
             return "\(algorithm) key encryption failed: \(error)"
         case .contentEncryptionFailed(let description):

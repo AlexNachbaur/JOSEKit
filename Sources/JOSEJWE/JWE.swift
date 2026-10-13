@@ -43,9 +43,40 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             }
         }
 
-        /// The header of the first recipient that parsed.
-        public var header: JWEHeader<Custom>? {
-            headers.first
+        /// The header of the first recipient that parsed. A JWE in which no recipient's header
+        /// parses is refused when it is parsed, so there always is one.
+        public let header: JWEHeader<Custom>
+
+        init(
+            protectedEncoded: String,
+            sharedUnprotected: [String: JSONValue],
+            recipients: [Result<Recipient, JWEError>],
+            initializationVector: Data,
+            ciphertext: Data,
+            tag: Data,
+            additionalDataEncoded: String?
+        ) throws(JWEError) {
+            var failures: [JWEError] = []
+            var first: JWEHeader<Custom>?
+            for recipient in recipients {
+                switch recipient {
+                case .success(let recipient):
+                    first = first ?? recipient.header
+                case .failure(let error):
+                    failures.append(error)
+                }
+            }
+            guard let first else {
+                throw .noUsableRecipient(reasons: failures)
+            }
+            self.header = first
+            self.protectedEncoded = protectedEncoded
+            self.sharedUnprotected = sharedUnprotected
+            self.recipients = recipients
+            self.initializationVector = initializationVector
+            self.ciphertext = ciphertext
+            self.tag = tag
+            self.additionalDataEncoded = additionalDataEncoded
         }
 
         /// What the content encryption authenticates alongside the ciphertext (RFC 7516 §5.1
@@ -127,15 +158,16 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
                 header: header.rawParameters
             )
 
-            var lastError = JWEError.decryptionFailed
+            // Something knowable without the key, such as a missing `epk`, is reported in
+            // preference to a cryptographic failure, whichever order the candidates are in.
+            var structuralError: JWEError?
             for candidate in candidates {
                 var contentKey: Data
                 do {
                     contentKey = try await candidate.decryptKey(request)
                 } catch {
                     guard error == .decryptionFailed else {
-                        // Something knowable without the key, such as a missing `epk`.
-                        lastError = error
+                        structuralError = structuralError ?? error
                         continue
                     }
                     // RFC 7516 §11.5: when the key cannot be unwrapped, carry on with a random
@@ -155,10 +187,11 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
                         additionalAuthenticatedData: authenticatedData
                     )
                 } catch {
-                    lastError = .decryptionFailed
+                    // Every content decryption failure is the same `.decryptionFailed`.
+                    continue
                 }
             }
-            throw lastError
+            throw structuralError ?? .decryptionFailed
         }
     }
 
@@ -184,8 +217,8 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         using contentEncryption: Encryption.Type,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
-    ) throws(JWEError) -> Encrypted {
-        try encrypt(
+    ) async throws(JWEError) -> Encrypted {
+        try await encrypt(
             plaintext,
             to: [AnyKeyEncrypter(recipient)],
             using: contentEncryption,
@@ -198,16 +231,19 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
     ///
     /// With more than one recipient, `enc` and the caller's parameters are in the protected
     /// header and each recipient's `alg`, `kid` and key parameters are in that recipient's own
-    /// header, which only the JSON serialization can carry.
+    /// header, which only the JSON serialization can carry. `header` may not then set `kid`.
     public static func encrypt<Encryption: ContentEncryptionAlgorithm>(
         _ plaintext: Data,
         to recipients: [AnyKeyEncrypter],
         using contentEncryption: Encryption.Type,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
-    ) throws(JWEError) -> Encrypted {
+    ) async throws(JWEError) -> Encrypted {
         guard !recipients.isEmpty else {
             throw .noRecipients
+        }
+        guard recipients.count == 1 || header.keyID == nil else {
+            throw .sharedKeyIDWithMultipleRecipients
         }
         var protected = try header.values()
         protected["enc"] = .string(Encryption.identifier.rawValue)
@@ -215,15 +251,20 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         var contentKey: Data?
         var results: [(AnyKeyEncrypter, KeyEncryptionResult)] = []
         for recipient in recipients {
-            // `dir` and `ECDH-ES` fix the key themselves; they are told when they are not alone,
-            // whichever position they are in.
-            let result = try recipient.encryptKey(
+            // A later `dir` or `ECDH-ES` recipient is handed the key already chosen and refuses it.
+            let result = try await recipient.encryptKey(
                 KeyEncryptionRequest(
                     contentEncryption: Encryption.identifier,
                     keyByteCount: Encryption.keyByteCount,
                     contentEncryptionKey: contentKey
                 )
             )
+            // A first `dir` or `ECDH-ES` recipient supplies the key itself, which shows as an
+            // empty encrypted key. Its key must not be handed to anyone else, so this stops
+            // before the next recipient is asked.
+            guard recipients.count == 1 || !result.encryptedKey.isEmpty else {
+                throw .algorithmRequiresSingleRecipient(algorithm: recipient.algorithm)
+            }
             if let contentKey {
                 guard result.contentEncryptionKey == contentKey else {
                     throw .algorithmRequiresSingleRecipient(algorithm: recipient.algorithm)
@@ -240,7 +281,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         for (recipient, result) in results {
             var values = result.headerParameters
             values["alg"] = .string(recipient.algorithm.rawValue)
-            if let keyID = recipient.keyID, results.count > 1 || protected["kid"] == nil {
+            if let keyID = recipient.keyID, protected["kid"] == nil {
                 values["kid"] = .string(keyID.rawValue)
             }
             recipientHeaders.append(values)
@@ -289,7 +330,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         let initializationVector = SymmetricKeyMaterial(
             randomByteCount: Encryption.initializationVectorByteCount
         ).rawRepresentation
-        var sealed = Encrypted(
+        var sealed = try Encrypted(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: [:],
             recipients: parsedRecipients,
@@ -304,7 +345,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             initializationVector: initializationVector,
             additionalAuthenticatedData: sealed.authenticatedData
         )
-        sealed = Encrypted(
+        sealed = try Encrypted(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: [:],
             recipients: parsedRecipients,
@@ -323,7 +364,10 @@ extension JWE where Custom == EmptyHeaderParameters {
         _ plaintext: Data,
         to recipient: Recipient,
         using contentEncryption: Encryption.Type
-    ) throws(JWEError) -> Encrypted {
-        try encrypt(plaintext, to: recipient, using: contentEncryption, header: JWEHeaderParameters())
+    ) async throws(JWEError) -> Encrypted {
+        try await encrypt(plaintext, to: recipient, using: contentEncryption, header: JWEHeaderParameters())
     }
 }
+
+/// A JWE with registered header parameters only, which is the common case.
+public typealias SimpleJWE = JWE<EmptyHeaderParameters>

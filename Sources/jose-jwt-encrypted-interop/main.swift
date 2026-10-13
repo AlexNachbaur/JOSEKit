@@ -51,9 +51,6 @@ struct InteropError: Error, CustomStringConvertible {
     let description: String
 }
 
-typealias PlainEncrypted = EncryptedJWT<EmptyClaims, EmptyHeaderParameters>
-typealias PlainNested = NestedJWT<EmptyClaims, EmptyHeaderParameters>
-
 let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
 let now = Date(timeIntervalSince1970: challenge.now)
 
@@ -61,19 +58,13 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     let json = Data(jwk.utf8)
     switch algorithm {
     case "dir":
-        return AnyKeyDecrypter(DirectKey(key: try SymmetricJWK(json: json).key))
+        return AnyKeyDecrypter(try DirectDecrypter(jwk: try SymmetricJWK(json: json)))
     case "A256KW":
-        return AnyKeyDecrypter(try AESKeyWrapKey<A256KW>(key: try SymmetricJWK(json: json).key))
+        return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: try SymmetricJWK(json: json)))
     case "ECDH-ES":
-        guard case .p256(let key) = try PrivateJWK(json: json).key else {
-            throw InteropError(description: "not a P-256 key")
-        }
-        return AnyKeyDecrypter(ECDHESDecrypter<ECDHES, ECPrivateKey<P256Curve>>(privateKey: key))
+        return try ECDHES.decrypter(for: try PrivateJWK(json: json))
     case "RSA-OAEP-256":
-        guard case .rsa(let key) = try PrivateJWK(json: json).key else {
-            throw InteropError(description: "not an RSA key")
-        }
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: key))
+        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
     default:
         throw InteropError(description: "unsupported algorithm \(algorithm)")
     }
@@ -97,8 +88,8 @@ func produce<R: KeyEncrypter>(_ recipient: R, algorithm: String, encryption: Str
     func make<E: ContentEncryptionAlgorithm>(_ contentEncryption: E.Type) async throws -> Response.Produced {
         Response.Produced(
             algorithm: algorithm,
-            encrypted: try PlainEncrypted.encrypt(claims, to: recipient, using: contentEncryption),
-            nested: try await PlainNested.signThenEncrypt(
+            encrypted: try await SimpleEncryptedJWT.encrypt(claims, to: recipient, using: contentEncryption),
+            nested: try await SimpleNestedJWT.signThenEncrypt(
                 claims,
                 signedBy: signer,
                 encryptedTo: recipient,
@@ -125,13 +116,13 @@ for recipient in challenge.recipients {
     switch recipient.algorithm {
     case "dir":
         produced = try await produce(
-            DirectKey(key: try SymmetricJWK(json: json).key),
+            try DirectEncrypter(jwk: try SymmetricJWK(json: json)),
             algorithm: recipient.algorithm,
             encryption: recipient.encryption
         )
     case "A256KW":
         produced = try await produce(
-            try AESKeyWrapKey<A256KW>(key: try SymmetricJWK(json: json).key),
+            try AESKeyWrapEncrypter<A256KW>(jwk: try SymmetricJWK(json: json)),
             algorithm: recipient.algorithm,
             encryption: recipient.encryption
         )
@@ -174,9 +165,10 @@ for item in challenge.verify {
     do {
         if let signerJwk = item.signerJwk {
             let verification = VerificationKeys([try ES256.verifier(for: try JWK(json: Data(signerJwk.utf8)))])
-            _ = try await PlainNested.decrypt(item.token, with: keys).verify(with: verification).validate(policy)
+            _ = try await SimpleNestedJWT.Encrypted(compact: item.token).decrypt(with: keys).verify(with: verification)
+                .validate(policy)
         } else {
-            _ = try await PlainEncrypted.Encrypted(compact: item.token).decrypt(with: keys).validate(policy)
+            _ = try await SimpleEncryptedJWT.Encrypted(compact: item.token).decrypt(with: keys).validate(policy)
         }
         response.verdicts.append(true)
     } catch is EncryptedJWTError {

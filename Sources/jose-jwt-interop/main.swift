@@ -163,7 +163,7 @@ for item in challenge.verify {
     )
     let keys = VerificationKeys([try verifier(algorithm: item.algorithm, jwk: item.jwk)])
     do {
-        _ = try SignedJWT<EmptyClaims>.Unverified(compact: item.token).verify(with: keys).validate(policy)
+        _ = try await SimpleJWT.Unverified(compact: item.token).verify(with: keys).validate(policy)
         response.verdicts.append(true)
     } catch is JWTError {
         response.verdicts.append(false)

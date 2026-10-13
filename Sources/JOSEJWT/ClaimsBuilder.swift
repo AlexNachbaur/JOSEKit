@@ -30,26 +30,32 @@ extension Duration {
 }
 
 /// The claims being assembled by a ``JWTClaimsBuilder``.
+///
+/// A component of your own sets what it needs here, calling ``claim(_:)`` first for each claim
+/// so that a block cannot set the same claim twice.
 public struct JWTClaimsDraft: Sendable {
-    var issuer: String?
-    var subject: String?
-    var audience: Audience?
-    var expiration: NumericDate?
-    var notBefore: NumericDate?
-    var issuedAt: NumericDate?
-    var jwtID: String?
-    var additional: [String: JSONValue] = [:]
-    var names: Set<String> = []
+    public var issuer: String?
+    public var subject: String?
+    public var audience: Audience?
+    public var expiration: NumericDate?
+    public var notBefore: NumericDate?
+    public var issuedAt: NumericDate?
+    public var jwtID: String?
+    /// Claims other than the registered ones, by name.
+    public var additional: [String: JSONValue] = [:]
+    /// The names of the claims set so far.
+    public private(set) var names: Set<String> = []
 
     /// Records that `name` is being set, refusing a second setting of the same claim.
-    mutating func claim(_ name: String) throws(JWTError) {
+    public mutating func claim(_ name: String) throws(JWTError) {
         guard names.insert(name).inserted else {
             throw .duplicateClaim(name: name)
         }
     }
 }
 
-/// One entry in a claims builder block.
+/// One entry in a claims builder block. Conform your own types to add components, such as one
+/// that sets several related claims at once.
 public protocol JWTClaimComponent: Sendable {
     func apply(to draft: inout JWTClaimsDraft) throws(JWTError)
 }

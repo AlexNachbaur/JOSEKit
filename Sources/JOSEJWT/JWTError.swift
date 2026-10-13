@@ -3,7 +3,7 @@ import JOSEJWS
 
 /// Why a JWT could not be parsed, verified or produced. Claim validation failures have their
 /// own type, ``JWTValidationError``.
-public enum JWTError: Error, Sendable {
+public enum JWTError: Error, Sendable, Equatable {
     /// The JWS layer refused the token: malformed, wrong algorithm, bad signature, and so on.
     case jws(JWSError)
     /// The token uses an unencoded payload (`b64: false`), which RFC 7797 §7 forbids for JWTs.
@@ -13,7 +13,7 @@ public enum JWTError: Error, Sendable {
     case invalidClaimsJSON(description: String)
     /// A registered claim has the wrong JSON type.
     case claimWrongType(name: String, expected: String)
-    /// A NumericDate is not a finite number.
+    /// A NumericDate being written is not a finite number.
     case invalidNumericDate(name: String)
     /// The claims set could not be decoded as the custom claims type.
     case invalidCustomClaims(description: String)

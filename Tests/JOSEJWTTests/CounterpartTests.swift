@@ -84,7 +84,7 @@ struct CounterpartTests {
     ]
 
     @Test("JWTs from jose verify and validate, and their claims read back as jose reads them")
-    func validTokens() throws {
+    func validTokens() async throws {
         let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
         #expect(fixture.tokens.map(\.algorithm) == ["ES256", "ES384", "Ed25519", "EdDSA", "RS256", "PS256", "HS256"])
         let policy = JWTValidationPolicy(
@@ -96,7 +96,7 @@ struct CounterpartTests {
         for (index, token) in fixture.tokens.enumerated() {
             let label = Comment(rawValue: token.algorithm)
             let keys = VerificationKeys([try TestKeys.verifier(algorithm: token.algorithm, jwk: token.jwk)])
-            let validated = try SignedJWT<ExampleClaims>.Unverified(compact: token.token)
+            let validated = try await SignedJWT<ExampleClaims>.Unverified(compact: token.token)
                 .verify(with: keys)
                 .validate(policy)
 
@@ -122,7 +122,7 @@ struct CounterpartTests {
     }
 
     @Test("validation verdicts match jose's at the same instant, apart from the documented stricter cases")
-    func validationVerdictsAgree() throws {
+    func validationVerdictsAgree() async throws {
         let fixture = try Fixtures.load(ValidationFixture.self, named: "validation")
         let keys = VerificationKeys([try TestKeys.verifier(algorithm: "ES256", jwk: fixture.jwk)])
         var accepted = 0
@@ -153,7 +153,7 @@ struct CounterpartTests {
 
             var isAccepted = true
             do {
-                _ = try SignedJWT<EmptyClaims>.Unverified(compact: testCase.token).verify(with: keys).validate(policy)
+                _ = try await SimpleJWT.Unverified(compact: testCase.token).verify(with: keys).validate(policy)
             } catch {
                 isAccepted = false
             }

@@ -27,14 +27,10 @@ public struct JWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendabl
             } catch {
                 throw .jws(error)
             }
-            // The compact form has exactly one signature, whose header parsed or `init` threw.
-            guard let header = jws.header else {
-                throw .jws(.missingAlgorithm)
-            }
-            guard header.isPayloadBase64URLEncoded else {
+            guard jws.header.isPayloadBase64URLEncoded else {
                 throw .unencodedPayloadNotAllowed
             }
-            self.header = header
+            header = jws.header
         }
 
         /// The claims **without any assurance that they are authentic**, for the rare case where
@@ -51,10 +47,10 @@ public struct JWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendabl
         }
 
         /// Checks the signature. The result's claims have still not been validated.
-        public func verify(with keys: VerificationKeys) throws(JWTError) -> Verified {
+        public func verify(with keys: VerificationKeys) async throws(JWTError) -> Verified {
             let verified: JWS<Header>.Verified
             do {
-                verified = try jws.verify(with: keys)
+                verified = try await jws.verify(with: keys)
             } catch {
                 throw .jws(error)
             }
@@ -80,7 +76,9 @@ public struct JWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendabl
         public let header: JWSHeader<Header>
         /// The claims, authentic but not yet checked against any policy.
         public let unvalidatedClaims: JWTClaims<Custom>
-        let rawClaims: [String: JSONValue]
+        /// Every claim as it was received, including ones no typed property covers. Authentic,
+        /// but not yet checked against any policy.
+        public let rawClaims: [String: JSONValue]
 
         /// Checks the claims against `policy`.
         public func validate(_ policy: JWTValidationPolicy) throws(JWTValidationError) -> Validated {
@@ -116,6 +114,9 @@ public struct JWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendabl
 
 /// A JWT with registered header parameters only.
 public typealias SignedJWT<Custom: Codable & Sendable> = JWT<Custom, EmptyHeaderParameters>
+
+/// A JWT with registered claims and registered header parameters only.
+public typealias SimpleJWT = JWT<EmptyClaims, EmptyHeaderParameters>
 
 extension JWT where Header == EmptyHeaderParameters {
     /// Signs `claims` and returns the JWT.

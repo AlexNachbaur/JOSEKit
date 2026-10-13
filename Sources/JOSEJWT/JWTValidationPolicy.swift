@@ -37,7 +37,8 @@ public struct JWTValidationPolicy: Sendable {
     /// Whether a token without `exp` is refused. On by default: a token that never expires is
     /// rarely intended.
     public var requiresExpiration: Bool
-    /// How far the local clock may differ from the issuer's when checking `exp` and `nbf`.
+    /// How far the local clock may differ from the issuer's when checking `exp` and `nbf`. A
+    /// negative leeway is treated as zero rather than as a stricter rule.
     public var leeway: Duration
     public var clock: JWTClock
 
@@ -95,7 +96,7 @@ public struct JWTValidationPolicy: Sendable {
         }
 
         let now = NumericDate(clock.now)
-        let tolerance = leeway.seconds
+        let tolerance = max(leeway.seconds, 0)
         if let expiration = claims.expiration {
             // RFC 7519 §4.1.4: the current time must be before `exp`, so `exp` itself is too late.
             guard now.secondsSince1970 < expiration.secondsSince1970 + tolerance else {

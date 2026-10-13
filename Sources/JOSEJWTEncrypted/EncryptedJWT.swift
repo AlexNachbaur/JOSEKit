@@ -6,7 +6,7 @@ import JOSEJWS
 import JOSEJWT
 
 /// Why an encrypted or nested JWT could not be read or produced.
-public enum EncryptedJWTError: Error, Sendable {
+public enum EncryptedJWTError: Error, Sendable, Equatable {
     /// The JWE layer refused the token: malformed, wrong algorithm, decryption failed.
     case jwe(JWEError)
     /// The claims, or the nested JWT, were refused.
@@ -43,6 +43,22 @@ extension EncryptedJWTError: CustomStringConvertible {
 
 let nestedContentType: MediaType = "JWT"
 
+/// RFC 7519 §5.3: `iss`, `sub` and `aud` may be repeated in the header of an encrypted JWT so
+/// that they can be read without decrypting. Where they are, they must equal the real claims.
+private func checkReplicatedClaims(
+    header: [String: JSONValue],
+    claims: [String: JSONValue]
+) throws(EncryptedJWTError) {
+    for name in ["iss", "sub", "aud"] {
+        guard let replicated = header[name] else {
+            continue
+        }
+        guard claims[name] == replicated else {
+            throw .replicatedClaimMismatch(name: name)
+        }
+    }
+}
+
 /// A JWT whose claims are the plaintext of a JWE (RFC 7519 §3, "encrypted JWT").
 ///
 /// Encryption keeps the claims confidential. Whether it also says who wrote them depends on the
@@ -57,7 +73,9 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
     public struct Encrypted: Sendable {
         let jwe: JWE<Header>.Encrypted
         /// The header as received. Nothing in it is authenticated until the token is decrypted.
-        public let header: JWEHeader<Header>
+        public var header: JWEHeader<Header> {
+            jwe.header
+        }
 
         /// Parses an encrypted JWT, which is always in the JWE Compact Serialization.
         public init(compact: String) throws(EncryptedJWTError) {
@@ -66,14 +84,9 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
             } catch {
                 throw .jwe(error)
             }
-            // The compact form has exactly one recipient, whose header parsed or `init` threw.
-            guard let header = jwe.header else {
-                throw .jwe(.missingAlgorithm)
-            }
-            guard header.contentType != nestedContentType else {
+            guard jwe.header.contentType != nestedContentType else {
                 throw .contentIsNestedJWT
             }
-            self.header = header
         }
 
         /// Decrypts the token. The result's claims have still not been validated.
@@ -94,16 +107,7 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
             } catch {
                 throw .jwt(error)
             }
-            // RFC 7519 §5.3: `iss`, `sub` and `aud` may be repeated in the header so that they
-            // can be read without decrypting. Where they are, they must equal the real claims.
-            for name in ["iss", "sub", "aud"] {
-                guard let replicated = decrypted.header.rawParameters[name] else {
-                    continue
-                }
-                guard raw[name] == replicated else {
-                    throw .replicatedClaimMismatch(name: name)
-                }
-            }
+            try checkReplicatedClaims(header: decrypted.header.rawParameters, claims: raw)
             return Decrypted(header: decrypted.header, unvalidatedClaims: claims, rawClaims: raw)
         }
     }
@@ -113,7 +117,9 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
         public let header: JWEHeader<Header>
         /// The claims, not yet checked against any policy.
         public let unvalidatedClaims: JWTClaims<Custom>
-        let rawClaims: [String: JSONValue]
+        /// Every claim as it was received, including ones no typed property covers. Not yet
+        /// checked against any policy.
+        public let rawClaims: [String: JSONValue]
 
         /// Checks the claims against `policy`. The policy's type rule applies to the JWE header's
         /// `typ`.
@@ -137,7 +143,7 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
         to recipient: Recipient,
         using contentEncryption: Encryption.Type,
         header: JWEHeaderParameters<Header>
-    ) throws(EncryptedJWTError) -> String {
+    ) async throws(EncryptedJWTError) -> String {
         let payload: Data
         do {
             payload = try claims.jsonRepresentation()
@@ -151,7 +157,7 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
             header.contentType = nil
         }
         do {
-            return try JWE<Header>.encrypt(payload, to: recipient, using: contentEncryption, header: header)
+            return try await JWE<Header>.encrypt(payload, to: recipient, using: contentEncryption, header: header)
                 .compactSerialization()
         } catch {
             throw .jwe(error)
@@ -168,18 +174,126 @@ extension EncryptedJWT where Header == EmptyHeaderParameters {
         to recipient: Recipient,
         using contentEncryption: Encryption.Type,
         type: MediaType? = "JWT"
-    ) throws(EncryptedJWTError) -> String {
-        try encrypt(claims, to: recipient, using: contentEncryption, header: JWEHeaderParameters(type: type))
+    ) async throws(EncryptedJWTError) -> String {
+        try await encrypt(claims, to: recipient, using: contentEncryption, header: JWEHeaderParameters(type: type))
     }
 }
 
+/// An encrypted JWT with registered claims and registered header parameters only.
+public typealias SimpleEncryptedJWT = EncryptedJWT<EmptyClaims, EmptyHeaderParameters>
+
 /// A signed JWT carried inside a JWE (RFC 7519 §5.2, §11.2): sign, then encrypt.
 ///
-/// Decrypting one gives back an ordinary ``JOSEJWT/JWT/Unverified``. Its claims are reachable only
-/// the way any signed JWT's are, by verifying the signature and then validating the claims, so
-/// encryption cannot be mistaken for proof of who issued the token.
+/// A nested JWT moves through the same kinds of types as its siblings. ``Encrypted`` is what
+/// parsing gives you; ``Decrypted`` holds the outer header and the signed JWT inside, still
+/// unverified. Its claims are reachable only the way any signed JWT's are, by verifying the
+/// signature and then validating the claims, so encryption cannot be mistaken for proof of who
+/// issued the token.
+///
+/// `Custom` and `Header` describe the inner, signed JWT. The outer header has registered
+/// parameters only.
 public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendable {
+    /// The signed JWT inside.
+    public typealias Inner = JWT<Custom, Header>
+
     private init() {}
+
+    /// A nested JWT that has not been decrypted.
+    public struct Encrypted: Sendable {
+        let jwe: SimpleJWE.Encrypted
+        /// The outer header as received. Nothing in it is authenticated until the token is
+        /// decrypted.
+        public var header: JWEHeader<EmptyHeaderParameters> {
+            jwe.header
+        }
+
+        /// Parses a nested JWT, which is always in the JWE Compact Serialization. Its `cty` must
+        /// be `JWT` (RFC 7519 §5.2).
+        public init(compact: String) throws(EncryptedJWTError) {
+            do {
+                jwe = try SimpleJWE.Encrypted(compact: compact)
+            } catch {
+                throw .jwe(error)
+            }
+            guard jwe.header.contentType == nestedContentType else {
+                throw .contentIsNotNestedJWT(contentType: jwe.header.contentType?.rawValue)
+            }
+        }
+
+        /// Decrypts the outer token and returns the signed JWT inside it, **unverified**.
+        public func decrypt(
+            with keys: DecryptionKeys,
+            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+        ) async throws(EncryptedJWTError) -> Decrypted {
+            let decrypted: SimpleJWE.Decrypted
+            do {
+                decrypted = try await jwe.decrypt(with: keys, contentEncryptions: contentEncryptions)
+            } catch {
+                throw .jwe(error)
+            }
+            let compact = try Self.text(decrypted.plaintext)
+            let inner: JWT<Custom, Header>.Unverified
+            do {
+                inner = try JWT<Custom, Header>.Unverified(compact: compact)
+            } catch {
+                throw .jwt(error)
+            }
+            return Decrypted(header: decrypted.header, inner: inner)
+        }
+
+        /// Strict decoding: the inner token is ASCII, and anything that is not valid UTF-8 is
+        /// not a JWT.
+        private static func text(_ plaintext: Data) throws(EncryptedJWTError) -> String {
+            var decoder = UTF8()
+            var iterator = plaintext.makeIterator()
+            var scalars = String.UnicodeScalarView()
+            while true {
+                switch decoder.decode(&iterator) {
+                case .scalarValue(let scalar):
+                    scalars.append(scalar)
+                case .emptyInput:
+                    return String(scalars)
+                case .error:
+                    throw .nestedTokenNotUTF8
+                }
+            }
+        }
+    }
+
+    /// A nested JWT whose outer layer decrypted. The signed JWT inside has not been verified.
+    public struct Decrypted: Sendable {
+        /// The outer header, authenticated by the decryption.
+        public let header: JWEHeader<EmptyHeaderParameters>
+        /// The signed JWT inside, not yet verified. Prefer ``verify(with:)``, which also checks
+        /// claims the outer header repeats.
+        public let inner: JWT<Custom, Header>.Unverified
+
+        /// Verifies the inner JWT's signature, and checks that any `iss`, `sub` or `aud` the outer
+        /// header repeats (RFC 7519 §5.3) equals the signed claim.
+        public func verify(with keys: VerificationKeys) async throws(EncryptedJWTError) -> Inner.Verified {
+            let verified: Inner.Verified
+            do {
+                verified = try await inner.verify(with: keys)
+            } catch {
+                throw .jwt(error)
+            }
+            try checkReplicatedClaims(header: header.rawParameters, claims: verified.rawClaims)
+            return verified
+        }
+
+        /// Resolves keys from the inner header's `jku`, `x5c` or `jwk` with `resolver`, then
+        /// verifies as ``verify(with:)`` does.
+        public func verify(resolving resolver: HeaderKeyResolver) async throws(EncryptedJWTError) -> Inner.Verified {
+            let verified: Inner.Verified
+            do {
+                verified = try await inner.verify(resolving: resolver)
+            } catch {
+                throw .jwt(error)
+            }
+            try checkReplicatedClaims(header: header.rawParameters, claims: verified.rawClaims)
+            return verified
+        }
+    }
 
     /// Signs `claims`, then encrypts the signed JWT to one recipient.
     ///
@@ -205,7 +319,7 @@ public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: S
             throw .jwt(error)
         }
         do {
-            return try JWE<EmptyHeaderParameters>.encrypt(
+            return try await SimpleJWE.encrypt(
                 Data(inner.utf8),
                 to: recipient,
                 using: contentEncryption,
@@ -213,48 +327,6 @@ public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: S
             ).compactSerialization()
         } catch {
             throw .jwe(error)
-        }
-    }
-
-    /// Decrypts a nested JWT and returns the signed JWT inside it, **unverified**.
-    public static func decrypt(
-        _ compact: String,
-        with keys: DecryptionKeys,
-        contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
-    ) async throws(EncryptedJWTError) -> JWT<Custom, Header>.Unverified {
-        let plaintext: Data
-        do {
-            let jwe = try JWE<EmptyHeaderParameters>.Encrypted(compact: compact)
-            guard let header = jwe.header, header.contentType == nestedContentType else {
-                throw EncryptedJWTError.contentIsNotNestedJWT(contentType: jwe.header?.contentType?.rawValue)
-            }
-            plaintext = try await jwe.decrypt(with: keys, contentEncryptions: contentEncryptions).plaintext
-        } catch let error as EncryptedJWTError {
-            throw error
-        } catch let error as JWEError {
-            throw .jwe(error)
-        } catch {
-            throw .jwe(.decryptionFailed)
-        }
-        // Strict decoding: the inner token is ASCII, and anything that is not valid UTF-8 is not
-        // a JWT.
-        var decoder = UTF8()
-        var iterator = plaintext.makeIterator()
-        var scalars = String.UnicodeScalarView()
-        decoding: while true {
-            switch decoder.decode(&iterator) {
-            case .scalarValue(let scalar):
-                scalars.append(scalar)
-            case .emptyInput:
-                break decoding
-            case .error:
-                throw .nestedTokenNotUTF8
-            }
-        }
-        do {
-            return try JWT<Custom, Header>.Unverified(compact: String(scalars))
-        } catch {
-            throw .jwt(error)
         }
     }
 }
@@ -280,3 +352,6 @@ extension NestedJWT where Header == EmptyHeaderParameters {
         )
     }
 }
+
+/// A nested JWT whose inner token has registered claims and registered header parameters only.
+public typealias SimpleNestedJWT = NestedJWT<EmptyClaims, EmptyHeaderParameters>

@@ -17,7 +17,6 @@ private struct AppHeader: HeaderParameters, Equatable {
 
 @Suite("JWT")
 struct JWTTests {
-    typealias Plain = SignedJWT<EmptyClaims>
 
     static let now = Date(timeIntervalSince1970: 1_800_000_000)
     static let clock = JWTClock.fixed(now)
@@ -72,7 +71,7 @@ struct JWTTests {
     @Test("a token built with the claims builder round-trips through verify and validate")
     func builderRoundTrip() async throws {
         let keys = try Keys()
-        let token = try await Plain.sign(with: keys.signer, type: "at+jwt") {
+        let token = try await SimpleJWT.sign(with: keys.signer, type: "at+jwt") {
             Issuer("https://issuer.example")
             Subject("user-1")
             Audience("https://api.example")
@@ -90,7 +89,7 @@ struct JWTTests {
                 + #""jti":"id-1","nbf":1800000000,"scope":"read write","sub":"user-1"}"#
         )
 
-        let validated = try Plain.Unverified(compact: token)
+        let validated = try await SimpleJWT.Unverified(compact: token)
             .verify(with: keys.verification)
             .validate(
                 policy(
@@ -117,7 +116,7 @@ struct JWTTests {
         let header = JWSHeaderParameters(type: "JWT", custom: AppHeader(nonce: "n-1"))
         let token = try await JWT<AppClaims, AppHeader>.sign(claims, with: keys.signer, header: header)
 
-        let validated = try JWT<AppClaims, AppHeader>.Unverified(compact: token)
+        let validated = try await JWT<AppClaims, AppHeader>.Unverified(compact: token)
             .verify(with: keys.verification)
             .validate(policy(issuer: .exactly("i")))
         #expect(validated.claims.custom == AppClaims(scope: "admin", tenant: 7))
@@ -126,16 +125,16 @@ struct JWTTests {
         #expect(validated.claims.additionalClaims.isEmpty)
 
         // The same token read without the custom types still verifies; the claims are in rawClaims.
-        let plain = try Plain.Unverified(compact: token).verify(with: keys.verification).validate(policy())
+        let plain = try await SimpleJWT.Unverified(compact: token).verify(with: keys.verification).validate(policy())
         #expect(plain.rawClaims["tenant"] == 7)
     }
 
     @Test("typ defaults to JWT and can be omitted")
     func typeDefault() async throws {
         let keys = try Keys()
-        let withDefault = try await Plain.sign(JWTClaims(), with: keys.signer)
+        let withDefault = try await SimpleJWT.sign(JWTClaims(), with: keys.signer)
         #expect(try headerJSON(of: withDefault) == #"{"alg":"ES256","kid":"k1","typ":"JWT"}"#)
-        let without = try await Plain.sign(JWTClaims(), with: keys.signer, type: nil)
+        let without = try await SimpleJWT.sign(JWTClaims(), with: keys.signer, type: nil)
         #expect(try headerJSON(of: without) == #"{"alg":"ES256","kid":"k1"}"#)
     }
 
@@ -229,6 +228,62 @@ struct JWTTests {
         )
     }
 
+    @Test("an application can write its own builder component, and it takes part in duplicate detection")
+    func customComponent() throws {
+        /// Sets the issuer and a tenant claim together.
+        struct Tenant: JWTClaimComponent {
+            let id: String
+            func apply(to draft: inout JWTClaimsDraft) throws(JWTError) {
+                try draft.claim("iss")
+                draft.issuer = "https://\(id).issuer.example"
+                try draft.claim("tenant")
+                draft.additional["tenant"] = .string(id)
+            }
+        }
+        let claims = try JWTClaims {
+            Tenant(id: "acme")
+            Subject("s")
+        }
+        var expected = JWTClaims(issuer: "https://acme.issuer.example", subject: "s")
+        expected.additionalClaims = ["tenant": "acme"]
+        #expect(claims == expected)
+        expected.subject = "t"
+        #expect(claims != expected)
+        #expect(throws: JWTError.duplicateClaim(name: "iss")) {
+            try JWTClaims {
+                Issuer("other")
+                Tenant(id: "acme")
+            }
+        }
+    }
+
+    @Test("custom claims are written exactly as their type encodes them, including integers beyond Int64")
+    func customClaimPrecision() async throws {
+        struct Counters: Codable, Sendable, Equatable {
+            var big: UInt64
+            var small: Int64
+        }
+        let keys = try Keys()
+        let counters = Counters(big: .max, small: .min)
+        var claims = JWTClaims(issuer: "i", custom: counters)
+        claims.additionalClaims["note"] = "n"
+        let token = try await SignedJWT<Counters>.sign(claims, with: keys.signer)
+        #expect(
+            try payloadJSON(of: token)
+                == #"{"big":18446744073709551615,"small":-9223372036854775808,"iss":"i","note":"n"}"#
+        )
+        let read = try await SignedJWT<Counters>.Unverified(compact: token).verify(with: keys.verification)
+        #expect(read.unvalidatedClaims.custom == counters)
+
+        // Either part may be empty.
+        let customOnly = try await SignedJWT<Counters>.sign(JWTClaims(custom: counters), with: keys.signer)
+        #expect(try payloadJSON(of: customOnly) == #"{"big":18446744073709551615,"small":-9223372036854775808}"#)
+        let registeredOnly = try await SimpleJWT.sign(JWTClaims(issuer: "i"), with: keys.signer)
+        #expect(try payloadJSON(of: registeredOnly) == #"{"iss":"i"}"#)
+        let neither = try await SimpleJWT.sign(JWTClaims(), with: keys.signer)
+        #expect(try payloadJSON(of: neither) == "{}")
+    }
+
     @Test("registered claims cannot be set by name, by a custom claims type, or as additional claims")
     func registeredClaimsAreProtected() async throws {
         let keys = try Keys()
@@ -247,7 +302,7 @@ struct JWTTests {
             var claims = JWTClaims()
             claims.additionalClaims[name] = "x"
             do {
-                _ = try await Plain.sign(claims, with: keys.signer)
+                _ = try await SimpleJWT.sign(claims, with: keys.signer)
                 Issue.record("additional claim \(name) was accepted")
             } catch {
                 guard case .claimCollision = error else {
@@ -312,17 +367,20 @@ struct JWTTests {
             expiration: NumericDate(secondsSince1970: 1_800_000_000.5),
             issuedAt: NumericDate(secondsSince1970: 1_800_000_000)
         )
-        let token = try await Plain.sign(claims, with: keys.signer)
+        let token = try await SimpleJWT.sign(claims, with: keys.signer)
         #expect(try payloadJSON(of: token) == #"{"aud":["a","b"],"exp":1800000000.5,"iat":1800000000}"#)
 
-        let read = try Plain.Unverified(compact: token).verify(with: keys.verification)
+        let read = try await SimpleJWT.Unverified(compact: token).verify(with: keys.verification)
         #expect(read.unvalidatedClaims.audience == Audience("a", "b"))
         #expect(read.unvalidatedClaims.expiration?.secondsSince1970 == 1_800_000_000.5)
         #expect(NumericDate(secondsSince1970: 1_800_000_000).description == "1800000000")
         #expect(NumericDate(Self.now).date == Self.now)
 
         do {
-            _ = try await Plain.sign(JWTClaims(expiration: NumericDate(secondsSince1970: .infinity)), with: keys.signer)
+            _ = try await SimpleJWT.sign(
+                JWTClaims(expiration: NumericDate(secondsSince1970: .infinity)),
+                with: keys.signer
+            )
             Issue.record("an infinite exp was written")
         } catch {
             guard case .invalidNumericDate(let name) = error else {
@@ -338,17 +396,18 @@ struct JWTTests {
     @Test("unverified claims are only reachable under a name that says so, and verified claims are not yet validated")
     func typeStates() async throws {
         let keys = try Keys()
-        let token = try await Plain.sign(
+        let token = try await SimpleJWT.sign(
             JWTClaims(issuer: "i", expiration: NumericDate(Self.now.addingTimeInterval(-1))),
             with: keys.signer
         )
-        let unverified = try Plain.Unverified(compact: token)
+        let unverified = try SimpleJWT.Unverified(compact: token)
         #expect(unverified.header.algorithm == "ES256")
         #expect(try unverified.unverifiedClaims().issuer == "i")
 
         // The signature is good, so verification succeeds even though the token has expired.
-        let verified = try unverified.verify(with: keys.verification)
+        let verified = try await unverified.verify(with: keys.verification)
         #expect(verified.unvalidatedClaims.issuer == "i")
+        #expect(verified.rawClaims["iss"] == "i")
         #expect(throws: JWTValidationError.self) { try verified.validate(policy()) }
     }
 
@@ -356,27 +415,35 @@ struct JWTTests {
     func verificationFailures() async throws {
         let keys = try Keys()
         let other = try Keys()
-        let token = try await Plain.sign(JWTClaims(issuer: "i"), with: keys.signer)
-        _ = try Plain.Unverified(compact: token).verify(with: keys.verification)
+        let token = try await SimpleJWT.sign(JWTClaims(issuer: "i"), with: keys.signer)
+        _ = try await SimpleJWT.Unverified(compact: token).verify(with: keys.verification)
 
-        func failure(_ token: String, _ verification: VerificationKeys) -> String {
+        func failure(_ token: String, _ verification: VerificationKeys) async -> JWTError? {
             do {
-                _ = try Plain.Unverified(compact: token).verify(with: verification)
-                return "accepted"
+                _ = try await SimpleJWT.Unverified(compact: token).verify(with: verification)
+                return nil
             } catch {
-                guard case .jws(let underlying) = error else {
-                    return "not a JWS error: \(error)"
-                }
-                return Mirror(reflecting: underlying).children.first?.label ?? "\(underlying)"
+                return error
             }
         }
-        #expect(failure(token, other.verification) == "signatureInvalid")
+        #expect(
+            await failure(token, other.verification) == .jws(.signatureInvalid(algorithm: "ES256", keyID: "k1"))
+        )
         let parts = token.split(separator: ".").map(String.init)
         let forgedClaims = Base64URL.encode(Data(#"{"iss":"mallory"}"#.utf8))
-        #expect(failure("\(parts[0]).\(forgedClaims).\(parts[2])", keys.verification) == "signatureInvalid")
+        #expect(
+            await failure("\(parts[0]).\(forgedClaims).\(parts[2])", keys.verification)
+                == .jws(.signatureInvalid(algorithm: "ES256", keyID: "k1"))
+        )
         let noneHeader = Base64URL.encode(Data(#"{"alg":"none"}"#.utf8))
-        #expect(failure("\(noneHeader).\(parts[1]).", keys.verification) == "noVerifierForAlgorithm")
-        #expect(failure("\(parts[0]).\(parts[1])", keys.verification) == "invalidCompactSerialization")
+        #expect(
+            await failure("\(noneHeader).\(parts[1]).", keys.verification)
+                == .jws(.noVerifierForAlgorithm(algorithm: "none", offered: ["ES256"]))
+        )
+        #expect(
+            await failure("\(parts[0]).\(parts[1])", keys.verification)
+                == .jws(.invalidCompactSerialization(segmentCount: 2))
+        )
     }
 
     @Test("malformed claims sets are refused with the claim named")
@@ -385,7 +452,7 @@ struct JWTTests {
         func failure(_ payload: String) async throws -> String {
             let token = try await token(payload: payload, keys: keys)
             do {
-                _ = try Plain.Unverified(compact: token).verify(with: keys.verification)
+                _ = try await SimpleJWT.Unverified(compact: token).verify(with: keys.verification)
                 return "accepted"
             } catch {
                 return error.description
@@ -411,7 +478,7 @@ struct JWTTests {
         let keys = try Keys()
         let token = try await token(payload: #"{"scope":5}"#, keys: keys)
         do {
-            _ = try SignedJWT<AppClaims>.Unverified(compact: token).verify(with: keys.verification)
+            _ = try await SignedJWT<AppClaims>.Unverified(compact: token).verify(with: keys.verification)
             Issue.record("mismatched custom claims were accepted")
         } catch {
             guard case .invalidCustomClaims = error else {
@@ -419,7 +486,7 @@ struct JWTTests {
                 return
             }
         }
-        _ = try Plain.Unverified(compact: token).verify(with: keys.verification)
+        _ = try await SimpleJWT.Unverified(compact: token).verify(with: keys.verification)
     }
 
     @Test("a JWT with an unencoded payload is refused")
@@ -432,7 +499,7 @@ struct JWTTests {
         )
         let compact = try jws.compactSerialization()
         do {
-            _ = try Plain.Unverified(compact: compact)
+            _ = try SimpleJWT.Unverified(compact: compact)
             Issue.record("an unencoded JWT was accepted")
         } catch {
             guard case .unencodedPayloadNotAllowed = error else {
@@ -551,6 +618,11 @@ struct JWTTests {
         #expect(validate(claims(nbf: 1), policy()) == early(1))
         #expect(validate(claims(nbf: 5), policy(leeway: .seconds(5))) == nil)
         #expect(validate(claims(nbf: 5), policy(leeway: .seconds(4))) == early(5, .seconds(4)))
+
+        // A negative leeway is zero, not a stricter rule.
+        #expect(validate(claims(exp: 1), policy(leeway: .seconds(-60))) == nil)
+        #expect(validate(claims(nbf: 0), policy(leeway: .seconds(-60))) == nil)
+        #expect(validate(claims(exp: 0), policy(leeway: .seconds(-60))) == expired(0, .seconds(-60)))
 
         #expect(validate(claims(exp: nil), policy()) == .missingExpiration)
         #expect(validate(claims(exp: nil), policy(requiresExpiration: false)) == nil)

@@ -149,16 +149,23 @@ struct ClaimsJSON {
     }
 }
 
+extension JWTClaims: Equatable where Custom: Equatable {}
+
 extension JWTClaims {
-    /// The claims set as JSON, with members in lexical order.
+    /// The claims set as JSON: the custom claims as their type encodes them, then the registered
+    /// and additional claims. Each group is in lexical order, so the same claims always produce
+    /// the same bytes.
     package func jsonRepresentation() throws(JWTError) -> Data {
-        var values: [String: JSONValue]
+        let customJSON: Data
+        let customNames: Set<String>
         do {
-            let customJSON = try ClaimsJSON.encoder().encode(custom)
+            customJSON = try ClaimsJSON.encoder().encode(custom)
+            // Only the names are read back. The values stay as the encoder wrote them, because
+            // `JSONValue` cannot hold every number exactly (a `UInt64` above `Int64.max`, say).
             guard case .object(let object) = try JSONDecoder().decode(JSONValue.self, from: customJSON) else {
                 throw JWTError.customClaimsNotObject
             }
-            values = object
+            customNames = Set(object.keys)
         } catch let error as JWTError {
             throw error
         } catch {
@@ -166,13 +173,14 @@ extension JWTClaims {
         }
         // Registered claims come only from the typed properties, so that what was validated or
         // intended is what is written.
-        for name in values.keys {
+        for name in customNames {
             guard !registeredClaimNames.contains(name) else {
                 throw .claimCollision(name: name)
             }
         }
+        var values: [String: JSONValue] = [:]
         for (name, value) in additionalClaims {
-            guard !registeredClaimNames.contains(name), values[name] == nil else {
+            guard !registeredClaimNames.contains(name), !customNames.contains(name) else {
                 throw .claimCollision(name: name)
             }
             values[name] = value
@@ -201,11 +209,27 @@ extension JWTClaims {
             values[name] = date.jsonValue
         }
 
+        let rest: Data
         do {
-            return try ClaimsJSON.encoder().encode(values)
+            rest = try ClaimsJSON.encoder().encode(values)
         } catch {
             throw .claimsEncodingFailed(description: String(describing: error))
         }
+        return Self.merge(customJSON, rest)
+    }
+
+    /// Joins two objects that `JSONEncoder` wrote without whitespace and whose member names are
+    /// disjoint, keeping each member's text as it is.
+    private static func merge(_ first: Data, _ second: Data) -> Data {
+        let firstMembers = first.dropFirst().dropLast()
+        let secondMembers = second.dropFirst().dropLast()
+        guard !firstMembers.isEmpty else {
+            return second
+        }
+        guard !secondMembers.isEmpty else {
+            return first
+        }
+        return Data("{".utf8) + firstMembers + Data(",".utf8) + secondMembers + Data("}".utf8)
     }
 
     /// Reads a claims set, rejecting duplicate member names. Returns the typed claims and every
@@ -283,9 +307,7 @@ extension JWTClaims {
         case .integer(let seconds):
             return NumericDate(secondsSince1970: Double(seconds))
         case .double(let seconds):
-            guard seconds.isFinite else {
-                throw .invalidNumericDate(name: name)
-            }
+            // Always finite: `JSONDecoder` refuses a number too large for a `Double`.
             return NumericDate(secondsSince1970: seconds)
         default:
             // In particular a numeric string such as "1700000000" is not a NumericDate.

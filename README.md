@@ -17,6 +17,7 @@ Module: `JOSECore`. Swift 6, strict concurrency. Apple platforms, Linux, Windows
 | `MediaType` | `typ`/`cty` values compared as RFC 7515 §4.1.9 requires: `JWT` equals `application/jwt`. |
 | `AlgorithmIdentifier`, `KeyID` | Typed wrappers so that an algorithm name cannot be passed where a key ID is expected. |
 | `SignatureAlgorithm`, `Signer`, `Verifier`, `Signature<A>` | The signing abstractions. The algorithm is a type, so an ES256 signature cannot reach an ES384 verifier. |
+| `UnderlyingError` | A comparable record of an error from below (a keychain call, a network fetch), so that every error type in the packages can be `Equatable`. |
 | `HeaderParameters` | The protocol a custom JWS or JWE header type conforms to. |
 
 Algorithm marker types for ES256/384/512, Ed25519 and EdDSA, HS256/384/512, RS256/384/512 and
@@ -25,7 +26,8 @@ PS256/384/512 live here; their implementations are in `jose-jwk`.
 ## Adding an algorithm
 
 Declare a type conforming to `SignatureAlgorithm`, then provide `Signer` and `Verifier`
-conformances for it in your own module. Nothing needs registering:
+conformances for it in your own module. Nothing needs registering. Both `sign` and `verify` are
+`async`, so that a key held by a remote service or in hardware can conform:
 
 ```swift
 struct MyAlgorithm: SignatureAlgorithm {

@@ -84,7 +84,7 @@ public struct Base64URL: Sendable {
     ///
     /// Padding is optional, but if present it must be exactly the amount that completes the final
     /// quantum. Everything else that is not canonical base64url is refused; see ``Base64URLError``.
-    public static func decode(_ string: String) throws(Base64URLError) -> Data {
+    public static func decode(_ string: some StringProtocol) throws(Base64URLError) -> Data {
         let bytes = Array(string.utf8)
 
         var bodyCount = bytes.count

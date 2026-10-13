@@ -1,11 +1,24 @@
 import Foundation
 
+/// An error from outside this package (a key store, a hardware token, a remote service), carried
+/// inside a typed error as its type name and message so that the typed error can be `Equatable`.
+public struct UnderlyingError: Error, Sendable, Equatable, CustomStringConvertible {
+    /// The fully qualified type name of the original error.
+    public let typeName: String
+    public let description: String
+
+    public init(_ error: any Error) {
+        typeName = String(reflecting: type(of: error))
+        description = String(describing: error)
+    }
+}
+
 /// Why a ``Signer`` could not produce a signature.
-public enum SigningError: Error, Sendable {
+public enum SigningError: Error, Sendable, Equatable {
     /// The key operation itself failed: the key is unavailable, the user cancelled an
     /// authentication prompt, a remote signing service refused. `underlying` is the error
     /// reported by whatever holds the key.
-    case keyOperationFailed(algorithm: AlgorithmIdentifier, underlying: any Error)
+    case keyOperationFailed(algorithm: AlgorithmIdentifier, underlying: UnderlyingError)
     /// The key produced bytes that are not a signature for this algorithm.
     case invalidSignature(SignatureError)
     /// The key produced a DER signature that could not be converted to the JOSE encoding.
@@ -26,12 +39,12 @@ extension SigningError: CustomStringConvertible {
 }
 
 /// Why a ``Verifier`` did not accept a signature.
-public enum VerificationError: Error, Sendable {
+public enum VerificationError: Error, Sendable, Equatable {
     /// The signature is not valid for this message under this key.
     case signatureMismatch(algorithm: AlgorithmIdentifier)
     /// Verification could not be carried out. This says nothing about whether the signature is
     /// valid.
-    case keyOperationFailed(algorithm: AlgorithmIdentifier, underlying: any Error)
+    case keyOperationFailed(algorithm: AlgorithmIdentifier, underlying: UnderlyingError)
 }
 
 extension VerificationError: CustomStringConvertible {
@@ -71,5 +84,8 @@ public protocol Verifier<Algorithm>: Sendable {
     var keyID: KeyID? { get }
 
     /// Returns normally only if `signature` is valid for `message`.
-    func verify(_ signature: Signature<Algorithm>, for message: Data) throws(VerificationError)
+    ///
+    /// `async` for the same reason ``Signer/sign(_:)`` is: the key may be held by a service or
+    /// a hardware token that performs the check itself. None of the built-in verifiers suspends.
+    func verify(_ signature: Signature<Algorithm>, for message: Data) async throws(VerificationError)
 }

@@ -1,12 +1,14 @@
 /// Application-defined header parameters, encoded alongside the registered ones in a JWS or JWE
 /// header.
 ///
-/// Parameters the type does not declare are ignored when a header is read, as RFC 7515 §4 and
-/// RFC 7516 §4 require for parameters that are not understood.
+/// A conforming type is decoded from the header's JSON, so it should treat every parameter as
+/// optional and tolerate parameters it does not declare; the packages that read headers
+/// (jose-jws, jose-jwe) leave unknown, non-critical parameters to be ignored as RFC 7515 §4 and
+/// RFC 7516 §4 require.
 public protocol HeaderParameters: Codable, Sendable {
-    /// The names of the parameters this type defines that a recipient must understand. When a
-    /// header is written, those that are present are listed in `crit`. When one is read, a `crit`
-    /// entry is accepted only if it is in this set.
+    /// The names of the parameters this type defines that a recipient must understand. The
+    /// packages that write headers list those that are present in `crit`; the packages that read
+    /// headers accept a `crit` entry only if it is in this set.
     static var criticalParameterNames: Set<String> { get }
 }
 

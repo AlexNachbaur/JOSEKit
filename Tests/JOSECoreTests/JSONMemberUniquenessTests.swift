@@ -171,6 +171,18 @@ struct JSONMemberUniquenessTests {
         try validate(arrays)
     }
 
+    @Test("an object with tens of thousands of members scans in linear time")
+    func manyMembers() throws {
+        // Regression: the scanner once copied its name set on every insert, which made this
+        // take seconds. The bound is generous so that a slow CI machine does not fail it, but a
+        // quadratic implementation takes well over it.
+        let count = 60_000
+        let json = "{" + (0..<count).map { #""m\#($0)":\#($0)"# }.joined(separator: ",") + "}"
+        let start = ContinuousClock.now
+        try validate(json)
+        #expect(ContinuousClock.now - start < .seconds(2))
+    }
+
     @Test("works on Data slices whose start index is not zero")
     func slices() throws {
         let data = Data("xx{\"a\":1}".utf8)

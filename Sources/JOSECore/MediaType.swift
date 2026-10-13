@@ -10,20 +10,11 @@
 ///   whitespace, because parameter values can be case-sensitive.
 ///
 /// ``rawValue`` is preserved as written and is what gets encoded.
-public struct MediaType: Sendable, Codable {
+public struct MediaType: RawRepresentable, Sendable, Codable {
     public let rawValue: String
 
     public init(rawValue: String) {
         self.rawValue = rawValue
-    }
-
-    public init(from decoder: any Decoder) throws {
-        rawValue = try decoder.singleValueContainer().decode(String.self)
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
     }
 
     /// The value in the form used for comparison: full type and subtype in lowercase, followed

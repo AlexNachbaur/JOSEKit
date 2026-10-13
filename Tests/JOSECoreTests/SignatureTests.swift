@@ -28,7 +28,7 @@ private struct ReversingVerifier: Verifier {
     typealias Algorithm = CustomAlgorithm
     let keyID: KeyID?
 
-    func verify(_ signature: Signature<CustomAlgorithm>, for message: Data) throws(VerificationError) {
+    func verify(_ signature: Signature<CustomAlgorithm>, for message: Data) async throws(VerificationError) {
         guard signature.rawRepresentation == Data(message.reversed()) else {
             throw .signatureMismatch(algorithm: Algorithm.identifier)
         }
@@ -42,7 +42,7 @@ private struct FailingSigner: Signer {
     let keyID: KeyID? = nil
 
     func sign(_ message: Data) async throws(SigningError) -> Signature<ES256> {
-        throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnavailableKey())
+        throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnderlyingError(UnavailableKey()))
     }
 }
 
@@ -126,12 +126,12 @@ struct SignatureTests {
 
         let signature = try await signer.sign(message)
         #expect(signer.keyID == "key-1")
-        try verifier.verify(signature, for: message)
+        try await verifier.verify(signature, for: message)
 
         // Written as do/catch rather than `#expect { } throws:` because the latter crashes the
         // Swift 6.0.3 compiler on Linux when the closure has a typed throw.
         do {
-            try verifier.verify(signature, for: Data("other".utf8))
+            try await verifier.verify(signature, for: Data("other".utf8))
             Issue.record("a signature over a different message was accepted")
         } catch {
             guard case .signatureMismatch(let algorithm) = error else {
@@ -153,7 +153,8 @@ struct SignatureTests {
                 return
             }
             #expect(algorithm == "ES256")
-            #expect(underlying is UnavailableKey)
+            #expect(underlying.typeName.hasSuffix("UnavailableKey"))
+            #expect(underlying == UnderlyingError(UnavailableKey()))
             #expect(error.description.contains("ES256"))
             #expect(error.description.contains("UnavailableKey"))
         }
@@ -190,7 +191,8 @@ struct SignatureTests {
         )
         #expect(VerificationError.signatureMismatch(algorithm: "HS256").description.contains("HS256"))
         #expect(
-            VerificationError.keyOperationFailed(algorithm: "ES512", underlying: UnavailableKey()).description
+            VerificationError.keyOperationFailed(algorithm: "ES512", underlying: UnderlyingError(UnavailableKey()))
+                .description
                 .contains("ES512")
         )
     }

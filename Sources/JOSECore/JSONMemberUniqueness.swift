@@ -6,7 +6,9 @@ public enum JSONStructureError: Error, Sendable, Equatable {
     case rootNotObject
     /// An object contains the same member name twice. `offset` is where the second one starts.
     case duplicateMember(name: String, offset: Int)
+    /// A byte that cannot start or continue a value, name or separator at this position.
     case unexpectedByte(byte: UInt8, offset: Int)
+    /// The document ends inside a value, name or object.
     case unexpectedEnd
     /// Non-whitespace bytes follow the end of the root object.
     case trailingData(offset: Int)
@@ -170,12 +172,10 @@ private struct MemberScanner {
         }
         let name = try readString()
 
-        var isNew = false
-        if var names = frames[frames.count - 1].memberNames {
-            isNew = names.insert(name).inserted
-            frames[frames.count - 1].memberNames = names
-        }
-        guard isNew else {
+        // Inserted in place. Copying the set out, inserting and writing it back would copy the
+        // whole set on every member (the frame still holds the old storage), which made a
+        // header of n members cost O(n²) before any signature was checked.
+        guard frames[frames.count - 1].memberNames?.insert(name).inserted != false else {
             throw .duplicateMember(name: name, offset: nameOffset)
         }
 

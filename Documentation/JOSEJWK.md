@@ -1,9 +1,9 @@
-# jose-jwk
+# JOSEJWK
 
-Keys for the JOSE packages: JSON Web Keys (RFC 7517), thumbprints (RFC 7638, RFC 9278), the
+Keys for the JOSE modules: JSON Web Keys (RFC 7517), thumbprints (RFC 7638, RFC 9278), the
 built-in signing and key-agreement algorithms, and the Secure Enclave.
 
-Module: `JOSEJWK`. Depends on `jose-core`. Uses CryptoKit on Apple platforms and
+Product: `JOSEJWK`. Depends on `JOSECore`. Uses CryptoKit on Apple platforms and
 [swift-crypto](https://github.com/apple/swift-crypto) elsewhere; RSA uses Security.framework on
 Apple platforms and swift-crypto's extras elsewhere.
 
@@ -61,10 +61,10 @@ simulator, debug builds use a software key behind the same API.
 ## Testing
 
 ```
-swift test
-./scripts/interop.sh     # closed-loop check against panva/jose and OpenSSL (needs Node)
+swift test --filter JOSEJWKTests
+./scripts/interop.sh jwk     # closed-loop check against panva/jose and OpenSSL (needs Node)
 ```
 
-Fixtures in `Tests/JOSEJWKTests/Fixtures` come from `interop/generate-fixtures.mjs`. Secure
+Fixtures in `Tests/JOSEJWKTests/Fixtures` come from `interop/jwk/generate-fixtures.mjs`. Secure
 Enclave and keychain tests run against real hardware only where the process is entitled to use
 it; elsewhere they run against mocks and say so.

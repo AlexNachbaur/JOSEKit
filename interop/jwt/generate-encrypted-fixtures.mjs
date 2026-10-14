@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { CompactEncrypt, EncryptJWT, SignJWT, base64url, compactDecrypt, exportJWK, generateKeyPair, jwtDecrypt, jwtVerify } from 'jose';
 import { joseVersion } from './common.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWTEncryptedTests/Fixtures');
+const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWTEncryptedTests/Fixtures');
 
 function assert(condition, message) {
     if (!condition) {
@@ -133,8 +133,8 @@ async function main() {
 
     const fixture = {
         _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-encrypted-fixtures.mjs.',
-            generator: 'interop/generate-encrypted-fixtures.mjs',
+            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwt/generate-encrypted-fixtures.mjs.',
+            generator: 'interop/jwt/generate-encrypted-fixtures.mjs',
             description: 'Encrypted and nested JWTs from jose, with jose\'s verdicts at a fixed current time.',
             jose: joseVersion,
             node: process.version,

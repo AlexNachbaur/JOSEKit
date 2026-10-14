@@ -17,13 +17,13 @@ import {
 } from 'jose';
 import { ASYMMETRIC, HMAC, RSA_ALGORITHMS, joseVersion } from './common.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWSTests/Fixtures');
+const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWSTests/Fixtures');
 
 function write(name, description, body) {
     const fixture = {
         _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.',
-            generator: 'interop/generate-fixtures.mjs',
+            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jws/generate-fixtures.mjs.',
+            generator: 'interop/jws/generate-fixtures.mjs',
             description,
             jose: joseVersion,
             node: process.version,

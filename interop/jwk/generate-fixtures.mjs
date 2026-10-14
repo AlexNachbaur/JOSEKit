@@ -15,14 +15,14 @@ import { ASYMMETRIC, HMAC, RSA, flipLastBit, hmac, joseVersion, rsaSign, rsaVeri
 
 const fixturesDirectory = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    '../Tests/JOSEJWKTests/Fixtures',
+    '../../Tests/JOSEJWKTests/Fixtures',
 );
 
 function write(name, description, body) {
     const fixture = {
         _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.',
-            generator: 'interop/generate-fixtures.mjs',
+            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwk/generate-fixtures.mjs.',
+            generator: 'interop/jwk/generate-fixtures.mjs',
             description,
             jose: joseVersion,
             node: process.version,

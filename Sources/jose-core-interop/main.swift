@@ -1,4 +1,4 @@
-// Answers a challenge from `interop/closed-loop.mjs` so that the Node counterpart can check
+// Answers a challenge from `interop/core/closed-loop.mjs` so that the Node counterpart can check
 // values produced by JOSECore. Reads the challenge as JSON on stdin and writes the response as
 // JSON on stdout. Not part of the library; see `scripts/interop.sh`.
 

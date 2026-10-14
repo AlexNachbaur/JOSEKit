@@ -14,13 +14,13 @@ import { fileURLToPath } from 'node:url';
 import { CompactEncrypt, FlattenedEncrypt, GeneralEncrypt, base64url, compactDecrypt, exportJWK, flattenedDecrypt, generalDecrypt, generateKeyPair } from 'jose';
 import { ENCRYPTIONS, decryptOptions, flipLastBit, joseVersion, keyManagementSetups } from './common.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWETests/Fixtures');
+const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWETests/Fixtures');
 
 function write(name, description, body) {
     const fixture = {
         _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.',
-            generator: 'interop/generate-fixtures.mjs',
+            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwe/generate-fixtures.mjs.',
+            generator: 'interop/jwe/generate-fixtures.mjs',
             description,
             jose: joseVersion,
             node: process.version,

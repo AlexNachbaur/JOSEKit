@@ -1,4 +1,4 @@
-// Answers a challenge from `interop/closed-loop.mjs` so that the Node counterpart can check JWTs
+// Answers a challenge from `interop/jwt/closed-loop.mjs` so that the Node counterpart can check JWTs
 // produced by JOSEJWT, and can check this package's verdicts on JWTs the counterpart made. Reads
 // the challenge as JSON on stdin and writes the response as JSON on stdout. Not part of the
 // library; see `scripts/interop.sh`.

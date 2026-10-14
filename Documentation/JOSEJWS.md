@@ -1,9 +1,9 @@
-# jose-jws
+# JOSEJWS
 
 JSON Web Signature (RFC 7515): signing and verification in the compact, flattened JSON and
 general JSON serializations, with detached and unencoded (RFC 7797) payloads.
 
-Module: `JOSEJWS`. Depends on `jose-core` and `jose-jwk`.
+Product: `JOSEJWS`. Depends on `JOSECore` and `JOSEJWK`.
 
 ## Verification is a type-state
 
@@ -86,9 +86,9 @@ only when `allowsEmbeddedKey` is on.
 ## Testing
 
 ```
-swift test
-./scripts/interop.sh     # closed-loop check against panva/jose (needs Node)
+swift test --filter JOSEJWSTests
+./scripts/interop.sh jws     # closed-loop check against panva/jose (needs Node)
 ```
 
-Fixtures come from `interop/generate-fixtures.mjs` (jose) and `interop/generate-certificates.mjs`
-(OpenSSL).
+Fixtures come from `interop/jws/generate-fixtures.mjs` (jose) and
+`interop/jws/generate-certificates.mjs` (OpenSSL).

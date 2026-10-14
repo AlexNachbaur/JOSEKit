@@ -255,7 +255,7 @@ struct ECDSASignatureConverterTests {
 
     // The platform comparison needs a real ECDSA implementation. JOSECore has no crypto
     // dependency, so this runs only where CryptoKit is part of the OS; the same check runs on
-    // every platform in jose-jwk, which depends on swift-crypto.
+    // every platform in JOSEJWK, which depends on swift-crypto.
     #if canImport(CryptoKit)
         @Test("agrees with CryptoKit's own raw and DER representations across 500 P-256 signatures")
         func agreesWithCryptoKitP256() throws {

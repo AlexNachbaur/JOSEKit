@@ -11,7 +11,7 @@ struct FixtureError: Error, CustomStringConvertible {
 struct Fixtures {
     private init() {}
 
-    /// Loads a fixture written by `interop/generate-fixtures.mjs`.
+    /// Loads a fixture written by `interop/jws/generate-fixtures.mjs` or `interop/jws/generate-certificates.mjs`.
     static func load<T: Decodable>(_ type: T.Type, named name: String) throws -> T {
         guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures") else {
             throw FixtureError(description: "fixture \(name).json is missing from the test bundle")

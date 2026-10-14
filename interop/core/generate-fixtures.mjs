@@ -19,14 +19,14 @@ const require = createRequire(import.meta.url);
 const joseVersion = require('jose/package.json').version;
 const fixturesDirectory = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    '../Tests/JOSECoreTests/Fixtures',
+    '../../Tests/JOSECoreTests/Fixtures',
 );
 
 function write(name, description, body) {
     const fixture = {
         _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.',
-            generator: 'interop/generate-fixtures.mjs',
+            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/core/generate-fixtures.mjs.',
+            generator: 'interop/core/generate-fixtures.mjs',
             description,
             jose: joseVersion,
             node: process.version,

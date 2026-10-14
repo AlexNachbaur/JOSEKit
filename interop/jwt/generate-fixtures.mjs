@@ -13,13 +13,13 @@ import { fileURLToPath } from 'node:url';
 import { CompactSign, FlattenedSign, SignJWT, exportJWK, generateKeyPair, jwtVerify } from 'jose';
 import { HMAC, joseVersion } from './common.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWTTests/Fixtures');
+const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWTTests/Fixtures');
 
 function write(name, description, body) {
     const fixture = {
         _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.',
-            generator: 'interop/generate-fixtures.mjs',
+            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwt/generate-fixtures.mjs.',
+            generator: 'interop/jwt/generate-fixtures.mjs',
             description,
             jose: joseVersion,
             node: process.version,

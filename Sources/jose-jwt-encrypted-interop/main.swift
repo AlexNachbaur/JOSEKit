@@ -1,4 +1,4 @@
-// Answers a challenge from `interop/closed-loop-encrypted.mjs` so that the Node counterpart can
+// Answers a challenge from `interop/jwt/closed-loop-encrypted.mjs` so that the Node counterpart can
 // decrypt encrypted and nested JWTs produced by JOSEJWTEncrypted, and can check this package's
 // verdicts on ones the counterpart made. Reads the challenge as JSON on stdin and writes the
 // response as JSON on stdout. Not part of the library; see `scripts/interop.sh`.

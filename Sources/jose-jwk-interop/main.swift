@@ -1,4 +1,4 @@
-// Answers a challenge from `interop/closed-loop.mjs` so that the Node counterpart can check keys,
+// Answers a challenge from `interop/jwk/closed-loop.mjs` so that the Node counterpart can check keys,
 // thumbprints and signatures produced by JOSEJWK, and can check this package's verdicts on
 // signatures the counterpart made. Reads the challenge as JSON on stdin and writes the response
 // as JSON on stdout. Not part of the library; see `scripts/interop.sh`.

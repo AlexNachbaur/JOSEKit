@@ -1,9 +1,9 @@
-# jose-jwe
+# JOSEJWE
 
 JSON Web Encryption (RFC 7516): encryption and decryption in the compact, flattened JSON and
 general JSON serializations, with multiple recipients and additional authenticated data.
 
-Module: `JOSEJWE`. Depends on `jose-core` and `jose-jwk`. AES-CBC and PBKDF2 use CommonCrypto on
+Product: `JOSEJWE`. Depends on `JOSECore` and `JOSEJWK`. AES-CBC and PBKDF2 use CommonCrypto on
 Apple platforms and swift-crypto's extras elsewhere.
 
 ## Algorithms
@@ -91,8 +91,8 @@ public protocols. An add-on needs no fork and no registration.
 ## Testing
 
 ```
-swift test
-./scripts/interop.sh     # closed-loop check against panva/jose (needs Node)
+swift test --filter JOSEJWETests
+./scripts/interop.sh jwe     # closed-loop check against panva/jose (needs Node)
 ```
 
-Fixtures come from `interop/generate-fixtures.mjs`.
+Fixtures come from `interop/jwe/generate-fixtures.mjs`.

@@ -1,4 +1,4 @@
-// Answers a challenge from `interop/closed-loop.mjs` so that the Node counterpart can decrypt JWEs
+// Answers a challenge from `interop/jwe/closed-loop.mjs` so that the Node counterpart can decrypt JWEs
 // produced by JOSEJWE, and can check this package's results on JWEs the counterpart made. Reads
 // the challenge as JSON on stdin and writes the response as JSON on stdout. Not part of the
 // library; see `scripts/interop.sh`.

@@ -15,7 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exportJWK } from 'jose';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../Tests/JOSEJWSTests/Fixtures');
+const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWSTests/Fixtures');
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'jose-certs-'));
 
 function openssl(...args) {
@@ -66,8 +66,8 @@ async function entry(leaf) {
 
 const fixture = {
     _generated: {
-        notice: 'GENERATED FILE. Do not edit by hand; rerun interop/generate-certificates.mjs.',
-        generator: 'interop/generate-certificates.mjs',
+        notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jws/generate-certificates.mjs.',
+        generator: 'interop/jws/generate-certificates.mjs',
         description: 'A private CA, leaf certificates under it (P-256, RSA, one expired) and a leaf under another CA.',
         openssl: openssl('version').toString().trim(),
         node: process.version,

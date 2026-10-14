@@ -3,7 +3,7 @@
 ///
 /// A conforming type is decoded from the header's JSON, so it should treat every parameter as
 /// optional and tolerate parameters it does not declare; the packages that read headers
-/// (jose-jws, jose-jwe) leave unknown, non-critical parameters to be ignored as RFC 7515 §4 and
+/// (JOSEJWS, JOSEJWE) leave unknown, non-critical parameters to be ignored as RFC 7515 §4 and
 /// RFC 7516 §4 require.
 public protocol HeaderParameters: Codable, Sendable {
     /// The names of the parameters this type defines that a recipient must understand. The

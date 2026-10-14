@@ -10,7 +10,7 @@ private struct CustomAlgorithm: SignatureAlgorithm {
 }
 
 /// Stands in for a key. "Signs" by reversing the message; enough to exercise the protocol
-/// plumbing, which is all JOSECore owns. Real algorithms are tested in jose-jwk.
+/// plumbing, which is all JOSECore owns. Real algorithms are tested in JOSEJWK.
 private struct ReversingSigner: Signer {
     typealias Algorithm = CustomAlgorithm
     let keyID: KeyID?

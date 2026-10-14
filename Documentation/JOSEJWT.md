@@ -1,10 +1,10 @@
-# jose-jwt
+# JOSEJWT and JOSEJWTEncrypted
 
 JSON Web Token (RFC 7519): claims, a claims builder, validation, and the signed, encrypted and
 nested forms.
 
-Products: `JOSEJWT` (signed JWTs; depends on `jose-jws`) and `JOSEJWTEncrypted` (encrypted and
-nested JWTs; adds `jose-jwe`). An application that only signs and verifies does not build the
+Products: `JOSEJWT` (signed JWTs; depends on `JOSEJWS`) and `JOSEJWTEncrypted` (encrypted and
+nested JWTs; adds `JOSEJWE`). An application that only signs and verifies does not build the
 encryption code.
 
 ## Three states, three names for the claims
@@ -86,6 +86,9 @@ parameters only.
 ## Testing
 
 ```
-swift test
-./scripts/interop.sh     # closed-loop checks against panva/jose (needs Node)
+swift test --filter "JOSEJWTTests|JOSEJWTEncryptedTests"
+./scripts/interop.sh jwt     # closed-loop checks against panva/jose (needs Node)
 ```
+
+Fixtures come from `interop/jwt/generate-fixtures.mjs` and
+`interop/jwt/generate-encrypted-fixtures.mjs`.

@@ -1,0 +1,545 @@
+{
+  "_generated": {
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
+    "generator": "interop/generate-fixtures.mjs",
+    "description": "JWTs with jose jwtVerify's verdict under the stated options, at a fixed current time.",
+    "jose": "6.2.12",
+    "node": "v24.11.1"
+  },
+  "now": 1800000000,
+  "jwk": "{\"kty\":\"EC\",\"x\":\"tGWRgfchYd67BPsR5-vVbKIxmXzsM6B0GA8uQMs1jMQ\",\"y\":\"-wOb_VtH0X7LFpUADx4Z3DwFx-KjKEvWc9r6l1ddKBg\",\"crv\":\"P-256\"}",
+  "cases": [
+    {
+      "name": "valid, nothing checked (positive control)",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.j2fxlX-XPnJK8DvCWZwrUMhN5VF1ceACkHh2yLm0CV9ttdEkfVy_vGKkj47PUat-Ny1xMWsXzmWHd1XH2EO-gg",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "valid, issuer and audience checked",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.JTj1pVf4m8Tw9u2ZKQH-W6qK-p1XuO1q-ENKTYs5rPpOEXrB71q7e5Qilczk4JJ-hQLxhwUcjgW2Z6YkNMqjHw",
+      "options": {
+        "issuer": "https://issuer.example",
+        "audience": "https://api.example"
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "exp one second ahead",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwMDF9.SqP1NXy6KJ_vAWbyU0qnmLkDmkW91ZzVEUWRb6ZEjkZ0en_UlFpCPUSNewLt6L-SKgXMC6Bmnz4yJa5lhQe5CA",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "exp equal to now",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwMDB9.d-j8aznuPU-VotlI6swTmzrXcOIliKkLFbziUT8NLy8ORyW0i5LHMCQs0bcfNZIIB-fYZm74yApJAHvI18rVnw",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_EXPIRED: \"exp\" claim timestamp check failed",
+        "claim": "exp",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "exp one second ago",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE3OTk5OTk5OTl9.-_h_lc4DfLyYKoJcWPSL5i0QgIjYA8iC3V6Z5Sqq2ziI-RenfpoRjWZf7LyQ4YHHwCSHbytO-jm5t7L9856TPw",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_EXPIRED: \"exp\" claim timestamp check failed",
+        "claim": "exp",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "exp half a second ahead",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwMDAuNX0.SmBFSpixkn7dtERWchZOi8561qifARZaftgv-5bVBwlY-Qj70uV3s8jsbzwyASt4GaodO9FhAgUlVLMVZ8PEVA",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "exp five seconds ago, tolerance five",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE3OTk5OTk5OTV9.K8KmwjE0lhYmEvVtoAS5TiLHysUlGVbEOnFTemwiNv0Cq3AJTVle-Ct7Z9_DfxhY3r8z_UoDU19rCbg3GduSCA",
+      "options": {
+        "clockTolerance": 5
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_EXPIRED: \"exp\" claim timestamp check failed",
+        "claim": "exp",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "exp five seconds ago, tolerance six",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE3OTk5OTk5OTV9._fOact9jOizXxPLmagRQaEBKmEC8fnIkS6m2QtH9kynCFCBHPBXL8sC1ncMtA0wchr7l2vMnYRmWLvQafZukIQ",
+      "options": {
+        "clockTolerance": 6
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "exp absent",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoiaHR0cHM6Ly9hcGkuZXhhbXBsZSJ9.LfKxMliICEAy6mw8kvc4zP6ozXhjxq4q6UwYe7gOmGuwjs8pM9Y2iBVdKbob-WmqAE9xK69Ln7iWNEzuzwgTRA",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "exp is a numeric string",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOiIxODAwMDAwMDYwIn0.VjHcF1kkjPXqZrH9tT1WQChxqCBm3bsr7-VcWGNg2wWNsXkHE1u0Z2J_Kiwdh8TZkeANaD2Mx3DdyXpy81NHog",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"exp\" claim must be a number",
+        "claim": "exp",
+        "reason": "invalid"
+      }
+    },
+    {
+      "name": "exp is null",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOm51bGx9.hs0RYZHpBcloi_322dwpJlC1_G2VkxjJm-ARZrkTNNaIEWB6hvvfTWNs_6-lS-Nse-zJNIkOiRq6puBX8h1hKw",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"exp\" claim must be a number",
+        "claim": "exp",
+        "reason": "invalid"
+      }
+    },
+    {
+      "name": "exp is a boolean",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOnRydWV9.jJ6ISTgVMT8_I1jp-1_l9AYOq7kaTD5KC3GM9R06idgESpdX_vJR9jNt8jvTmAKESmva4eA-9XhRUdVZ1i9Xqg",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"exp\" claim must be a number",
+        "claim": "exp",
+        "reason": "invalid"
+      }
+    },
+    {
+      "name": "nbf equal to now",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsIm5iZiI6MTgwMDAwMDAwMH0.XftsV7gnoPOsKyZ1EgVkcb7D_8B8DQRo_E6RxkP7guWatz72sobAdEw9pWfPQSoD9NmYwEzd-BuZnXrLhQxFcw",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "nbf one second ahead",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsIm5iZiI6MTgwMDAwMDAwMX0.-R-V4hmmxWr8OEI5L48OHjhp8035H3mOxcUqVi1Qpk0V6l028pVgauuLKTNNi6ja1n0AWkOlsstnowMcD07QmA",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"nbf\" claim timestamp check failed",
+        "claim": "nbf",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "nbf one second ago",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsIm5iZiI6MTc5OTk5OTk5OX0.DPGlfp3yWpKK3VUoBWNqnqFa3Gwm3He-5opvtKZdha762BVn9HGT9T-taBchQPYEOrg7zjLNatRBz5KPTiSmxw",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "nbf five seconds ahead, tolerance five",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsIm5iZiI6MTgwMDAwMDAwNX0.DEc24lheIp7y4DjBQMHq_xBKOni5AQwiA7vdzPRYLoteGUYDzb3tY_RMbDNUqKSETahhC-u_5K4Cb83MCRr_7g",
+      "options": {
+        "clockTolerance": 5
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "nbf five seconds ahead, tolerance four",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsIm5iZiI6MTgwMDAwMDAwNX0.EXdNba3ewUdnYTdqD2AhQwVzdnoR3ZNhhSCX8vvX5IeUOUwC3NszY4ZSlgbqe915VBZu3u7QL1xn9DsrliVZcw",
+      "options": {
+        "clockTolerance": 4
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"nbf\" claim timestamp check failed",
+        "claim": "nbf",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "nbf is a string",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsIm5iZiI6InNvb24ifQ.Yp-U1ubrBSpMO417nU14yJYvea9_RBqKXh-c0rQ9KMTLpb3LeMpIB4BXJlp5MzKlXLattIGchHvtURaDhpCbHg",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"nbf\" claim must be a number",
+        "claim": "nbf",
+        "reason": "invalid"
+      }
+    },
+    {
+      "name": "iat in the future",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsImlhdCI6MTgwMDAwMTAwMH0.SlQwE_dTjMSORItvD9Yzx3tnj_QqNjxh0xUcHs25l1bT6QZv7MPFsDD0TXTfkg4cVXJnfnunq15y-WMuNUNrWg",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "iat is a string",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsImlhdCI6InRoZW4ifQ.9qgBN9ppV_5Bs8QIAmWFIwxNH2jBC4Z3B8Xpq4y_JoSju6PvFCC5OlESoPTm1LXVX6WDH5k9gxe72EcfNbehIQ",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: \"iat\" claim must be a number",
+        "claim": "iat",
+        "reason": "invalid"
+      }
+    },
+    {
+      "name": "issuer mismatch",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.HZ7BkaoX0Pdxz9dsn1phVPdiSyKDMMc0pVHj0DSOVcZ2agIUZhii1FaiAN-I2OEKWwtlOYs6ChrKc9R0mNKtmQ",
+      "options": {
+        "issuer": "https://other.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"iss\" claim value",
+        "claim": "iss",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "issuer differs only in case",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.C0BkpUqKJEE3fNpfldiSUHV7FTOCM2vsOE5zpMLrE7C1FOfLSv1jYvGHuvpObBlbcTF757OGxpHeBz9T92GWTg",
+      "options": {
+        "issuer": "https://ISSUER.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"iss\" claim value",
+        "claim": "iss",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "issuer absent but expected",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2FwaS5leGFtcGxlIiwiZXhwIjoxODAwMDAwMDYwfQ.OoXyXwYMcP7msHHKdVN74U7PFv3hGDMZe3DJL7Fn8sE1qvZCfUnu5uqj1Q3L4FvMEiGpEG8H2b1BRwZKufkT0g",
+      "options": {
+        "issuer": "https://issuer.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: missing required \"iss\" claim",
+        "claim": "iss",
+        "reason": "missing"
+      }
+    },
+    {
+      "name": "issuer one of several accepted",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.WQ0NWIUk8_-1c3ZGlwNuy73lHWh9pEFEkpEzKpy-y-pPqCq_t8QNdQtMDVrSwRgZPhe1oevMwfwBi-wW5k-ePg",
+      "options": {
+        "issuer": [
+          "https://a.example",
+          "https://issuer.example"
+        ]
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "issuer none of several accepted",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.1YXkOkFEN_ah-QFHcDryjryobvz0xms7Z_iyH8rO2imuZvP7p2dlYlR9U0xwpz8gu2ocL66GPwwtrcIP7d2KTQ",
+      "options": {
+        "issuer": [
+          "https://a.example",
+          "https://b.example"
+        ]
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"iss\" claim value",
+        "claim": "iss",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "iss is a number",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOjcsInN1YiI6InVzZXIiLCJhdWQiOiJodHRwczovL2FwaS5leGFtcGxlIiwiZXhwIjoxODAwMDAwMDYwfQ.c1r3eMqme1gQTnyEavb46pWXxC7-XlD5P1m-R0HFiTgk1uwA4cEJPIC3X9G-EQzhO-iZnaeUYpzZasjNDRmVXA",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "sub is a number",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjo3LCJhdWQiOiJodHRwczovL2FwaS5leGFtcGxlIiwiZXhwIjoxODAwMDAwMDYwfQ.MQqbfEMGo41oIW35UJixZ3-LpYiU6YQ3z_YuDBCjUSbeJNSXRLPVii7SlCcIJagfx4MW6K5-OsAEBfUwRKDh2Q",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "jti is a number",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6N30.yzlER_Tz8wCdBaxcefCRoSKcAiRFos3bNiOJRIfigzfnypu4AxawxV79_KPgCf1Xm0aL99GPRom4xF1Z3U0Anw",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "audience mismatch",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.X193xlfRB4Rlg0FuShTH4WPcYEym9EjEO2ONjx6yaHyO80F8bhhoZYXn3Vl7uErUEaqBeG4O6lffnVTSfyjKEA",
+      "options": {
+        "audience": "https://other.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"aud\" claim value",
+        "claim": "aud",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "audience absent but expected",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiZXhwIjoxODAwMDAwMDYwfQ.OjuvQnJcbRQmzdFshRxXPAg1Sdzl38LoRDbwEHTjWg7013JZfuQPc1VefcOlAmh7YyaLiLKLQluTGvroC1Qvhg",
+      "options": {
+        "audience": "https://api.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: missing required \"aud\" claim",
+        "claim": "aud",
+        "reason": "missing"
+      }
+    },
+    {
+      "name": "audience array contains expected",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6WyJodHRwczovL3guZXhhbXBsZSIsImh0dHBzOi8vYXBpLmV4YW1wbGUiXSwiZXhwIjoxODAwMDAwMDYwfQ.QmIPhQKXM2LbZwQkQ_C2-d9ofF8YEYy04QE8kHpuO2PoGcU6pt3o7fmfqBPhw4v0TCIXxkL_L97pg5nVD5bmWA",
+      "options": {
+        "audience": "https://api.example"
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "audience array lacks expected",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6WyJodHRwczovL3guZXhhbXBsZSIsImh0dHBzOi8veS5leGFtcGxlIl0sImV4cCI6MTgwMDAwMDA2MH0.3gQ6weI3mGkAWHd6VcGmd3V2H6xRr3LURAA0Qtrdxkx6O3uDRVaGGWLhNEMRJF9QbKW1mURtE6lI1gV6wx0whA",
+      "options": {
+        "audience": "https://api.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"aud\" claim value",
+        "claim": "aud",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "audience one of several accepted",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.LHy73T6IZPmnmYFWle60f_c0uY8DMA42Z1eoF9iON5gTQYhWkTThv5Bg0hi-ZdvF8eqaxsbSOZ1VBQCrlKTzAw",
+      "options": {
+        "audience": [
+          "https://a.example",
+          "https://api.example"
+        ]
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "audience array is empty",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6W10sImV4cCI6MTgwMDAwMDA2MH0.FUNHfGZcTiE0QPJbfWlUn66KQC2fRpfGgbJHlpVN7q_UJYTHvqwgbuwkng0p-LwmTOfaH7zG5U-yJbTx_hjazQ",
+      "options": {
+        "audience": "https://api.example"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"aud\" claim value",
+        "claim": "aud",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "aud is a number",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6NywiZXhwIjoxODAwMDAwMDYwfQ.1Hcbi6GT5h4q7NLH_P9_wwDnZApQ7r_5QitkeTCvMvmGgN-Nscjfb777LBGQUrxeeYLsIo5AwJ3nM5vVug96bQ",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "aud array has a number",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6WyJodHRwczovL2FwaS5leGFtcGxlIiw3XSwiZXhwIjoxODAwMDAwMDYwfQ.ifqBCj2gwuRJk-0lR2M_1tr24GDrEYi3quBHHdMUmaitFA24KpNzht_Yl2Z6_GB7TcDGjlwCRdoS88kJ2kBT5A",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "typ matches exactly",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.BEuCRXOuxXmad7zpysHEa5U-EgFWN1Ab6o_C37XE4vbY46Z3A91Zft9q2sOWpnZ62V77s1HbVq77ZCqo_lqS9A",
+      "options": {
+        "typ": "JWT"
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "typ matches ignoring case",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.OKXDH4415bpSeAKhRqFaNNXYQ6FeNqTkHmAonr5XP4KxIZA7-hA88l-dg_8omM7uazXccm4Rc5z2gH_N29rb6Q",
+      "options": {
+        "typ": "jwt"
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "typ matches with application/ prefix",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.zkmlWud02P1KxVM4dzvk629_2yMitOn3-5DUsNCaq6Ogzo2Gkbl9cE6j01qeqwW-xgKe8YdW0V93dvdpDQhGew",
+      "options": {
+        "typ": "application/jwt"
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "typ mismatch",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.6jV4S0C5zl334rH0aZlPQ1Q3E7ABTaX4JmLBj7Th_G_6gvuagHVHrvYQLeKa_0l5ghIFU3Qeo6JtAwbZMdmwcw",
+      "options": {
+        "typ": "at+jwt"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"typ\" JWT header value",
+        "claim": "typ",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "typ absent but expected",
+      "token": "eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.o7DQTFAlK9PO2fYQfWZRz0IF-x3aGodfhAlePMEZPx5EShSuodftTR1a6bv0Zu4LfGUDtpMd6mx0O3AEKGCeYw",
+      "options": {
+        "typ": "JWT"
+      },
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_CLAIM_VALIDATION_FAILED: unexpected \"typ\" JWT header value",
+        "claim": "typ",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "typ at+jwt expected and present",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6ImFwcGxpY2F0aW9uL2F0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwic3ViIjoidXNlciIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUiLCJleHAiOjE4MDAwMDAwNjB9.xAkQjb1hRm_r2nVEKa0EXseF4EVY6YSDKrMJFPPOX12nP9biNgEIWVk3FlzZURtMOkWPsWLTimHEwNfuVu-EIg",
+      "options": {
+        "typ": "at+jwt"
+      },
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "claims are a JSON array",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.WyJpc3MiXQ.AEe1BnEI-nvZB9GVTHFV8onM6YIghV0X7UWsv5K6ctfNomVriczl9U7-tiZ3t-JtuXSH_WXZJV1cSQju6uX0PQ",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_INVALID: JWT Claims Set must be a top-level JSON object",
+        "claim": null,
+        "reason": null
+      }
+    },
+    {
+      "name": "claims are a JSON string",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.ImNsYWltcyI.xZjLTPwDrjqJCgCQt4FgnsMyfN0O1qoEyZGL5cXjLDexU1_wVRgKoKblHCSQNxPHdlcGvSCx1WkQVFr6E_v24g",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_INVALID: JWT Claims Set must be a top-level JSON object",
+        "claim": null,
+        "reason": null
+      }
+    },
+    {
+      "name": "claims are not JSON",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGpzb24.7WuIhTPJ7TGzlWsTOT_ptnvWE1kIvkasQ0JfceNjGUEKmFmMm2Qpx5eWBjvBDso_ctFZfjBpFllYJ9Is0-tizA",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_INVALID: JWT Claims Set must be a top-level JSON object",
+        "claim": null,
+        "reason": null
+      }
+    },
+    {
+      "name": "claims are empty",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..0EfEsvX1SKSIFYvB3MzcfqBt12N9OY5tQmsz-DWI7Q2HRgUwm1C-gYtSslkksVHGddDx8qDANx5ywDkm_Q7bIA",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_INVALID: JWT Claims Set must be a top-level JSON object",
+        "claim": null,
+        "reason": null
+      }
+    },
+    {
+      "name": "claims have a duplicate exp, the last one valid",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTk5OTk5MDAsImV4cCI6MTgwMDAwMDEwMH0.uGJy9iJcNSEl6zC4j695ymJLgT8ZZyXd3g_wVc7ntqMhLOYIxiae_W1sP9auoVbf113vPQSwlCeyBI5lf932dQ",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "claims have a duplicate exp, the last one expired",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MDAwMDAxMDAsImV4cCI6MTc5OTk5OTkwMH0.dUaWqAbp8YgglOv7_W__yIpVDHvClX9xk5rptZl7r54m6LzL-dE5eIux8AKYqzeIHW-iorG0C_fIIJfz_kzYsA",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_EXPIRED: \"exp\" claim timestamp check failed",
+        "claim": "exp",
+        "reason": "check_failed"
+      }
+    },
+    {
+      "name": "claims have whitespace and unusual member order",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyAiZXhwIiA6IDE4MDAwMDAwNjAsCiAgImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiIH0.DdL1wGzMIokn1TOsYdpvfeRGddNH3b9sYHJ2bWi4loE6IINZnBQYIjoDOHNDViBAFgAfxIn2Oozs9heJfS6Pmg",
+      "options": {},
+      "jose": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "unencoded payload (b64 false)",
+      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19.{\"exp\":9999999999}.sOUF9wwlO31GsqWJrUBUm1rE_agImiVdV2YDnhYdCxKpSDRxrpz3K0w-aXgxnrINHH9yBjcWvbNstDZz45-00g",
+      "options": {},
+      "jose": {
+        "accepted": false,
+        "error": "ERR_JWT_INVALID: JWTs MUST NOT use unencoded payload",
+        "claim": null,
+        "reason": null
+      }
+    }
+  ]
+}

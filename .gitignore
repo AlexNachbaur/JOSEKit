@@ -1,9 +1,0 @@
-.build/
-.swiftpm/
-*.xcodeproj
-xcuserdata/
-DerivedData/
-.DS_Store
-node_modules/
-interop/.closed-loop/
-Package.resolved

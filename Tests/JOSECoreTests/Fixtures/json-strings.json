@@ -1,0 +1,220 @@
+{
+  "_generated": {
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
+    "generator": "interop/generate-fixtures.mjs",
+    "description": "JSON.stringify output for strings, as used for RFC 7638 canonical JSON.",
+    "jose": "6.2.12",
+    "node": "v24.11.1",
+    "openssl": "3.5.4"
+  },
+  "cases": [
+    {
+      "utf8Hex": "",
+      "stringified": "\"\""
+    },
+    {
+      "utf8Hex": "706c61696e",
+      "stringified": "\"plain\""
+    },
+    {
+      "utf8Hex": "77697468202271756f74657322",
+      "stringified": "\"with \\\"quotes\\\"\""
+    },
+    {
+      "utf8Hex": "6261636b5c736c617368",
+      "stringified": "\"back\\\\slash\""
+    },
+    {
+      "utf8Hex": "612f62",
+      "stringified": "\"a/b\""
+    },
+    {
+      "utf8Hex": "68747470733a2f2f6578616d706c652e636f6d2f70617468",
+      "stringified": "\"https://example.com/path\""
+    },
+    {
+      "utf8Hex": "222c2279223a22666f72676564",
+      "stringified": "\"\\\",\\\"y\\\":\\\"forged\""
+    },
+    {
+      "utf8Hex": "5c22",
+      "stringified": "\"\\\\\\\"\""
+    },
+    {
+      "utf8Hex": "7461620968657265",
+      "stringified": "\"tab\\there\""
+    },
+    {
+      "utf8Hex": "6c696e650a627265616b",
+      "stringified": "\"line\\nbreak\""
+    },
+    {
+      "utf8Hex": "63720d68657265",
+      "stringified": "\"cr\\rhere\""
+    },
+    {
+      "utf8Hex": "080c",
+      "stringified": "\"\\b\\f\""
+    },
+    {
+      "utf8Hex": "7f",
+      "stringified": "\"\""
+    },
+    {
+      "utf8Hex": "c280",
+      "stringified": "\"\""
+    },
+    {
+      "utf8Hex": "e280a8e280a9",
+      "stringified": "\"  \""
+    },
+    {
+      "utf8Hex": "c3a9",
+      "stringified": "\"é\""
+    },
+    {
+      "utf8Hex": "65cc81",
+      "stringified": "\"é\""
+    },
+    {
+      "utf8Hex": "e697a5e69cace8aa9e",
+      "stringified": "\"日本語\""
+    },
+    {
+      "utf8Hex": "f09f9880",
+      "stringified": "\"😀\""
+    },
+    {
+      "utf8Hex": "efbbbf",
+      "stringified": "\"﻿\""
+    },
+    {
+      "utf8Hex": "780079",
+      "stringified": "\"x\\u0000y\""
+    },
+    {
+      "utf8Hex": "780179",
+      "stringified": "\"x\\u0001y\""
+    },
+    {
+      "utf8Hex": "780279",
+      "stringified": "\"x\\u0002y\""
+    },
+    {
+      "utf8Hex": "780379",
+      "stringified": "\"x\\u0003y\""
+    },
+    {
+      "utf8Hex": "780479",
+      "stringified": "\"x\\u0004y\""
+    },
+    {
+      "utf8Hex": "780579",
+      "stringified": "\"x\\u0005y\""
+    },
+    {
+      "utf8Hex": "780679",
+      "stringified": "\"x\\u0006y\""
+    },
+    {
+      "utf8Hex": "780779",
+      "stringified": "\"x\\u0007y\""
+    },
+    {
+      "utf8Hex": "780879",
+      "stringified": "\"x\\by\""
+    },
+    {
+      "utf8Hex": "780979",
+      "stringified": "\"x\\ty\""
+    },
+    {
+      "utf8Hex": "780a79",
+      "stringified": "\"x\\ny\""
+    },
+    {
+      "utf8Hex": "780b79",
+      "stringified": "\"x\\u000by\""
+    },
+    {
+      "utf8Hex": "780c79",
+      "stringified": "\"x\\fy\""
+    },
+    {
+      "utf8Hex": "780d79",
+      "stringified": "\"x\\ry\""
+    },
+    {
+      "utf8Hex": "780e79",
+      "stringified": "\"x\\u000ey\""
+    },
+    {
+      "utf8Hex": "780f79",
+      "stringified": "\"x\\u000fy\""
+    },
+    {
+      "utf8Hex": "781079",
+      "stringified": "\"x\\u0010y\""
+    },
+    {
+      "utf8Hex": "781179",
+      "stringified": "\"x\\u0011y\""
+    },
+    {
+      "utf8Hex": "781279",
+      "stringified": "\"x\\u0012y\""
+    },
+    {
+      "utf8Hex": "781379",
+      "stringified": "\"x\\u0013y\""
+    },
+    {
+      "utf8Hex": "781479",
+      "stringified": "\"x\\u0014y\""
+    },
+    {
+      "utf8Hex": "781579",
+      "stringified": "\"x\\u0015y\""
+    },
+    {
+      "utf8Hex": "781679",
+      "stringified": "\"x\\u0016y\""
+    },
+    {
+      "utf8Hex": "781779",
+      "stringified": "\"x\\u0017y\""
+    },
+    {
+      "utf8Hex": "781879",
+      "stringified": "\"x\\u0018y\""
+    },
+    {
+      "utf8Hex": "781979",
+      "stringified": "\"x\\u0019y\""
+    },
+    {
+      "utf8Hex": "781a79",
+      "stringified": "\"x\\u001ay\""
+    },
+    {
+      "utf8Hex": "781b79",
+      "stringified": "\"x\\u001by\""
+    },
+    {
+      "utf8Hex": "781c79",
+      "stringified": "\"x\\u001cy\""
+    },
+    {
+      "utf8Hex": "781d79",
+      "stringified": "\"x\\u001dy\""
+    },
+    {
+      "utf8Hex": "781e79",
+      "stringified": "\"x\\u001ey\""
+    },
+    {
+      "utf8Hex": "781f79",
+      "stringified": "\"x\\u001fy\""
+    }
+  ]
+}

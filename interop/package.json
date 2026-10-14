@@ -1,0 +1,12 @@
+{
+    "name": "jose-core-interop",
+    "private": true,
+    "type": "module",
+    "description": "Counterpart implementation used to generate fixtures for, and to verify output of, the JOSECore Swift package.",
+    "engines": {
+        "node": ">=22"
+    },
+    "dependencies": {
+        "jose": "6.2.12"
+    }
+}

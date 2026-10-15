@@ -22,7 +22,7 @@ let cryptoExtras: Target.Dependency = .product(
 )
 
 let package = Package(
-    name: "JOSE",
+    name: "JOSEKit",
     // The lowest runtimes that support constrained existentials (`any Signer<ES256>`), which the
     // signing protocols are designed to be used through.
     platforms: [

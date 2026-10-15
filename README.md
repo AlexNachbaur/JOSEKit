@@ -1,4 +1,4 @@
-# JOSE for Swift
+# JOSEKit
 
 JSON Object Signing and Encryption in Swift: JSON Web Keys, Signatures, Encryption and Tokens
 (RFC 7515–7519 and their companions), built so that misuse fails to compile where it can and
@@ -19,6 +19,20 @@ fails loudly where it cannot.
 Swift 6 with strict concurrency and typed throws. Apple platforms (macOS 13, iOS 16, tvOS 16,
 watchOS 9, visionOS 1), Linux, Windows and Android. CryptoKit on Apple platforms and
 [swift-crypto](https://github.com/apple/swift-crypto) elsewhere.
+
+## Installation
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/AlexNachbaur/JOSEKit.git", from: "0.1.0"),
+],
+targets: [
+    .target(
+        name: "MyApp",
+        dependencies: [.product(name: "JOSEJWT", package: "JOSEKit")]
+    ),
+]
+```
 
 ## Modules
 

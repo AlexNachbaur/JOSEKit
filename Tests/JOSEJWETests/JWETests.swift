@@ -1042,6 +1042,37 @@ struct JWETests {
         _ = try DirectDecrypter(jwk: jwk(JWKMetadata(algorithm: "dir")))
     }
 
+    @Test("a dir key whose alg names a content encryption algorithm is used with that algorithm only")
+    func directKeyRestrictedToContentEncryption() async throws {
+        // RFC 7520 §5.6 gives its dir key `"alg": "A128GCM"`.
+        let restricted = SymmetricJWK(secret(32), metadata: JWKMetadata(use: .encryption, algorithm: "A256GCM"))
+        let encrypter = try DirectEncrypter(jwk: restricted)
+        let decrypter = try DirectDecrypter(jwk: restricted)
+        let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+        #expect(
+            try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(decrypter)])).plaintext == Self.plaintext
+        )
+
+        let refusal = JWEError.contentEncryptionNotPermitted(
+            keyAlgorithm: "A256GCM",
+            contentEncryption: "A128CBC-HS256"
+        )
+        await #expect(throws: refusal) {
+            try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A128CBCHS256.self)
+        }
+        // The same key used for A128CBC-HS256 by someone else is refused on the way in too.
+        let other = try await SimpleJWE.encrypt(
+            Self.plaintext,
+            to: DirectEncrypter(key: restricted.key),
+            using: A128CBCHS256.self
+        )
+        #expect(
+            await thrown { () async throws(JWEError) in
+                try await other.decrypt(with: DecryptionKeys([AnyKeyDecrypter(decrypter)]))
+            } == refusal
+        )
+    }
+
     @Test("decrypters can be built from private JWKs, for the listed algorithms only")
     func decryptersFromJWKs() async throws {
         let ec = try ECPrivateKey<P256Curve>()
@@ -1346,6 +1377,7 @@ struct JWETests {
             (.noDecrypterForKeyID(keyID: "k9", algorithm: "dir"), "k9"),
             (.keyWrongSize(algorithm: "dir", expected: 32, found: 16), "16"),
             (.encryptedKeyNotEmpty(algorithm: "dir"), "dir"),
+            (.contentEncryptionNotPermitted(keyAlgorithm: "A128GCM", contentEncryption: "A256GCM"), "A128GCM"),
             (.wrongInitializationVectorSize(algorithm: "A256GCM", expected: 12, found: 8), "8"),
             (.wrongAuthenticationTagSize(algorithm: "A256GCM", expected: 16, found: 12), "12"),
             (.noRecipientDecrypted(reasons: [.decryptionFailed, .missingAlgorithm]), "2 recipients"),

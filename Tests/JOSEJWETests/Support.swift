@@ -120,9 +120,9 @@ struct TestKeys {
         case "ECDH-ES+A256KW":
             return try ecdh(ECDHESA256KW.self, try PrivateJWK(json: json), keyID: keyID)
         case "RSA-OAEP":
-            return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP>(privateKey: try rsa(), keyID: keyID))
+            return AnyKeyDecrypter(try RSADecrypter<RSAOAEP>(privateKey: try rsa(), keyID: keyID))
         case "RSA-OAEP-256":
-            return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try rsa(), keyID: keyID))
+            return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: try rsa(), keyID: keyID))
         case "PBES2-HS256+A128KW":
             return AnyKeyDecrypter(
                 PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)

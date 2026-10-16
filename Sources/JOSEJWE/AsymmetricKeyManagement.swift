@@ -425,42 +425,57 @@ public struct ECDHESDecrypter<Algorithm: ECDHESAlgorithm, Key: ECDHRecipientPriv
     }
 }
 
-// MARK: - RSA-OAEP
+// MARK: - RSA
 
-/// RSAES-OAEP key encryption (RFC 7518 §4.3).
-public protocol RSAOAEPAlgorithm: KeyManagementAlgorithm {
-    static var hash: RSAOAEPHash { get }
+/// RSA key encryption (RFC 7518 §4.2, §4.3): the content encryption key is encrypted to the
+/// recipient's public key.
+public protocol RSAKeyEncryptionAlgorithm: KeyManagementAlgorithm {
+    static var padding: RSAEncryptionPadding { get }
 }
 
 /// RSAES-OAEP with SHA-1 and MGF1 with SHA-1.
-public struct RSAOAEP: RSAOAEPAlgorithm {
+public struct RSAOAEP: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA-OAEP"
-    public static let hash = RSAOAEPHash.sha1
+    public static let padding = RSAEncryptionPadding.oaep(.sha1)
 }
 
 /// RSAES-OAEP with SHA-256 and MGF1 with SHA-256.
-public struct RSAOAEP256: RSAOAEPAlgorithm {
+public struct RSAOAEP256: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA-OAEP-256"
-    public static let hash = RSAOAEPHash.sha256
+    public static let padding = RSAEncryptionPadding.oaep(.sha256)
 }
 
-extension RSAOAEPAlgorithm {
+/// RSAES-PKCS1-v1_5, `RSA1_5` (RFC 7518 §4.2).
+///
+/// Its decryption leaks whether the padding was valid unless every failure is handled the same
+/// way (Bleichenbacher's attack). JOSEKit does that: an unwrap that fails for any reason
+/// continues with a random key, so it fails exactly as a wrong content key does, with
+/// ``JWEError/decryptionFailed`` (RFC 7516 §11.5). It is used only when a caller builds an
+/// ``RSAEncrypter`` or ``RSADecrypter`` for it. Prefer `RSA-OAEP-256` wherever the other side
+/// supports it.
+public struct RSA15: RSAKeyEncryptionAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "RSA1_5"
+    public static let padding = RSAEncryptionPadding.pkcs1v15
+}
+
+extension RSAKeyEncryptionAlgorithm {
     /// A decrypter for a private RSA JWK, honouring its `use`, `key_ops` and `alg`.
     public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
-        AnyKeyDecrypter(try RSAOAEPDecrypter<Self>(jwk: jwk))
+        AnyKeyDecrypter(try RSADecrypter<Self>(jwk: jwk))
     }
 }
 
 extension RSAOAEP: JWKDecryptableAlgorithm {}
 extension RSAOAEP256: JWKDecryptableAlgorithm {}
+extension RSA15: JWKDecryptableAlgorithm {}
 
 /// Encrypts the content encryption key to a recipient's RSA public key.
-public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
+public struct RSAEncrypter<Algorithm: RSAKeyEncryptionAlgorithm>: KeyEncrypter {
     public let keyID: KeyID?
-    private let key: RSAOAEPEncryptionKey
+    private let key: RSAEncryptionKey
 
     public init(publicKey: RSAPublicKey, keyID: KeyID? = nil) throws(JWKError) {
-        key = try RSAOAEPEncryptionKey(publicKey: publicKey)
+        key = try RSAEncryptionKey(publicKey: publicKey)
         self.keyID = keyID
     }
 
@@ -479,7 +494,7 @@ public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
         do {
             return KeyEncryptionResult(
                 contentEncryptionKey: contentKey,
-                encryptedKey: try key.encrypt(contentKey, hash: Algorithm.hash)
+                encryptedKey: try key.encrypt(contentKey, padding: Algorithm.padding)
             )
         } catch {
             throw .keyEncryptionFailed(algorithm: Algorithm.identifier, error)
@@ -488,12 +503,16 @@ public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
 }
 
 /// Recovers the content encryption key with an RSA private key.
-public struct RSAOAEPDecrypter<Algorithm: RSAOAEPAlgorithm>: KeyDecrypter {
+///
+/// Any failure to recover the key is ``JWEError/decryptionFailed``, with no detail. The JWE
+/// decryption then continues with a random key, so the outcome is the same as for a key that
+/// decrypted but is wrong.
+public struct RSADecrypter<Algorithm: RSAKeyEncryptionAlgorithm>: KeyDecrypter {
     public let keyID: KeyID?
-    private let key: RSAOAEPDecryptionKey
+    private let key: RSADecryptionKey
 
     public init(privateKey: RSAPrivateKey, keyID: KeyID? = nil) throws(JWKError) {
-        key = try RSAOAEPDecryptionKey(privateKey: privateKey)
+        key = try RSADecryptionKey(privateKey: privateKey)
         self.keyID = keyID
     }
 
@@ -508,7 +527,7 @@ public struct RSAOAEPDecrypter<Algorithm: RSAOAEPAlgorithm>: KeyDecrypter {
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
         do {
-            return try key.decrypt(request.encryptedKey, hash: Algorithm.hash)
+            return try key.decrypt(request.encryptedKey, padding: Algorithm.padding)
         } catch {
             throw .decryptionFailed
         }

@@ -72,7 +72,7 @@ private func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter
     case "ECDH-ES":
         return try ECDHES.decrypter(for: try PrivateJWK(json: json))
     case "RSA-OAEP-256":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
     default:
         throw FixtureError(description: "no decrypter for \(algorithm)")
     }
@@ -328,8 +328,8 @@ struct EncryptedJWTTests {
             AnyVerifier(try ECDSAVerifier(publicKey: signingKey.publicKey, keyID: "sig"))
         ])
         let recipientKey = try RSAPrivateKey()
-        let recipient = try RSAOAEPEncrypter<RSAOAEP256>(publicKey: recipientKey.publicKey)
-        let decryption = DecryptionKeys([AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: recipientKey))])
+        let recipient = try RSAEncrypter<RSAOAEP256>(publicKey: recipientKey.publicKey)
+        let decryption = DecryptionKeys([AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: recipientKey))])
 
         let claims = JWTClaims(
             issuer: "https://issuer.example",

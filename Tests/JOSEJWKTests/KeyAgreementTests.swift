@@ -119,6 +119,17 @@ struct KeyAgreementTests {
         }
     }
 
+    /// Whether PKCS#1 v1.5 decryption refused `ciphertext`. Security.framework answers an invalid
+    /// ciphertext with implicit rejection (deterministic pseudo-random bytes); swift-crypto throws.
+    /// Either way, the original message must not come back.
+    private func refusesPKCS1(_ key: RSADecryptionKey, _ ciphertext: Data, original: Data) -> Bool {
+        do {
+            return try key.decrypt(ciphertext, padding: .pkcs1v15) != original
+        } catch {
+            return error == .rsaDecryptionFailed
+        }
+    }
+
     @Test("RSA-OAEP ciphertexts made by OpenSSL decrypt, with SHA-1 and SHA-256")
     func oaepDecryptsCounterpartCiphertexts() throws {
         var checked = 0
@@ -127,46 +138,58 @@ struct KeyAgreementTests {
                 Issue.record("not an RSA private key")
                 continue
             }
-            let decryptionKey = try RSAOAEPDecryptionKey(privateKey: privateKey)
+            let decryptionKey = try RSADecryptionKey(privateKey: privateKey)
             #expect(key.oaep.count == 6)
             for testCase in key.oaep {
                 let hash = try oaepHash(testCase.hash)
                 let ciphertext = try Data(hex: testCase.ciphertext)
-                #expect(try decryptionKey.decrypt(ciphertext, hash: hash).hex == testCase.plaintext)
+                #expect(try decryptionKey.decrypt(ciphertext, padding: .oaep(hash)).hex == testCase.plaintext)
 
-                // The wrong hash, and a ciphertext with one bit changed, both fail, and identically.
+                // The wrong hash, the wrong padding, and a ciphertext with one bit changed are all
+                // refused.
                 var other = RSAOAEPHash.sha1
                 if case .sha1 = hash {
                     other = .sha256
                 }
-                #expect(throws: JWKError.rsaDecryptionFailed) { try decryptionKey.decrypt(ciphertext, hash: other) }
+                #expect(throws: JWKError.rsaDecryptionFailed) {
+                    try decryptionKey.decrypt(ciphertext, padding: .oaep(other))
+                }
+                #expect(refusesPKCS1(decryptionKey, ciphertext, original: try Data(hex: testCase.plaintext)))
                 var tampered = ciphertext
                 tampered[tampered.count - 1] ^= 0x01
-                #expect(throws: JWKError.rsaDecryptionFailed) { try decryptionKey.decrypt(tampered, hash: hash) }
+                #expect(throws: JWKError.rsaDecryptionFailed) {
+                    try decryptionKey.decrypt(tampered, padding: .oaep(hash))
+                }
                 checked += 1
             }
         }
         #expect(checked == 24)
     }
 
-    @Test("RSA-OAEP encryption round-trips, is randomised, and refuses a message too long for the key")
-    func oaepRoundTrip() throws {
+    @Test("RSA encryption round-trips with each padding, is randomised, and refuses a message too long for the key")
+    func encryptionRoundTrip() throws {
         let privateKey = try RSAPrivateKey()
-        let encryptionKey = try RSAOAEPEncryptionKey(publicKey: privateKey.publicKey)
-        let decryptionKey = try RSAOAEPDecryptionKey(privateKey: privateKey)
+        let encryptionKey = try RSAEncryptionKey(publicKey: privateKey.publicKey)
+        let decryptionKey = try RSADecryptionKey(privateKey: privateKey)
         let message = Data((0..<32).map { UInt8($0) })
-        for hash in [RSAOAEPHash.sha1, .sha256] {
-            let ciphertext = try encryptionKey.encrypt(message, hash: hash)
+        for padding in [RSAEncryptionPadding.oaep(.sha1), .oaep(.sha256), .pkcs1v15] {
+            let ciphertext = try encryptionKey.encrypt(message, padding: padding)
             #expect(ciphertext.count == 256)
-            #expect(try decryptionKey.decrypt(ciphertext, hash: hash) == message)
-            #expect(try encryptionKey.encrypt(message, hash: hash) != ciphertext)
+            #expect(try decryptionKey.decrypt(ciphertext, padding: padding) == message)
+            #expect(try encryptionKey.encrypt(message, padding: padding) != ciphertext)
         }
-        let other = try RSAOAEPDecryptionKey(privateKey: try RSAPrivateKey())
+        let other = try RSADecryptionKey(privateKey: try RSAPrivateKey())
         #expect(throws: JWKError.rsaDecryptionFailed) {
-            try other.decrypt(try encryptionKey.encrypt(message, hash: .sha256), hash: .sha256)
+            try other.decrypt(try encryptionKey.encrypt(message, padding: .oaep(.sha256)), padding: .oaep(.sha256))
         }
-        // A 2048-bit key with SHA-256 OAEP carries at most 190 bytes.
-        _ = try encryptionKey.encrypt(Data(count: 190), hash: .sha256)
-        #expect(throws: JWKError.self) { try encryptionKey.encrypt(Data(count: 191), hash: .sha256) }
+        #expect(refusesPKCS1(other, try encryptionKey.encrypt(message, padding: .pkcs1v15), original: message))
+        var tampered = try encryptionKey.encrypt(message, padding: .pkcs1v15)
+        tampered[tampered.count / 2] ^= 0x01
+        #expect(refusesPKCS1(decryptionKey, tampered, original: message))
+        // A 2048-bit key carries at most 190 bytes with SHA-256 OAEP, and 245 with PKCS#1 v1.5.
+        _ = try encryptionKey.encrypt(Data(count: 190), padding: .oaep(.sha256))
+        #expect(throws: JWKError.self) { try encryptionKey.encrypt(Data(count: 191), padding: .oaep(.sha256)) }
+        _ = try encryptionKey.encrypt(Data(count: 245), padding: .pkcs1v15)
+        #expect(throws: JWKError.self) { try encryptionKey.encrypt(Data(count: 246), padding: .pkcs1v15) }
     }
 }

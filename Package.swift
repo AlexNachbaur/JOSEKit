@@ -153,5 +153,12 @@ let package = Package(
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
+        // The published examples of RFC 7520, RFC 7797 and RFC 8037, across every module.
+        .testTarget(
+            name: "RFCVectorTests",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted"],
+            resources: [.copy("Fixtures")],
+            swiftSettings: swiftSettings
+        ),
     ]
 )

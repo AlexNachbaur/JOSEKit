@@ -10,16 +10,22 @@ Apple platforms and swift-crypto's extras elsewhere.
 
 Key management (`alg`): `dir`, `A128KW`/`A192KW`/`A256KW`, `A128GCMKW`/`A192GCMKW`/`A256GCMKW`,
 `ECDH-ES` and `ECDH-ES+A128KW`/`A192KW`/`A256KW` (P-256, P-384, P-521, X25519), `RSA-OAEP`,
-`RSA-OAEP-256`, `PBES2-HS256+A128KW`/`HS384+A192KW`/`HS512+A256KW`.
+`RSA-OAEP-256`, `RSA1_5`, `PBES2-HS256+A128KW`/`HS384+A192KW`/`HS512+A256KW`.
 
 Content encryption (`enc`): `A128GCM`/`A192GCM`/`A256GCM`, `A128CBC-HS256`/`A192CBC-HS384`/`A256CBC-HS512`.
 
-Not implemented, on purpose: `RSA1_5` and `zip`.
+`RSA1_5` is there for systems that still send it. Its decryption leaks whether the padding was
+valid unless every failure looks the same, so any failure to recover the key continues with a
+random key and ends in the same `.decryptionFailed` as any other failure (RFC 7516 §11.5). It is
+used only when you build an `RSAEncrypter<RSA15>` or `RSADecrypter<RSA15>`, or list `RSA15` in
+`DecryptionKeys(jwks:allowing:)`. Prefer `RSA-OAEP-256`.
+
+Not implemented yet: `zip`.
 
 ## Encrypting
 
 ```swift
-let recipient = try RSAOAEPEncrypter<RSAOAEP256>(jwk: theirPublicKey)   // honours use, key_ops, alg
+let recipient = try RSAEncrypter<RSAOAEP256>(jwk: theirPublicKey)   // honours use, key_ops, alg
 let sealed = try await SimpleJWE.encrypt(plaintext, to: recipient, using: A256GCM.self)
 try sealed.compactSerialization()
 ```
@@ -51,7 +57,7 @@ Every algorithm has an encrypter and a decrypter type, named for the role:
 | `A…GCMKW` | `AESGCMKeyWrapEncrypter<A256GCMKW>` | `AESGCMKeyWrapDecrypter<A256GCMKW>` |
 | `PBES2-…` | `PBES2Encrypter<PBES2HS256A128KW>` | `PBES2Decrypter<PBES2HS256A128KW>` |
 | `ECDH-ES…` | `ECDHESEncrypter<ECDHESA256KW>` | `ECDHESDecrypter<ECDHESA256KW, ECPrivateKey<P256Curve>>` |
-| `RSA-OAEP…` | `RSAOAEPEncrypter<RSAOAEP256>` | `RSAOAEPDecrypter<RSAOAEP256>` |
+| `RSA-OAEP…`, `RSA1_5` | `RSAEncrypter<RSAOAEP256>` | `RSADecrypter<RSAOAEP256>` |
 
 All but PBES2 can be built from a JWK with `init(jwk:)`, which honours its `use`, `key_ops` and
 `alg`. Private JWKs for the asymmetric algorithms can also be turned into a set of keys at once:
@@ -64,7 +70,7 @@ let keys = DecryptionKeys(jwks: myPrivateKeys, allowing: [ECDHESA256KW.self, RSA
 
 ```swift
 let keys = DecryptionKeys {
-    try RSAOAEPDecrypter<RSAOAEP256>(privateKey: mine)
+    try RSADecrypter<RSAOAEP256>(privateKey: mine)
     try AESKeyWrapDecrypter<A256KW>(jwk: sharedKey)
 }
 let decrypted = try await SimpleJWE.Encrypted(compact: token).decrypt(with: keys)

@@ -24,6 +24,22 @@ public enum RSAOAEPHash: Sendable {
     case sha256
 }
 
+/// How a message is padded before RSA encryption.
+public enum RSAEncryptionPadding: Sendable {
+    /// RSAES-OAEP, `RSA-OAEP` and `RSA-OAEP-256` (RFC 7518 §4.3).
+    case oaep(RSAOAEPHash)
+    /// RSAES-PKCS1-v1_5, `RSA1_5` (RFC 7518 §4.2). Decryption is open to chosen-ciphertext
+    /// attacks (Bleichenbacher) unless every failure is indistinguishable from every other; see
+    /// RFC 7516 §11.5. Prefer OAEP wherever the other side supports it.
+    ///
+    /// How an invalid ciphertext is answered differs by platform. Security.framework uses
+    /// implicit rejection: it returns pseudo-random bytes, the same each time for the same
+    /// ciphertext and key, instead of failing. swift-crypto, used elsewhere, fails with
+    /// ``JWKError/rsaDecryptionFailed``. So a successful decryption is no evidence that the
+    /// ciphertext was valid; only what the recovered bytes go on to authenticate is.
+    case pkcs1v15
+}
+
 /// A failure of an RSA key operation (not of the key itself), reported through
 /// `SigningError.keyOperationFailed`.
 struct RSAOperationError: Error, CustomStringConvertible {
@@ -80,12 +96,14 @@ struct RSAOperationError: Error, CustomStringConvertible {
         }
     }
 
-    private func oaepAlgorithm(_ hash: RSAOAEPHash) -> SecKeyAlgorithm {
-        switch hash {
-        case .sha1:
+    private func encryptionAlgorithm(_ padding: RSAEncryptionPadding) -> SecKeyAlgorithm {
+        switch padding {
+        case .oaep(.sha1):
             return .rsaEncryptionOAEPSHA1
-        case .sha256:
+        case .oaep(.sha256):
             return .rsaEncryptionOAEPSHA256
+        case .pkcs1v15:
+            return .rsaEncryptionPKCS1
         }
     }
 
@@ -110,9 +128,9 @@ struct RSAOperationError: Error, CustomStringConvertible {
             return isValid
         }
 
-        func encryptOAEP(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+        func encrypt(_ plaintext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
             var error: Unmanaged<CFError>?
-            let algorithm = oaepAlgorithm(hash)
+            let algorithm = encryptionAlgorithm(padding)
             guard let ciphertext = SecKeyCreateEncryptedData(wrapped.key, algorithm, plaintext as CFData, &error) else {
                 throw .rsaEncryptionFailed(reason: describe(error))
             }
@@ -136,9 +154,9 @@ struct RSAOperationError: Error, CustomStringConvertible {
             return signature as Data
         }
 
-        func decryptOAEP(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+        func decrypt(_ ciphertext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
             var error: Unmanaged<CFError>?
-            let algorithm = oaepAlgorithm(hash)
+            let algorithm = encryptionAlgorithm(padding)
             guard let plaintext = SecKeyCreateDecryptedData(wrapped.key, algorithm, ciphertext as CFData, &error) else {
                 // Taken so that it is released; its content is deliberately not reported.
                 _ = error?.takeRetainedValue()
@@ -177,12 +195,14 @@ struct RSAOperationError: Error, CustomStringConvertible {
         }
     }
 
-    private func oaepPadding(_ hash: RSAOAEPHash) -> _RSA.Encryption.Padding {
-        switch hash {
-        case .sha1:
+    private func encryptionPadding(_ padding: RSAEncryptionPadding) -> _RSA.Encryption.Padding {
+        switch padding {
+        case .oaep(.sha1):
             return .PKCS1_OAEP
-        case .sha256:
+        case .oaep(.sha256):
             return .PKCS1_OAEP_SHA256
+        case .pkcs1v15:
+            return ._WEAK_AND_INSECURE_PKCS_V1_5
         }
     }
 
@@ -215,10 +235,10 @@ struct RSAOperationError: Error, CustomStringConvertible {
             }
         }
 
-        func encryptOAEP(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+        func encrypt(_ plaintext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
             do {
                 return try _RSA.Encryption.PublicKey(derRepresentation: der)
-                    .encrypt(plaintext, padding: oaepPadding(hash))
+                    .encrypt(plaintext, padding: encryptionPadding(padding))
             } catch {
                 throw .rsaEncryptionFailed(reason: String(describing: error))
             }
@@ -254,10 +274,10 @@ struct RSAOperationError: Error, CustomStringConvertible {
             }
         }
 
-        func decryptOAEP(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
+        func decrypt(_ ciphertext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
             do {
                 return try _RSA.Encryption.PrivateKey(derRepresentation: der)
-                    .decrypt(ciphertext, padding: oaepPadding(hash))
+                    .decrypt(ciphertext, padding: encryptionPadding(padding))
             } catch {
                 throw .rsaDecryptionFailed
             }

@@ -64,7 +64,7 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "ECDH-ES":
         return try ECDHES.decrypter(for: try PrivateJWK(json: json))
     case "RSA-OAEP-256":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
     default:
         throw InteropError(description: "unsupported algorithm \(algorithm)")
     }
@@ -134,7 +134,7 @@ for recipient in challenge.recipients {
         )
     case "RSA-OAEP-256":
         produced = try await produce(
-            try RSAOAEPEncrypter<RSAOAEP256>(jwk: try JWK(json: json)),
+            try RSAEncrypter<RSAOAEP256>(jwk: try JWK(json: json)),
             algorithm: recipient.algorithm,
             encryption: recipient.encryption
         )

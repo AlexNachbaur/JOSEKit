@@ -157,10 +157,12 @@ struct VectorKeys {
             return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A192GCMKW>(jwk: try SymmetricJWK(json: json)))
         case "A256GCMKW":
             return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(jwk: try SymmetricJWK(json: json)))
+        case "RSA1_5":
+            return AnyKeyDecrypter(try RSADecrypter<RSA15>(jwk: try PrivateJWK(json: json)))
         case "RSA-OAEP":
-            return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP>(jwk: try PrivateJWK(json: json)))
+            return AnyKeyDecrypter(try RSADecrypter<RSAOAEP>(jwk: try PrivateJWK(json: json)))
         case "RSA-OAEP-256":
-            return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
+            return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
         case "ECDH-ES":
             return try ECDHES.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A128KW":

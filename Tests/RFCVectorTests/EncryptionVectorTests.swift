@@ -10,6 +10,7 @@ import Testing
 struct EncryptionVectorTests {
     /// Examples with one recipient whose algorithms this package implements, keyed by a JWK.
     static let singleRecipient = [
+        "jwe/5_1.key_encryption_using_rsa_v15_and_aes-hmac-sha2.json",
         "jwe/5_2.key_encryption_using_rsa-oaep_with_aes-gcm.json",
         "jwe/5_4.key_agreement_with_key_wrapping_using_ecdh-es_and_aes-keywrap_with_aes-gcm.json",
         "jwe/5_5.key_agreement_using_ecdh-es_with_aes-cbc-hmac-sha2.json",
@@ -66,7 +67,7 @@ struct EncryptionVectorTests {
         }
     }
 
-    @Test("RFC 7520 §5.13: the recipients this package supports each decrypt the multi-recipient example")
+    @Test("RFC 7520 §5.13: each of the three recipients decrypts the multi-recipient example")
     func multipleRecipients() async throws {
         let vector = try Vector("jwe/5_13.encrypting_to_multiple_recipients.json")
         let algorithms = try vector.value("input", "alg").elements.map { try $0.text }
@@ -74,7 +75,8 @@ struct EncryptionVectorTests {
         let plaintext = Data(try vector.string("input", "plaintext").utf8)
         let jwe = try SimpleJWE.Encrypted(json: try vector.value("output", "json").json)
         #expect(jwe.headers.map(\.algorithm.rawValue) == algorithms)
-        for (algorithm, key) in zip(algorithms, keys) where algorithm != "RSA1_5" {
+        #expect(algorithms == ["RSA1_5", "ECDH-ES+A256KW", "A256GCMKW"])
+        for (algorithm, key) in zip(algorithms, keys) {
             let keys = DecryptionKeys([try VectorKeys.decrypter(algorithm: algorithm, key: key)])
             let decrypted = try await jwe.decrypt(with: keys)
             #expect(decrypted.plaintext == plaintext, "\(algorithm)")
@@ -177,17 +179,10 @@ struct EncryptionVectorTests {
 
     // MARK: Not yet supported
 
-    /// RFC 7520 §5.1 uses RSA1_5 and §5.9 uses `zip`, neither of which this package implements
-    /// yet. These record how each is refused today; they change when support is added.
-    @Test("RSA1_5 and compressed examples are refused, naming what is unsupported")
+    /// RFC 7520 §5.9 uses `zip`, which this package does not implement yet. This records how it
+    /// is refused today; it changes when support is added.
+    @Test("the compressed example is refused, naming what is unsupported")
     func unsupported() async throws {
-        let rsa = try Vector("jwe/5_1.key_encryption_using_rsa_v15_and_aes-hmac-sha2.json")
-        let rsaJWE = try SimpleJWE.Encrypted(compact: try rsa.string("output", "compact"))
-        let oaep = DecryptionKeys([try VectorKeys.decrypter(algorithm: "RSA-OAEP", key: try rsa.value("input", "key"))])
-        await #expect(throws: JWEError.noDecrypterForAlgorithm(algorithm: "RSA1_5", offered: ["RSA-OAEP"])) {
-            try await rsaJWE.decrypt(with: oaep)
-        }
-
         let compressed = try Vector("jwe/5_9.compressed_content.json")
         #expect(throws: JWEError.compressionNotSupported) {
             try SimpleJWE.Encrypted(compact: try compressed.string("output", "compact"))

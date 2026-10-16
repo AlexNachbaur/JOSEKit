@@ -115,14 +115,66 @@ struct JWETests {
 
         let rsa = try RSAPrivateKey()
         try await roundTrip(
-            try RSAOAEPEncrypter<RSAOAEP>(publicKey: rsa.publicKey),
-            try RSAOAEPDecrypter<RSAOAEP>(privateKey: rsa),
+            try RSAEncrypter<RSAOAEP>(publicKey: rsa.publicKey),
+            try RSADecrypter<RSAOAEP>(privateKey: rsa),
             A128CBCHS256.self
         )
         try await roundTrip(
-            try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey),
-            try RSAOAEPDecrypter<RSAOAEP256>(privateKey: rsa),
+            try RSAEncrypter<RSAOAEP256>(publicKey: rsa.publicKey),
+            try RSADecrypter<RSAOAEP256>(privateKey: rsa),
             A256GCM.self
+        )
+        try await roundTrip(
+            try RSAEncrypter<RSA15>(publicKey: rsa.publicKey),
+            try RSADecrypter<RSA15>(privateKey: rsa),
+            A128CBCHS256.self
+        )
+    }
+
+    /// RFC 7516 §11.5: with RSA1_5, a ciphertext whose padding is wrong, one that decrypts to a
+    /// key of the wrong size, a wrong key and a tampered tag must all be indistinguishable.
+    @Test("every RSA1_5 failure is the same error, whatever went wrong")
+    func rsa15FailsUniformly() async throws {
+        let rsa = try RSAPrivateKey()
+        let keys = DecryptionKeys([AnyKeyDecrypter(try RSADecrypter<RSA15>(privateKey: rsa))])
+        let sealed = try await SimpleJWE.encrypt(
+            Self.plaintext,
+            to: try RSAEncrypter<RSA15>(publicKey: rsa.publicKey),
+            using: A128CBCHS256.self
+        )
+        #expect(try await sealed.decrypt(with: keys).plaintext == Self.plaintext)
+        let parts = try sealed.compactSerialization().split(separator: ".", omittingEmptySubsequences: false)
+            .map(String.init)
+        func outcome(encryptedKey: Data? = nil, tag: Data? = nil) async throws -> JWEError? {
+            var altered = parts
+            if let encryptedKey {
+                altered[1] = Base64URL.encode(encryptedKey)
+            }
+            if let tag {
+                altered[4] = Base64URL.encode(tag)
+            }
+            let jwe = try SimpleJWE.Encrypted(compact: altered.joined(separator: "."))
+            return await thrown { () async throws(JWEError) in try await jwe.decrypt(with: keys) }
+        }
+
+        // Bad padding: one bit changed in the encrypted key.
+        var flipped = try Base64URL.decode(parts[1])
+        flipped[flipped.count - 1] ^= 0x01
+        #expect(try await outcome(encryptedKey: flipped) == .decryptionFailed)
+        // Valid padding around a key of the wrong size for A128CBC-HS256 (16 bytes, not 32).
+        let shortKey = try RSAEncryptionKey(publicKey: rsa.publicKey).encrypt(Data(count: 16), padding: .pkcs1v15)
+        #expect(try await outcome(encryptedKey: shortKey) == .decryptionFailed)
+        // Valid padding around a wrong key of the right size.
+        let wrongKey = try RSAEncryptionKey(publicKey: rsa.publicKey).encrypt(Data(count: 32), padding: .pkcs1v15)
+        #expect(try await outcome(encryptedKey: wrongKey) == .decryptionFailed)
+        // The right key, and a tampered tag.
+        var tag = try Base64URL.decode(parts[4])
+        tag[0] ^= 0x01
+        #expect(try await outcome(tag: tag) == .decryptionFailed)
+        // A key that is not this recipient's.
+        let stranger = DecryptionKeys([AnyKeyDecrypter(try RSADecrypter<RSA15>(privateKey: try RSAPrivateKey()))])
+        #expect(
+            await thrown { () async throws(JWEError) in try await sealed.decrypt(with: stranger) } == .decryptionFailed
         )
     }
 
@@ -173,11 +225,11 @@ struct JWETests {
         let rsa = try RSAPrivateKey()
         let sealed = try await SimpleJWE.encrypt(
             Self.plaintext,
-            to: try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey),
+            to: try RSAEncrypter<RSAOAEP256>(publicKey: rsa.publicKey),
             using: A256GCM.self
         )
-        let right = DecryptionKeys([AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: rsa))])
-        let wrong = DecryptionKeys([AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try RSAPrivateKey()))])
+        let right = DecryptionKeys([AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: rsa))])
+        let wrong = DecryptionKeys([AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: try RSAPrivateKey()))])
         #expect(try await sealed.decrypt(with: right).plaintext == Self.plaintext)
         #expect(
             await thrown { () async throws(JWEError) in try await sealed.decrypt(with: wrong) } == .decryptionFailed
@@ -457,7 +509,7 @@ struct JWETests {
         let ec = try ECPrivateKey<P256Curve>()
         let shared = secret(32)
         let recipients = [
-            AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey, keyID: "rsa")),
+            AnyKeyEncrypter(try RSAEncrypter<RSAOAEP256>(publicKey: rsa.publicKey, keyID: "rsa")),
             AnyKeyEncrypter(ECDHESEncrypter<ECDHESA256KW>(recipient: ec.publicKey, keyID: "ec")),
             AnyKeyEncrypter(try AESGCMKeyWrapEncrypter<A256GCMKW>(key: shared, keyID: "shared")),
         ]
@@ -493,7 +545,7 @@ struct JWETests {
 
         let parsed = try SimpleJWE.Encrypted(json: try sealed.generalJSONSerialization())
         let decrypters = [
-            AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: rsa)),
+            AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: rsa)),
             AnyKeyDecrypter(ECDHESDecrypter<ECDHESA256KW, ECPrivateKey<P256Curve>>(privateKey: ec)),
             AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: shared)),
         ]
@@ -988,17 +1040,17 @@ struct JWETests {
         }
 
         #expect(
-            try RSAOAEPEncrypter<RSAOAEP256>(jwk: JWK(rsa, metadata: JWKMetadata(keyID: "r", use: .encryption))).keyID
+            try RSAEncrypter<RSAOAEP256>(jwk: JWK(rsa, metadata: JWKMetadata(keyID: "r", use: .encryption))).keyID
                 == "r"
         )
         #expect(throws: JWKError.useNotPermitted(use: "sig", required: "enc")) {
-            try RSAOAEPEncrypter<RSAOAEP256>(jwk: JWK(rsa, metadata: JWKMetadata(use: .signature)))
+            try RSAEncrypter<RSAOAEP256>(jwk: JWK(rsa, metadata: JWKMetadata(use: .signature)))
         }
         #expect(throws: JWKError.algorithmMismatch(keyAlgorithm: "RSA-OAEP", required: "RSA-OAEP-256")) {
-            try RSAOAEPEncrypter<RSAOAEP256>(jwk: JWK(rsa, metadata: JWKMetadata(algorithm: "RSA-OAEP")))
+            try RSAEncrypter<RSAOAEP256>(jwk: JWK(rsa, metadata: JWKMetadata(algorithm: "RSA-OAEP")))
         }
         #expect(throws: JWKError.keyTypeMismatch(expected: "RSA", found: "EC")) {
-            try RSAOAEPEncrypter<RSAOAEP256>(jwk: JWK(ec))
+            try RSAEncrypter<RSAOAEP256>(jwk: JWK(ec))
         }
     }
 
@@ -1087,6 +1139,16 @@ struct JWETests {
         // Each key suits one algorithm; the signing key suits none.
         #expect(keys.decrypters.map(\.keyID) == ["ec", "rsa"])
         #expect(keys.algorithms == ["ECDH-ES+A256KW", "RSA-OAEP-256"])
+        // RSA1_5 is offered only when it is listed, and never for a key whose alg names another.
+        #expect(
+            DecryptionKeys(jwks: [rsaJWK], allowing: [RSAOAEP256.self, RSA15.self]).algorithms == [
+                "RSA-OAEP-256", "RSA1_5",
+            ]
+        )
+        let oaepOnly = PrivateJWK(.rsa(rsa), metadata: JWKMetadata(algorithm: "RSA-OAEP-256"))
+        #expect(
+            DecryptionKeys(jwks: [oaepOnly], allowing: [RSAOAEP256.self, RSA15.self]).algorithms == ["RSA-OAEP-256"]
+        )
 
         let toEC = try await SimpleJWE.encrypt(
             Self.plaintext,
@@ -1096,16 +1158,16 @@ struct JWETests {
         #expect(try await toEC.decrypt(with: keys).plaintext == Self.plaintext)
         let toRSA = try await SimpleJWE.encrypt(
             Self.plaintext,
-            to: try RSAOAEPEncrypter<RSAOAEP256>(publicKey: rsa.publicKey, keyID: "rsa"),
+            to: try RSAEncrypter<RSAOAEP256>(publicKey: rsa.publicKey, keyID: "rsa"),
             using: A256GCM.self
         )
         #expect(try await toRSA.decrypt(with: keys).plaintext == Self.plaintext)
 
         #expect(throws: JWKError.keyOperationNotPermitted(operations: ["sign"], required: "unwrapKey")) {
-            try RSAOAEPDecrypter<RSAOAEP>(jwk: PrivateJWK(.rsa(rsa), metadata: JWKMetadata(keyOperations: [.sign])))
+            try RSADecrypter<RSAOAEP>(jwk: PrivateJWK(.rsa(rsa), metadata: JWKMetadata(keyOperations: [.sign])))
         }
         #expect(throws: JWKError.keyTypeMismatch(expected: "RSA", found: "EC")) {
-            try RSAOAEPDecrypter<RSAOAEP>(jwk: ecJWK)
+            try RSADecrypter<RSAOAEP>(jwk: ecJWK)
         }
         #expect(throws: JWKError.keyTypeMismatch(expected: "EC or OKP X25519", found: "RSA")) {
             try ECDHES.decrypter(for: PrivateJWK(.rsa(rsa)))
@@ -1337,7 +1399,7 @@ struct JWETests {
             DirectDecrypter(key: secret(32))
             try AESKeyWrapDecrypter<A256KW>(key: secret(32), keyID: "a")
             if includeRSA {
-                try RSAOAEPDecrypter<RSAOAEP>(privateKey: try RSAPrivateKey())
+                try RSADecrypter<RSAOAEP>(privateKey: try RSAPrivateKey())
             }
             for keyID in ["x", "y"] {
                 try AESGCMKeyWrapDecrypter<A128GCMKW>(key: secret(16), keyID: KeyID(rawValue: keyID))

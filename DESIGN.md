@@ -348,6 +348,11 @@ These were made after the packages were built. Where they conflict with anything
 | D16 | Secure Enclave (amends D7) | A keychain store, `SecureEnclaveKeyStore`, is included alongside the signer. |
 | D17 | Naming | JWE key types are named for their role, `…Encrypter` and `…Decrypter`, symmetric and asymmetric alike. The common generic forms have `Simple…` typealiases (`SimpleJWS`, `SimpleJWE`, `SimpleJWT`, `SimpleEncryptedJWT`, `SimpleNestedJWT`). |
 | D18 | Header key sources | `jku` and `x5c` are optional and overridable: each is used only when the caller supplies a provider or validator, through `HeaderKeyResolver`. |
+| D19 | Name and license | The package is **JOSEKit**, MIT-licensed. Module names keep the `JOSE` prefix. |
+| D20 | Parity with jose-swift | JOSEKit covers what beatt83/jose-swift does, except where listed here: RSA1_5, `zip`, PEM import, ES256K and secp256k1, and `x5c` validation on every platform are added. ECDH-1PU, C20P and XC20P (expired drafts) are not. Ed448 and X448 are not (jose-swift declares but does not implement them, and CryptoKit has neither). This supersedes D11's "`zip: DEF` no" and the earlier exclusion of RSA1_5. |
+| D21 | RSA1_5 | Implemented with the countermeasures of RFC 7516 §11.5: a failed unwrap continues with a random key, so a padding failure and an authentication failure are the same `.decryptionFailed`. Used only when a caller builds an RSA1_5 encrypter or decrypter; nothing selects it otherwise. |
+| D22 | Dependencies for parity | Each lives in its own product so that only applications using the feature build it: `swift-secp256k1` (ES256K, secp256k1 keys) in `JOSESecp256k1`; Apple's `swift-certificates` (cross-platform `x5c` validation) in `JOSEX509`. `zip` uses Apple's Compression framework on Apple platforms and the system zlib elsewhere, producing raw DEFLATE (RFC 1951) as RFC 7516 §4.1.3 requires, with a limit on decompressed size, and only from the protected header. PEM import extends JOSEJWK's own DER reader and adds no dependency. |
+| D23 | Test vectors | The JOSE cookbook (RFC 7520, RFC 7797, RFC 8037 examples) is vendored unmodified. Vectors that exist only as RFC text are not transcribed. |
 
 ## 6. Proposed order once approved
 

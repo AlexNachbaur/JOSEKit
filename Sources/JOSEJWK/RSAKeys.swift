@@ -261,9 +261,8 @@ public struct RSAVerifier<Algorithm: RSASignatureAlgorithm>: Verifier {
 
 // MARK: - Encryption
 
-/// Encrypts short messages (in JOSE, a content encryption key) to an RSA public key with
-/// RSAES-OAEP.
-public struct RSAOAEPEncryptionKey: Sendable {
+/// Encrypts short messages (in JOSE, a content encryption key) to an RSA public key.
+public struct RSAEncryptionKey: Sendable {
     public let publicKey: RSAPublicKey
     private let key: RSABackendPublicKey
 
@@ -272,13 +271,13 @@ public struct RSAOAEPEncryptionKey: Sendable {
         self.publicKey = publicKey
     }
 
-    public func encrypt(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
-        try key.encryptOAEP(plaintext, hash: hash)
+    public func encrypt(_ plaintext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
+        try key.encrypt(plaintext, padding: padding)
     }
 }
 
-/// Decrypts RSAES-OAEP ciphertexts with an RSA private key.
-public struct RSAOAEPDecryptionKey: Sendable {
+/// Decrypts RSA ciphertexts with an RSA private key.
+public struct RSADecryptionKey: Sendable {
     public let publicKey: RSAPublicKey
     private let key: RSABackendPrivateKey
 
@@ -288,8 +287,9 @@ public struct RSAOAEPDecryptionKey: Sendable {
     }
 
     /// Fails with ``JWKError/rsaDecryptionFailed`` for any ciphertext that does not decrypt
-    /// under this key, without saying why.
-    public func decrypt(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
-        try key.decryptOAEP(ciphertext, hash: hash)
+    /// under this key, without saying why. With ``RSAEncryptionPadding/pkcs1v15`` on Apple
+    /// platforms, an invalid ciphertext instead returns pseudo-random bytes; see that case.
+    public func decrypt(_ ciphertext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
+        try key.decrypt(ciphertext, padding: padding)
     }
 }

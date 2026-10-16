@@ -113,9 +113,9 @@ func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> An
     case "ECDH-ES+A256KW":
         return AnyKeyEncrypter(try ECDHESEncrypter<ECDHESA256KW>(jwk: try publicKey()))
     case "RSA-OAEP":
-        return AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP>(jwk: try publicKey()))
+        return AnyKeyEncrypter(try RSAEncrypter<RSAOAEP>(jwk: try publicKey()))
     case "RSA-OAEP-256":
-        return AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP256>(jwk: try publicKey()))
+        return AnyKeyEncrypter(try RSAEncrypter<RSAOAEP256>(jwk: try publicKey()))
     case "PBES2-HS256+A128KW":
         return AnyKeyEncrypter(
             try PBES2Encrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
@@ -184,9 +184,9 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "ECDH-ES+A256KW":
         return try ecdhDecrypter(ECDHESA256KW.self, try PrivateJWK(json: json))
     case "RSA-OAEP":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP>(privateKey: try rsa()))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP>(privateKey: try rsa()))
     case "RSA-OAEP-256":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try rsa()))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: try rsa()))
     case "PBES2-HS256+A128KW":
         return AnyKeyDecrypter(PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation))
     case "PBES2-HS384+A192KW":

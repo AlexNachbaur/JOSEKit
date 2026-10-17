@@ -80,7 +80,32 @@ async function challenge(file) {
         multiple.push({ algorithm: setup.alg, encryption: 'A256CBC-HS512', jwk: JSON.stringify(keys.encryptJwk), decryptJwk: JSON.stringify(keys.decryptJwk) });
     }
 
-    fs.writeFileSync(file, JSON.stringify({ plaintext: plaintext.toString('hex'), additionalData: additionalData.toString('hex'), encrypt, multiple, decrypt }));
+    // Compression (zip: DEF): one key both sides use, a plaintext that compresses well, and JWEs
+    // jose compressed for this package to open. The second expands past the default limit both
+    // implementations share (250 000 bytes), so both should refuse it.
+    const zipKey = crypto.randomBytes(32);
+    const zipPlaintext = Buffer.from('the quick brown fox jumps over the lazy dog. '.repeat(100));
+    const zipTokens = [];
+    for (const content of [zipPlaintext, Buffer.alloc(300_000)]) {
+        const token = await new CompactEncrypt(content)
+            .setProtectedHeader({ alg: 'A256KW', enc: 'A256GCM', zip: 'DEF' })
+            .encrypt(zipKey);
+        let expected;
+        try {
+            const result = await compactDecrypt(token, zipKey);
+            expected = { accepted: true, plaintext: Buffer.from(result.plaintext).toString('hex') };
+        } catch {
+            expected = { accepted: false };
+        }
+        zipTokens.push({ token, expected });
+    }
+    const compression = {
+        jwk: JSON.stringify({ kty: 'oct', k: base64url.encode(zipKey) }),
+        plaintext: zipPlaintext.toString('hex'),
+        tokens: zipTokens,
+    };
+
+    fs.writeFileSync(file, JSON.stringify({ plaintext: plaintext.toString('hex'), additionalData: additionalData.toString('hex'), encrypt, multiple, decrypt, compression }));
 }
 
 async function verify(challengeFile, responseFile) {
@@ -163,6 +188,24 @@ async function verify(challengeFile, responseFile) {
         }
     }
     check('challenge has both outcomes', '', (counts['Swift decrypts what jose decrypts'] ?? 0) > 0 && (counts['Swift refuses what jose refuses'] ?? 0) > 0, '');
+
+    // Compression, both ways.
+    const zipKey = base64url.decode(JSON.parse(challenge.compression.jwk).k);
+    try {
+        const result = await compactDecrypt(response.compressed, zipKey);
+        check('compressed JWE decrypted by jose', '', Buffer.from(result.plaintext).toString('hex') === challenge.compression.plaintext, 'plaintext differs');
+        check('compressed JWE header', '', result.protectedHeader.zip === 'DEF', JSON.stringify(result.protectedHeader));
+        const ciphertextLength = base64url.decode(response.compressed.split('.')[3]).length;
+        check('compressed JWE is smaller', '', ciphertextLength < challenge.compression.plaintext.length / 2 / 4, `${ciphertextLength}`);
+    } catch (error) {
+        check('compressed JWE decrypted by jose', '', false, `jose could not decrypt it: ${error.code ?? error.name}: ${error.message}`);
+    }
+    check('compressed outcome count', '', response.compressedOutcomes.length === challenge.compression.tokens.length, `${response.compressedOutcomes.length}`);
+    for (const [index, item] of challenge.compression.tokens.entries()) {
+        const outcome = response.compressedOutcomes[index] ?? {};
+        check('Swift agrees with jose on compressed JWEs', `[${index}]`, outcome.accepted === item.expected.accepted && (outcome.plaintext ?? null) === (item.expected.plaintext ?? null), JSON.stringify(outcome));
+    }
+    check('compressed challenge has both outcomes', '', challenge.compression.tokens.some((item) => item.expected.accepted) && challenge.compression.tokens.some((item) => !item.expected.accepted), '');
 
     for (const [section, count] of Object.entries(counts)) {
         console.log(`${section}: ${count} checked`);

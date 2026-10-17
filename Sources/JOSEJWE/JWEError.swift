@@ -31,9 +31,9 @@ public enum JWEError: Error, Sendable, Equatable {
     case headerParameterNotProtected(name: String)
     case invalidCritical(reason: String)
     case unsupportedCriticalParameter(name: String)
-    /// The JWE uses `zip`. Compression is not supported: it lets a small ciphertext expand into
-    /// an arbitrarily large plaintext and leaks plaintext through its length (RFC 8725 §3.6).
-    case compressionNotSupported
+    /// The JWE's `zip` names a compression this package does not implement. `DEF` is the only
+    /// one RFC 7516 defines.
+    case unsupportedCompression(algorithm: String)
     case invalidCustomParameters(description: String)
     /// The `jwk` header parameter is not a valid public JWK.
     case invalidJWKParameter(JWKError)
@@ -50,6 +50,16 @@ public enum JWEError: Error, Sendable, Equatable {
     case saltTooShort(algorithm: AlgorithmIdentifier, minimum: Int, found: Int)
 
     // MARK: Decryption
+
+    /// The JWE is compressed, and the decryption was asked to accept no compressed content
+    /// (`maximumDecompressedByteCount` of 0).
+    case compressionNotAllowed
+    /// The decompressed plaintext would be larger than the decryption allows. Decompression
+    /// stopped at the limit.
+    case decompressedSizeExceedsLimit(maximum: Int)
+    /// The decrypted content is not valid raw DEFLATE. The ciphertext authenticated, so this is
+    /// a fault of whoever made the JWE, not an attack on the key.
+    case invalidCompressedContent
 
     /// The JWE's `enc` is not among the content encryption algorithms the caller allows.
     case unsupportedContentEncryption(algorithm: AlgorithmIdentifier, allowed: [AlgorithmIdentifier])
@@ -125,8 +135,14 @@ extension JWEError: CustomStringConvertible {
             return "JWE \"crit\" header parameter is invalid: \(reason)"
         case .unsupportedCriticalParameter(let name):
             return "JWE marks header parameter \"\(name)\" as critical, and it is not understood"
-        case .compressionNotSupported:
-            return "JWE uses \"zip\"; compressed JWEs are not supported"
+        case .unsupportedCompression(let algorithm):
+            return "JWE \"zip\" is \(algorithm); only DEF is supported"
+        case .compressionNotAllowed:
+            return "JWE is compressed, and this decryption accepts no compressed content"
+        case .decompressedSizeExceedsLimit(let maximum):
+            return "JWE decompressed plaintext is larger than the \(maximum) bytes allowed"
+        case .invalidCompressedContent:
+            return "JWE decrypted content is not valid raw DEFLATE"
         case .invalidCustomParameters(let description):
             return "JWE header could not be decoded as the custom header type: \(description)"
         case .invalidJWKParameter(let error):

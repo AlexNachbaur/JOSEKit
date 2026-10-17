@@ -266,7 +266,8 @@ struct CounterpartTests {
             try await outcome("alg changed to dir with the wrapping key") == .encryptedKeyNotEmpty(algorithm: "dir")
         )
         #expect(try await outcome("dir with a non-empty encrypted key") == .encryptedKeyNotEmpty(algorithm: "dir"))
-        #expect(try await outcome("zip DEF") == .compressionNotSupported)
+        // zip is supported, so adding it to an existing token is just another altered header.
+        #expect(try await outcome("zip DEF") == .decryptionFailed)
         #expect(
             try await outcome("crit names an unknown extension") == .unsupportedCriticalParameter(name: "urn:example:x")
         )

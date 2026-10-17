@@ -286,6 +286,45 @@ struct EncryptedJWTTests {
         }
     }
 
+    @Test("an encrypted JWT can be compressed, and its decryption honours the decompressed size limit")
+    func compressedEncryptedJWT() async throws {
+        let secret = SymmetricKeyMaterial(randomByteCount: 32)
+        let keys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: secret))])
+        var claims = JWTClaims(
+            issuer: "https://issuer.example",
+            audience: Audience("https://api.example"),
+            expiration: NumericDate(Self.now.addingTimeInterval(60))
+        )
+        claims.additionalClaims["padding"] = .string(String(repeating: "x", count: 2_000))
+        let token = try await SimpleEncryptedJWT.encrypt(
+            claims,
+            to: try AESKeyWrapEncrypter<A256KW>(key: secret),
+            using: A256GCM.self,
+            header: JWEHeaderParameters(type: "JWT", compression: .deflate)
+        )
+        let encrypted = try SimpleEncryptedJWT.Encrypted(compact: token)
+        #expect(encrypted.header.compression == .deflate)
+        let validated = try await encrypted.decrypt(with: keys).validate(policy())
+        #expect(validated.claims.issuer == "https://issuer.example")
+        await #expect(throws: EncryptedJWTError.jwe(.decompressedSizeExceedsLimit(maximum: 1_000))) {
+            try await encrypted.decrypt(with: keys, maximumDecompressedByteCount: 1_000)
+        }
+
+        // A nested JWT passes its limit through in the same way.
+        let signer = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>())
+        let nested = try await SimpleJWE.encrypt(
+            Data(try await SimpleJWT.sign(claims, with: signer).utf8),
+            to: try AESKeyWrapEncrypter<A256KW>(key: secret),
+            using: A256GCM.self,
+            header: JWEHeaderParameters(contentType: "JWT", compression: .deflate)
+        ).compactSerialization()
+        let outer = try SimpleNestedJWT.Encrypted(compact: nested)
+        _ = try await outer.decrypt(with: keys)
+        await #expect(throws: EncryptedJWTError.jwe(.compressionNotAllowed)) {
+            try await outer.decrypt(with: keys, maximumDecompressedByteCount: 0)
+        }
+    }
+
     @Test("an encrypted JWT cannot claim to be nested, and a nested one cannot be read as plain")
     func contentTypeRules() async throws {
         let secret = SymmetricKeyMaterial(randomByteCount: 32)

@@ -17,6 +17,7 @@ struct EncryptionVectorTests {
         "jwe/5_6.direct_encryption_using_aes-gcm.json",
         "jwe/5_7.key_wrap_using_aes-gcm_keywrap_with_aes-cbc-hmac-sha2.json",
         "jwe/5_8.key_wrap_using_aes-keywrap_with_aes-gcm.json",
+        "jwe/5_9.compressed_content.json",
         "jwe/5_10.including_additional_authentication_data.json",
         "jwe/5_11.protecting_specific_header_fields.json",
         "jwe/5_12.protecting_content_only.json",
@@ -128,8 +129,13 @@ struct EncryptionVectorTests {
             } else {
                 key = try SymmetricJWK(json: try vector.value("input", "key").json).key.rawRepresentation
             }
+            // §5.9 encrypts the compressed plaintext, which it records.
+            var content = Data(try vector.string("input", "plaintext").utf8)
+            if vector.has("generated", "plaintext_c") {
+                content = try vector.bytes("generated", "plaintext_c")
+            }
             let (ciphertext, tag) = try encryption.encrypt(
-                Data(try vector.string("input", "plaintext").utf8),
+                content,
                 key: key,
                 initializationVector: try vector.bytes("generated", "iv"),
                 additionalAuthenticatedData: try authenticatedData(vector)
@@ -177,15 +183,27 @@ struct EncryptionVectorTests {
         }
     }
 
-    // MARK: Not yet supported
+    // MARK: Compression
 
-    /// RFC 7520 §5.9 uses `zip`, which this package does not implement yet. This records how it
-    /// is refused today; it changes when support is added.
-    @Test("the compressed example is refused, naming what is unsupported")
-    func unsupported() async throws {
-        let compressed = try Vector("jwe/5_9.compressed_content.json")
-        #expect(throws: JWEError.compressionNotSupported) {
-            try SimpleJWE.Encrypted(compact: try compressed.string("output", "compact"))
+    /// RFC 7520 §5.9's compressed plaintext comes from another implementation's DEFLATE, so
+    /// decompressing it checks that this package reads raw DEFLATE (RFC 1951), not zlib.
+    @Test("RFC 7520 §5.9: the compressed plaintext is raw DEFLATE, and decompresses to the plaintext")
+    func compressedContent() async throws {
+        let vector = try Vector("jwe/5_9.compressed_content.json")
+        let plaintext = Data(try vector.string("input", "plaintext").utf8)
+        let compressed = try vector.bytes("generated", "plaintext_c")
+        #expect(try Deflate.decompress(compressed, limit: plaintext.count) == plaintext)
+        #expect(throws: DeflateError.tooLarge) { try Deflate.decompress(compressed, limit: plaintext.count - 1) }
+
+        let jwe = try SimpleJWE.Encrypted(compact: try vector.string("output", "compact"))
+        #expect(jwe.header.compression == .deflate)
+        let keys = DecryptionKeys([try VectorKeys.decrypter(algorithm: "A128KW", key: try vector.value("input", "key"))]
+        )
+        await #expect(throws: JWEError.decompressedSizeExceedsLimit(maximum: 100)) {
+            try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100)
+        }
+        await #expect(throws: JWEError.compressionNotAllowed) {
+            try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 0)
         }
     }
 }

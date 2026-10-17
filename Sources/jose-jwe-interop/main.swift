@@ -31,6 +31,18 @@ struct Challenge: Decodable {
     let multiple: [EncryptCase]
     /// JWEs made by the counterpart, some intact and some not, for this package to open.
     let decrypt: [DecryptCase]
+
+    /// Compression (`zip: DEF`): a shared A256KW key, a plaintext for this package to compress,
+    /// and JWEs the counterpart compressed for this package to open.
+    struct Compression: Decodable {
+        struct Token: Decodable {
+            let token: String
+        }
+        let jwk: String
+        let plaintext: String
+        let tokens: [Token]
+    }
+    let compression: Compression
 }
 
 struct Response: Encodable {
@@ -47,6 +59,9 @@ struct Response: Encodable {
     var produced: [Produced] = []
     var multiple = ""
     var outcomes: [Outcome] = []
+    /// The compression plaintext, compressed and encrypted by this package.
+    var compressed = ""
+    var compressedOutcomes: [Outcome] = []
 }
 
 struct InteropError: Error, CustomStringConvertible {
@@ -304,6 +319,23 @@ for item in challenge.decrypt {
         response.outcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
     } catch is JWEError {
         response.outcomes.append(Response.Outcome(accepted: false, plaintext: nil))
+    }
+}
+
+let zipKey = try SymmetricJWK(json: Data(challenge.compression.jwk.utf8))
+response.compressed = try await SimpleJWE.encrypt(
+    try bytes(fromHex: challenge.compression.plaintext),
+    to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
+    using: A256GCM.self,
+    header: JWEHeaderParameters(compression: .deflate)
+).compactSerialization()
+let zipKeys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: zipKey))])
+for item in challenge.compression.tokens {
+    do {
+        let decrypted = try await SimpleJWE.Encrypted(compact: item.token).decrypt(with: zipKeys)
+        response.compressedOutcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
+    } catch {
+        response.compressedOutcomes.append(Response.Outcome(accepted: false, plaintext: nil))
     }
 }
 

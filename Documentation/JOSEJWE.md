@@ -20,7 +20,26 @@ random key and ends in the same `.decryptionFailed` as any other failure (RFC 75
 used only when you build an `RSAEncrypter<RSA15>` or `RSADecrypter<RSA15>`, or list `RSA15` in
 `DecryptionKeys(jwks:allowing:)`. Prefer `RSA-OAEP-256`.
 
-Not implemented yet: `zip`.
+Compression (`zip`): `DEF`, raw DEFLATE, using the system zlib.
+
+## Compression
+
+```swift
+let sealed = try await SimpleJWE.encrypt(
+    plaintext,
+    to: recipient,
+    using: A256GCM.self,
+    header: JWEHeaderParameters(compression: .deflate)
+)
+let decrypted = try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100_000)
+```
+
+`zip` is always written to, and only accepted from, the protected header (RFC 7516 §4.1.3).
+Decryption refuses a plaintext that decompresses to more than `maximumDecompressedByteCount`
+bytes (250 000 by default, as panva/jose), stopping as soon as the limit is passed, so a small
+token cannot expand without bound. A limit of 0 refuses compressed JWEs before any cryptography
+is done. Compressing secrets together with text an attacker chooses can reveal the secrets
+through the ciphertext's length, so leave compression off unless the plaintext is all yours.
 
 ## Encrypting
 

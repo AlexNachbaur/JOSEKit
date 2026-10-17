@@ -65,8 +65,15 @@ let package = Package(
         ),
         .target(
             name: "JOSEJWE",
-            dependencies: ["JOSECore", "JOSEJWK", crypto, cryptoExtras],
+            dependencies: ["JOSECore", "JOSEJWK", "CZlib", crypto, cryptoExtras],
             swiftSettings: swiftSettings
+        ),
+        // The system zlib, for JWE compression (`zip`), on every platform. No pkg-config lookup:
+        // on a Mac it can pick up a Homebrew zlib in place of the SDK's, which breaks builds for
+        // other Apple platforms.
+        .systemLibrary(
+            name: "CZlib",
+            providers: [.apt(["zlib1g-dev"]), .yum(["zlib-devel"])]
         ),
         .target(
             name: "JOSEJWT",

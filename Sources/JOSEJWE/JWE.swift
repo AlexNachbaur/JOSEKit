@@ -95,15 +95,29 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         ///     names.
         ///   - contentEncryptions: The `enc` algorithms to accept. Defaults to those this package
         ///     implements.
+        ///   - maximumDecompressedByteCount: For a compressed JWE (`zip`), the largest plaintext
+        ///     accepted after decompression. 0 or less refuses compressed JWEs before any
+        ///     cryptography is done.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard,
+            maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(JWEError) -> Decrypted {
             var failures: [JWEError] = []
             for recipient in recipients {
-                do {
+                do throws(JWEError) {
                     let recipient = try recipient.get()
-                    let plaintext = try await decrypt(recipient, with: keys, contentEncryptions: contentEncryptions)
+                    if recipient.header.compression != nil {
+                        guard maximumDecompressedByteCount > 0 else {
+                            throw JWEError.compressionNotAllowed
+                        }
+                    }
+                    let decrypted = try await decrypt(recipient, with: keys, contentEncryptions: contentEncryptions)
+                    let plaintext = try Self.decompress(
+                        decrypted,
+                        compression: recipient.header.compression,
+                        limit: maximumDecompressedByteCount
+                    )
                     var additionalData: Data?
                     if let additionalDataEncoded {
                         additionalData = try JWEJSON.decodeBase64URL(additionalDataEncoded, part: "aad")
@@ -121,6 +135,27 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
                 throw failures[0]
             }
             throw .noRecipientDecrypted(reasons: failures)
+        }
+
+        /// The plaintext of an authenticated JWE, decompressed if its header says so.
+        private static func decompress(
+            _ content: Data,
+            compression: JWECompression?,
+            limit: Int
+        ) throws(JWEError) -> Data {
+            guard compression != nil else {
+                return content
+            }
+            do {
+                return try Deflate.decompress(content, limit: limit)
+            } catch {
+                switch error {
+                case .tooLarge:
+                    throw .decompressedSizeExceedsLimit(maximum: limit)
+                case .malformed, .failed:
+                    throw .invalidCompressedContent
+                }
+            }
         }
 
         private func decrypt(
@@ -339,8 +374,17 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             tag: Data(),
             additionalDataEncoded: additionalDataEncoded
         )
+        // `zip` is in the protected header, so it is authenticated along with the content.
+        var content = plaintext
+        if header.compression == .deflate {
+            do {
+                content = try Deflate.compress(plaintext)
+            } catch {
+                throw .contentEncryptionFailed(description: "compression failed")
+            }
+        }
         let (ciphertext, tag) = try Encryption.encrypt(
-            plaintext,
+            content,
             key: contentKey,
             initializationVector: initializationVector,
             additionalAuthenticatedData: sealed.authenticatedData

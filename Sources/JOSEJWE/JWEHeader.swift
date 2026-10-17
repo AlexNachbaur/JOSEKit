@@ -2,6 +2,18 @@ import Foundation
 import JOSECore
 import JOSEJWK
 
+/// How the plaintext is compressed before encryption, the `zip` header parameter
+/// (RFC 7516 §4.1.3).
+public enum JWECompression: String, Sendable, Equatable {
+    /// Raw DEFLATE (RFC 1951), `zip` value `DEF`.
+    case deflate = "DEF"
+
+    /// The largest decompressed plaintext a decryption accepts by default, in bytes. The same as
+    /// panva/jose's default. Compression lets a small token expand into a large plaintext, so a
+    /// decryption refuses anything larger.
+    public static let defaultMaximumDecompressedByteCount = 250_000
+}
+
 /// The header parameters a caller may set. `alg`, `enc`, `crit` and the parameters a key
 /// management algorithm adds (`epk`, `iv`, `tag`, ...) are not among them.
 public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
@@ -25,6 +37,11 @@ public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
     public var x509CertificateSHA1Thumbprint: String?
     /// `x5t#S256`
     public var x509CertificateSHA256Thumbprint: String?
+    /// `zip`: compress the plaintext before encrypting it. Always written to the protected
+    /// header, as RFC 7516 §4.1.3 requires. Compressing secrets alongside data an attacker
+    /// controls can reveal them through the ciphertext's length (as in CRIME), so leave this off
+    /// unless the plaintext is entirely yours.
+    public var compression: JWECompression?
     public var custom: Custom
 
     public init(
@@ -37,6 +54,7 @@ public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
         x509CertificateChain: [String]? = nil,
         x509CertificateSHA1Thumbprint: String? = nil,
         x509CertificateSHA256Thumbprint: String? = nil,
+        compression: JWECompression? = nil,
         custom: Custom
     ) {
         self.keyID = keyID
@@ -48,6 +66,7 @@ public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
         self.x509CertificateChain = x509CertificateChain
         self.x509CertificateSHA1Thumbprint = x509CertificateSHA1Thumbprint
         self.x509CertificateSHA256Thumbprint = x509CertificateSHA256Thumbprint
+        self.compression = compression
         self.custom = custom
     }
 }
@@ -62,7 +81,8 @@ extension JWEHeaderParameters where Custom == EmptyHeaderParameters {
         x509URL: String? = nil,
         x509CertificateChain: [String]? = nil,
         x509CertificateSHA1Thumbprint: String? = nil,
-        x509CertificateSHA256Thumbprint: String? = nil
+        x509CertificateSHA256Thumbprint: String? = nil,
+        compression: JWECompression? = nil
     ) {
         self.init(
             keyID: keyID,
@@ -74,6 +94,7 @@ extension JWEHeaderParameters where Custom == EmptyHeaderParameters {
             x509CertificateChain: x509CertificateChain,
             x509CertificateSHA1Thumbprint: x509CertificateSHA1Thumbprint,
             x509CertificateSHA256Thumbprint: x509CertificateSHA256Thumbprint,
+            compression: compression,
             custom: EmptyHeaderParameters()
         )
     }
@@ -104,6 +125,11 @@ public struct JWEHeader<Custom: HeaderParameters>: Sendable {
 
     public var contentType: MediaType? {
         parameters.contentType
+    }
+
+    /// `zip`, always from the protected header.
+    public var compression: JWECompression? {
+        parameters.compression
     }
 
     public var custom: Custom {
@@ -175,9 +201,7 @@ extension JWEHeader {
             }
         }
 
-        guard values["zip"] == nil else {
-            throw .compressionNotSupported
-        }
+        let compression = try parseCompression(in: values, unprotectedNames: unprotectedNames)
         guard let algorithm = try string("alg", in: values) else {
             throw .missingAlgorithm
         }
@@ -215,6 +239,7 @@ extension JWEHeader {
         parameters.x509CertificateChain = try stringArray("x5c", in: values)
         parameters.x509CertificateSHA1Thumbprint = try string("x5t", in: values)
         parameters.x509CertificateSHA256Thumbprint = try string("x5t#S256", in: values)
+        parameters.compression = compression
         return JWEHeader(
             algorithm: AlgorithmIdentifier(rawValue: algorithm),
             contentEncryption: AlgorithmIdentifier(rawValue: contentEncryption),
@@ -233,6 +258,24 @@ extension JWEHeader {
             throw .headerParameterWrongType(name: name, expected: "a string")
         }
         return string
+    }
+
+    /// The `zip` parameter, which must be protected (RFC 7516 §4.1.3) and must name a compression
+    /// this package implements.
+    private static func parseCompression(
+        in values: [String: JSONValue],
+        unprotectedNames: Set<String>
+    ) throws(JWEError) -> JWECompression? {
+        guard let name = try string("zip", in: values) else {
+            return nil
+        }
+        guard !unprotectedNames.contains("zip") else {
+            throw .headerParameterNotProtected(name: "zip")
+        }
+        guard let compression = JWECompression(rawValue: name) else {
+            throw .unsupportedCompression(algorithm: name)
+        }
+        return compression
     }
 
     private static func stringArray(_ name: String, in values: [String: JSONValue]) throws(JWEError) -> [String]? {
@@ -342,6 +385,9 @@ extension JWEHeaderParameters {
         }
         if let contentType {
             values["cty"] = .string(contentType.rawValue)
+        }
+        if let compression {
+            values["zip"] = .string(compression.rawValue)
         }
         if let jwk {
             do {

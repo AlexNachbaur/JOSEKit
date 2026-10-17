@@ -90,13 +90,21 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
         }
 
         /// Decrypts the token. The result's claims have still not been validated.
+        ///
+        /// - Parameter maximumDecompressedByteCount: For a compressed token (`zip`), the largest
+        ///   claims set accepted after decompression; 0 or less refuses compressed tokens.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard,
+            maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(EncryptedJWTError) -> Decrypted {
             let decrypted: JWE<Header>.Decrypted
             do {
-                decrypted = try await jwe.decrypt(with: keys, contentEncryptions: contentEncryptions)
+                decrypted = try await jwe.decrypt(
+                    with: keys,
+                    contentEncryptions: contentEncryptions,
+                    maximumDecompressedByteCount: maximumDecompressedByteCount
+                )
             } catch {
                 throw .jwe(error)
             }
@@ -221,13 +229,21 @@ public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: S
         }
 
         /// Decrypts the outer token and returns the signed JWT inside it, **unverified**.
+        ///
+        /// - Parameter maximumDecompressedByteCount: For a compressed token (`zip`), the largest
+        ///   inner token accepted after decompression; 0 or less refuses compressed tokens.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard,
+            maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(EncryptedJWTError) -> Decrypted {
             let decrypted: SimpleJWE.Decrypted
             do {
-                decrypted = try await jwe.decrypt(with: keys, contentEncryptions: contentEncryptions)
+                decrypted = try await jwe.decrypt(
+                    with: keys,
+                    contentEncryptions: contentEncryptions,
+                    maximumDecompressedByteCount: maximumDecompressedByteCount
+                )
             } catch {
                 throw .jwe(error)
             }

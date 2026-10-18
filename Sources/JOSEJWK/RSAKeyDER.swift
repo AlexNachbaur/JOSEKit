@@ -41,15 +41,15 @@ struct RSAKeyDER {
     }
 
     static func parsePublicKey(_ der: Data) throws(JWKError) -> (modulus: Data, exponent: Data) {
-        var reader = try Reader(sequence: der)
+        var reader = try DERReader.wholeSequence(der, "key")
         let modulus = try reader.readUnsignedInteger("modulus")
         let exponent = try reader.readUnsignedInteger("publicExponent")
-        try reader.finish()
+        try reader.finish("the last value")
         return (modulus, exponent)
     }
 
     static func parsePrivateKey(_ der: Data) throws(JWKError) -> RSAPrivateKeyComponents {
-        var reader = try Reader(sequence: der)
+        var reader = try DERReader.wholeSequence(der, "key")
         let version = try reader.readUnsignedInteger("version")
         guard version == Data([0x00]) else {
             // Version 1 means more than two primes, which RFC 7518 expresses with "oth".
@@ -65,7 +65,7 @@ struct RSAKeyDER {
             exponent2: try reader.readUnsignedInteger("exponent2"),
             coefficient: try reader.readUnsignedInteger("coefficient")
         )
-        try reader.finish()
+        try reader.finish("the last value")
         return components
     }
 
@@ -101,85 +101,4 @@ struct RSAKeyDER {
         return [0x80 | UInt8(octets.count)] + octets
     }
 
-    // MARK: Reading
-
-    private struct Reader {
-        let bytes: [UInt8]
-        var offset = 0
-
-        /// Opens the outer SEQUENCE, which must span the whole input.
-        init(sequence der: Data) throws(JWKError) {
-            bytes = [UInt8](der)
-            let length = try readHeader(tag: RSAKeyDER.sequenceTag, name: "key")
-            guard length == bytes.count - offset else {
-                throw .invalidDER(reason: "SEQUENCE declares \(length) bytes but \(bytes.count - offset) follow")
-            }
-        }
-
-        private mutating func readByte(_ name: String) throws(JWKError) -> UInt8 {
-            guard offset < bytes.count else {
-                throw .invalidDER(reason: "input ends inside \(name)")
-            }
-            let byte = bytes[offset]
-            offset += 1
-            return byte
-        }
-
-        private mutating func readHeader(tag: UInt8, name: String) throws(JWKError) -> Int {
-            let found = try readByte(name)
-            guard found == tag else {
-                throw .invalidDER(
-                    reason: "\(name) has tag 0x\(String(found, radix: 16)); expected 0x\(String(tag, radix: 16))"
-                )
-            }
-            let first = try readByte(name)
-            if first < 0x80 {
-                return Int(first)
-            }
-            let octetCount = Int(first & 0x7F)
-            // Four octets is far more than any key needs; zero would be an indefinite length.
-            guard (1...4).contains(octetCount) else {
-                throw .invalidDER(reason: "\(name) has an unsupported length encoding")
-            }
-            var length = 0
-            for _ in 0..<octetCount {
-                length = length << 8 | Int(try readByte(name))
-            }
-            // DER requires the shortest form.
-            guard length >= 0x80, length >> ((octetCount - 1) * 8) != 0 else {
-                throw .invalidDER(reason: "\(name) has a non-minimal length encoding")
-            }
-            return length
-        }
-
-        /// Reads a non-negative INTEGER and returns its magnitude without the sign byte.
-        mutating func readUnsignedInteger(_ name: String) throws(JWKError) -> Data {
-            let length = try readHeader(tag: RSAKeyDER.integerTag, name: name)
-            guard length > 0 else {
-                throw .invalidDER(reason: "\(name) is an empty INTEGER")
-            }
-            guard length <= bytes.count - offset else {
-                throw .invalidDER(reason: "\(name) declares \(length) bytes but \(bytes.count - offset) remain")
-            }
-            var content = bytes[offset..<(offset + length)]
-            offset += length
-            let first = bytes[content.startIndex]
-            guard first & 0x80 == 0 else {
-                throw .invalidDER(reason: "\(name) is negative")
-            }
-            if first == 0x00 && content.count > 1 {
-                guard bytes[content.startIndex + 1] & 0x80 != 0 else {
-                    throw .invalidDER(reason: "\(name) has a redundant leading zero")
-                }
-                content = content.dropFirst()
-            }
-            return Data(content)
-        }
-
-        func finish() throws(JWKError) {
-            guard offset == bytes.count else {
-                throw .invalidDER(reason: "\(bytes.count - offset) unexpected bytes after the last value")
-            }
-        }
-    }
 }

@@ -435,6 +435,10 @@ struct JWKTests {
             (.unsupportedRSAPrivateKey(reason: "oth"), "oth"),
             (.invalidDER(reason: "truncated"), "truncated"),
             (.reservedParameterName("d"), "\"d\""),
+            (.invalidPEM(reason: "no END line"), "no END line"),
+            (.wrongPEMType(found: "CERTIFICATE", expected: ["PUBLIC KEY", "RSA PUBLIC KEY"]), "CERTIFICATE"),
+            (.wrongPEMType(found: "CERTIFICATE", expected: ["PUBLIC KEY", "RSA PUBLIC KEY"]), "PUBLIC KEY or RSA"),
+            (.unsupportedKeyAlgorithm(oid: "1.3.101.113"), "1.3.101.113"),
         ]
         for (error, fragment) in errors {
             #expect(error.description.contains(fragment), "\(error.description)")

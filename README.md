@@ -42,7 +42,7 @@ Each module is its own library product, so an application builds only what it us
 | Product | What it does | Depends on | Documentation |
 |---|---|---|---|
 | `JOSECore` | base64url, strict JSON, signing protocols, algorithm types. No cryptography. | nothing | [JOSECore](Documentation/JOSECore.md) |
-| `JOSEJWK` | Keys, JWK and JWK Sets, thumbprints, the built-in algorithms, Secure Enclave. | `JOSECore` | [JOSEJWK](Documentation/JOSEJWK.md) |
+| `JOSEJWK` | Keys, JWK and JWK Sets, PEM import, thumbprints, the built-in algorithms, Secure Enclave. | `JOSECore` | [JOSEJWK](Documentation/JOSEJWK.md) |
 | `JOSEJWS` | JSON Web Signature in all three serializations, key resolution from headers. | `JOSEJWK` | [JOSEJWS](Documentation/JOSEJWS.md) |
 | `JOSEJWE` | JSON Web Encryption in all three serializations, several recipients. | `JOSEJWK` | [JOSEJWE](Documentation/JOSEJWE.md) |
 | `JOSEJWT` | Signed JWTs: claims, a claims builder, validation policies. | `JOSEJWS` | [JOSEJWT](Documentation/JOSEJWT.md) |

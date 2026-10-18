@@ -18,7 +18,8 @@ fails loudly where it cannot.
 
 Swift 6 with strict concurrency and typed throws. Apple platforms (macOS 13, iOS 16, tvOS 16,
 watchOS 9, visionOS 1), Linux, Windows and Android. CryptoKit on Apple platforms and
-[swift-crypto](https://github.com/apple/swift-crypto) elsewhere.
+[swift-crypto](https://github.com/apple/swift-crypto) elsewhere. JWE compression uses the system
+zlib, so it is not available on Windows.
 
 ## Installation
 

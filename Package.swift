@@ -20,6 +20,13 @@ let cryptoExtras: Target.Dependency = .product(
     package: "swift-crypto",
     condition: .when(platforms: nonApplePlatforms)
 )
+// Windows has no system zlib, so JWE compression (`zip`) is not available there.
+let zlib: Target.Dependency = .target(
+    name: "CZlib",
+    condition: .when(platforms: [
+        .macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS, .driverKit, .linux, .android, .wasi, .openbsd,
+    ])
+)
 
 let package = Package(
     name: "JOSEKit",
@@ -65,12 +72,11 @@ let package = Package(
         ),
         .target(
             name: "JOSEJWE",
-            dependencies: ["JOSECore", "JOSEJWK", "CZlib", crypto, cryptoExtras],
+            dependencies: ["JOSECore", "JOSEJWK", zlib, crypto, cryptoExtras],
             swiftSettings: swiftSettings
         ),
-        // The system zlib, for JWE compression (`zip`), on every platform. No pkg-config lookup:
-        // on a Mac it can pick up a Homebrew zlib in place of the SDK's, which breaks builds for
-        // other Apple platforms.
+        // The system zlib, for JWE compression (`zip`). No pkg-config lookup: on a Mac it can pick
+        // up a Homebrew zlib in place of the SDK's, which breaks builds for other Apple platforms.
         .systemLibrary(
             name: "CZlib",
             providers: [.apt(["zlib1g-dev"]), .yum(["zlib-devel"])]

@@ -18,9 +18,43 @@ struct CompressionTests {
         )
     }
 
+    // MARK: Availability
+
+    @Test("zip is available everywhere except Windows, which has no system zlib")
+    func availability() {
+        #if os(Windows)
+            #expect(!JWECompression.deflate.isAvailable)
+        #else
+            #expect(JWECompression.deflate.isAvailable)
+        #endif
+    }
+
+    @Test(
+        "without zlib, zip is refused when reading a JWE and when writing one",
+        .enabled(if: !JWECompression.deflate.isAvailable)
+    )
+    func unavailable() async throws {
+        let (encrypter, _) = try keyPair()
+        await #expect(throws: JWEError.unsupportedCompression(algorithm: "DEF")) {
+            try await SimpleJWE.encrypt(
+                Self.plaintext,
+                to: encrypter,
+                using: A256GCM.self,
+                header: JWEHeaderParameters(compression: .deflate)
+            )
+        }
+        let protected = Base64URL.encode(Data(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#.utf8))
+        #expect(throws: JWEError.unsupportedCompression(algorithm: "DEF")) {
+            try SimpleJWE.Encrypted(compact: [protected, "", "AAAA", "AAAA", "AAAA"].joined(separator: "."))
+        }
+    }
+
     // MARK: Raw DEFLATE
 
-    @Test("raw DEFLATE round-trips every size, including empty, and compresses repetitive text")
+    @Test(
+        "raw DEFLATE round-trips every size, including empty, and compresses repetitive text",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func deflateRoundTrips() throws {
         for count in [0, 1, 100, Deflate.chunkSize - 1, Deflate.chunkSize, Deflate.chunkSize * 3 + 7] {
             let data = Data((0..<count).map { UInt8(truncatingIfNeeded: $0 &* 31 &+ $0 / 7) })
@@ -31,7 +65,10 @@ struct CompressionTests {
         #expect(compressed.count < Self.plaintext.count / 4)
     }
 
-    @Test("decompression stops at the limit, and refuses malformed, truncated, trailing or zlib-wrapped input")
+    @Test(
+        "decompression stops at the limit, and refuses malformed, truncated, trailing or zlib-wrapped input",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func deflateRefusesBadInput() throws {
         let compressed = try Deflate.compress(Self.plaintext)
         #expect(try Deflate.decompress(compressed, limit: Self.plaintext.count) == Self.plaintext)
@@ -56,7 +93,10 @@ struct CompressionTests {
 
     // MARK: JWE
 
-    @Test("a compressed JWE round-trips, with zip in the protected header and a smaller ciphertext")
+    @Test(
+        "a compressed JWE round-trips, with zip in the protected header and a smaller ciphertext",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func compressedRoundTrip() async throws {
         let (encrypter, keys) = try keyPair()
         let compressed = try await SimpleJWE.encrypt(
@@ -89,7 +129,10 @@ struct CompressionTests {
         #expect(try await general.decrypt(with: secondKeys).plaintext == Self.plaintext)
     }
 
-    @Test("decryption enforces the decompressed size limit, and 0 refuses compression before any cryptography")
+    @Test(
+        "decryption enforces the decompressed size limit, and 0 refuses compression before any cryptography",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func decompressionLimits() async throws {
         let (encrypter, keys) = try keyPair()
         let sealed = try await SimpleJWE.encrypt(
@@ -132,7 +175,11 @@ struct CompressionTests {
                 return error
             }
         }
-        #expect(parse(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#) == nil)
+        if JWECompression.deflate.isAvailable {
+            #expect(parse(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#) == nil)
+        } else {
+            #expect(parse(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#) == .unsupportedCompression(algorithm: "DEF"))
+        }
         #expect(
             parse(#"{"alg":"dir","enc":"A256GCM"}"#, unprotected: #"{"zip":"DEF"}"#)
                 == .headerParameterNotProtected(name: "zip")
@@ -145,7 +192,10 @@ struct CompressionTests {
         )
     }
 
-    @Test("authentic content that is not raw DEFLATE is reported as such")
+    @Test(
+        "authentic content that is not raw DEFLATE is reported as such",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func invalidCompressedContent() async throws {
         // Built by hand: zip says DEF, but the encrypted content is not DEFLATE at all.
         let key = SymmetricKeyMaterial(randomByteCount: 32)

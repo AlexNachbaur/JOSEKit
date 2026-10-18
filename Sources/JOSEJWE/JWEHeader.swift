@@ -12,6 +12,16 @@ public enum JWECompression: String, Sendable, Equatable {
     /// panva/jose's default. Compression lets a small token expand into a large plaintext, so a
     /// decryption refuses anything larger.
     public static let defaultMaximumDecompressedByteCount = 250_000
+
+    /// Whether this platform can compress and decompress this way. `deflate` needs the system
+    /// zlib, which Windows does not have; there a JWE with `zip` is refused with
+    /// ``JWEError/unsupportedCompression(algorithm:)``, whether it is being read or written.
+    public var isAvailable: Bool {
+        switch self {
+        case .deflate:
+            return Deflate.isAvailable
+        }
+    }
 }
 
 /// The header parameters a caller may set. `alg`, `enc`, `crit` and the parameters a key
@@ -261,7 +271,8 @@ extension JWEHeader {
     }
 
     /// The `zip` parameter, which must be protected (RFC 7516 §4.1.3) and must name a compression
-    /// this package implements.
+    /// this package implements and this platform supports. Encryption parses its own header
+    /// through here too, so it refuses the same `zip` values.
     private static func parseCompression(
         in values: [String: JSONValue],
         unprotectedNames: Set<String>
@@ -272,7 +283,7 @@ extension JWEHeader {
         guard !unprotectedNames.contains("zip") else {
             throw .headerParameterNotProtected(name: "zip")
         }
-        guard let compression = JWECompression(rawValue: name) else {
+        guard let compression = JWECompression(rawValue: name), compression.isAvailable else {
             throw .unsupportedCompression(algorithm: name)
         }
         return compression

@@ -32,7 +32,8 @@ public enum JWEError: Error, Sendable, Equatable {
     case invalidCritical(reason: String)
     case unsupportedCriticalParameter(name: String)
     /// The JWE's `zip` names a compression this package does not implement. `DEF` is the only
-    /// one RFC 7516 defines.
+    /// one RFC 7516 defines, and it is not available on Windows (see
+    /// ``JWECompression/isAvailable``).
     case unsupportedCompression(algorithm: String)
     case invalidCustomParameters(description: String)
     /// The `jwk` header parameter is not a valid public JWK.

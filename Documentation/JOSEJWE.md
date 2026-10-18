@@ -20,7 +20,7 @@ random key and ends in the same `.decryptionFailed` as any other failure (RFC 75
 used only when you build an `RSAEncrypter<RSA15>` or `RSADecrypter<RSA15>`, or list `RSA15` in
 `DecryptionKeys(jwks:allowing:)`. Prefer `RSA-OAEP-256`.
 
-Compression (`zip`): `DEF`, raw DEFLATE, using the system zlib.
+Compression (`zip`): `DEF`, raw DEFLATE, using the system zlib. Not available on Windows.
 
 ## Compression
 
@@ -40,6 +40,10 @@ bytes (250 000 by default, as panva/jose), stopping as soon as the limit is pass
 token cannot expand without bound. A limit of 0 refuses compressed JWEs before any cryptography
 is done. Compressing secrets together with text an attacker chooses can reveal the secrets
 through the ciphertext's length, so leave compression off unless the plaintext is all yours.
+
+Windows has no system zlib, so `JWECompression.deflate.isAvailable` is `false` there. Both reading
+and writing a JWE with `zip` fail with `unsupportedCompression(algorithm: "DEF")`. On Linux,
+building needs zlib's headers (`zlib1g-dev` on Debian and Ubuntu, `zlib-devel` on Fedora and RHEL).
 
 ## Encrypting
 

@@ -24,6 +24,12 @@ struct EncryptionVectorTests {
         "curve25519/ecdh-es.json",
     ]
 
+    /// The examples this platform can read: §5.9 is compressed, and `zip` is not available on
+    /// Windows.
+    static var readable: [String] {
+        singleRecipient.filter { JWECompression.deflate.isAvailable || !$0.contains("compressed") }
+    }
+
     /// Every serialization the example gives, parsed.
     private func serializations(_ vector: Vector) throws -> [(String, SimpleJWE.Encrypted)] {
         var parsed: [(String, SimpleJWE.Encrypted)] = []
@@ -38,7 +44,7 @@ struct EncryptionVectorTests {
         return parsed
     }
 
-    @Test("every serialization of each example decrypts to the plaintext", arguments: singleRecipient)
+    @Test("every serialization of each example decrypts to the plaintext", arguments: readable)
     func decrypts(file: String) async throws {
         let vector = try Vector(file)
         let keys = DecryptionKeys([
@@ -162,7 +168,7 @@ struct EncryptionVectorTests {
         }
     }
 
-    @Test("an altered tag is refused with the uniform decryption error", arguments: singleRecipient)
+    @Test("an altered tag is refused with the uniform decryption error", arguments: readable)
     func refusesTampering(file: String) async throws {
         let vector = try Vector(file)
         let keys = DecryptionKeys([
@@ -187,7 +193,10 @@ struct EncryptionVectorTests {
 
     /// RFC 7520 §5.9's compressed plaintext comes from another implementation's DEFLATE, so
     /// decompressing it checks that this package reads raw DEFLATE (RFC 1951), not zlib.
-    @Test("RFC 7520 §5.9: the compressed plaintext is raw DEFLATE, and decompresses to the plaintext")
+    @Test(
+        "RFC 7520 §5.9: the compressed plaintext is raw DEFLATE, and decompresses to the plaintext",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func compressedContent() async throws {
         let vector = try Vector("jwe/5_9.compressed_content.json")
         let plaintext = Data(try vector.string("input", "plaintext").utf8)

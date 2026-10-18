@@ -286,7 +286,10 @@ struct EncryptedJWTTests {
         }
     }
 
-    @Test("an encrypted JWT can be compressed, and its decryption honours the decompressed size limit")
+    @Test(
+        "an encrypted JWT can be compressed, and its decryption honours the decompressed size limit",
+        .enabled(if: JWECompression.deflate.isAvailable)
+    )
     func compressedEncryptedJWT() async throws {
         let secret = SymmetricKeyMaterial(randomByteCount: 32)
         let keys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: secret))])

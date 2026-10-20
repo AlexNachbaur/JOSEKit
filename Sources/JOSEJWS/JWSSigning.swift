@@ -105,7 +105,7 @@ extension JWS {
 
         private static func encode(_ document: [String: JSONValue]) throws(JWSError) -> Data {
             do {
-                return try HeaderJSON.encoder().encode(document)
+                return try JSONEncoder.deterministic().encode(document)
             } catch {
                 throw .headerEncodingFailed(description: String(describing: error))
             }

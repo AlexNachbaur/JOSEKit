@@ -25,7 +25,7 @@ private struct CertificateFixture: Decodable {
     let leafUnderOtherRoot: Leaf
 
     static func load() throws -> CertificateFixture {
-        try Fixtures.load(CertificateFixture.self, named: "certificates")
+        try CertificateFixture(fixture: "certificates")
     }
 }
 
@@ -285,8 +285,8 @@ struct KeyResolutionTests {
         resolver.certificateChainValidator = StubValidator(result: publicJWK)
 
         var withThumbprints = header
-        withThumbprints.x509CertificateSHA1Thumbprint = Base64URL.encode(CertificateDigest.sha1(leafDER))
-        withThumbprints.x509CertificateSHA256Thumbprint = Base64URL.encode(CertificateDigest.sha256(leafDER))
+        withThumbprints.x509CertificateSHA1Thumbprint = Base64URL.encode(CertificateDigest.sha1.digest(of: leafDER))
+        withThumbprints.x509CertificateSHA256Thumbprint = Base64URL.encode(CertificateDigest.sha256.digest(of: leafDER))
         #expect(await resolvedCount(resolver, try await token(header: withThumbprints)) == 1)
 
         var wrongSHA1 = withThumbprints

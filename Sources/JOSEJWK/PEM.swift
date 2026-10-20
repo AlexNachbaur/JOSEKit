@@ -41,73 +41,123 @@ struct PEMDocument {
     }
 }
 
-/// Key structures that PEM carries: SubjectPublicKeyInfo (RFC 5280 §4.1.2.7), PKCS#8
-/// PrivateKeyInfo (RFC 5208, RFC 5958), and SEC1 ECPrivateKey (RFC 5915).
-struct KeyDER {
-    private init() {}
+// MARK: - Object identifiers
 
-    // Algorithms (RFC 3279, RFC 5480, RFC 8410).
-    static let rsaEncryption = "1.2.840.113549.1.1.1"
-    static let ecPublicKey = "1.2.840.10045.2.1"
-    static let ed25519 = "1.3.101.112"
-    static let x25519 = "1.3.101.110"
-    // Named curves (RFC 5480 §2.1.1.1).
-    static let p256 = "1.2.840.10045.3.1.7"
-    static let p384 = "1.3.132.0.34"
-    static let p521 = "1.3.132.0.35"
+/// A key algorithm this package reads, named by the OBJECT IDENTIFIER of an AlgorithmIdentifier
+/// (RFC 3279, RFC 5480, RFC 8410).
+enum KeyAlgorithmOID: String {
+    case rsaEncryption = "1.2.840.113549.1.1.1"
+    case ecPublicKey = "1.2.840.10045.2.1"
+    case ed25519 = "1.3.101.112"
+    case x25519 = "1.3.101.110"
 
-    /// RSA's AlgorithmIdentifier parameters are NULL (RFC 3279 §2.3.1); some encoders omit them.
-    private static func readRSAParameters(_ algorithm: inout DERReader) throws(JWKError) {
-        if algorithm.nextTag == DERReader.null {
-            try algorithm.readNull("parameters")
+    /// The algorithm `oid` names, refusing one this package does not support.
+    init(supported oid: String) throws(JWKError) {
+        guard let algorithm = Self(rawValue: oid) else {
+            throw .unsupportedKeyAlgorithm(oid: oid)
         }
-        try algorithm.finish("algorithm")
+        self = algorithm
     }
+}
 
-    // MARK: Public keys
+/// A named curve this package reads (RFC 5480 §2.1.1.1).
+enum NamedCurveOID: String {
+    case p256 = "1.2.840.10045.3.1.7"
+    case p384 = "1.3.132.0.34"
+    case p521 = "1.3.132.0.35"
 
-    static func publicKey(subjectPublicKeyInfo der: Data) throws(JWKError) -> JWK.Key {
+    /// The curve `oid` names, refusing one this package does not support.
+    init(supported oid: String) throws(JWKError) {
+        guard let curve = Self(rawValue: oid) else {
+            throw .unsupportedKeyAlgorithm(oid: oid)
+        }
+        self = curve
+    }
+}
+
+extension DERReader {
+    /// Finishes an RSA AlgorithmIdentifier. Its parameters are NULL (RFC 3279 §2.3.1); some
+    /// encoders omit them.
+    fileprivate mutating func finishRSAParameters() throws(JWKError) {
+        if nextTag == DERReader.null {
+            try readNull("parameters")
+        }
+        try finish("algorithm")
+    }
+}
+
+extension [Data] {
+    /// A public key that travels with a private key must be that key's public key.
+    fileprivate func requireEach(toMatch derived: Data, curve: String) throws(JWKError) {
+        for publicKey in self where publicKey != derived {
+            throw .privateKeyDoesNotMatchPublicKey(curve: curve)
+        }
+    }
+}
+
+extension Data {
+    /// RFC 8410 §7: an Ed25519 or X25519 private key is itself an OCTET STRING inside PKCS#8's.
+    fileprivate init(curvePrivateKey der: Data) throws(JWKError) {
+        var reader = DERReader(der)
+        self = try reader.readOctetString("CurvePrivateKey")
+        try reader.finish("CurvePrivateKey")
+    }
+}
+
+// MARK: - Public keys
+
+extension JWK.Key {
+    /// Reads a SubjectPublicKeyInfo (RFC 5280 §4.1.2.7).
+    init(subjectPublicKeyInfo der: Data) throws(JWKError) {
         var info = try DERReader.wholeSequence(der, "SubjectPublicKeyInfo")
         var algorithm = try info.readConstructed("algorithm")
         let oid = try algorithm.readObjectIdentifier("algorithm")
         let key = try info.readBitString("subjectPublicKey")
         try info.finish("SubjectPublicKeyInfo")
-        switch oid {
-        case rsaEncryption:
-            try readRSAParameters(&algorithm)
-            return .rsa(try RSAPublicKey(pkcs1DERRepresentation: key))
-        case ecPublicKey:
+        switch try KeyAlgorithmOID(supported: oid) {
+        case .rsaEncryption:
+            try algorithm.finishRSAParameters()
+            self = .rsa(try RSAPublicKey(pkcs1DERRepresentation: key))
+        case .ecPublicKey:
             let curve = try algorithm.readObjectIdentifier("namedCurve")
             try algorithm.finish("algorithm")
-            return try ecPublicKey(x963: key, curve: curve)
-        case ed25519:
+            self = try Self(x963: key, curve: NamedCurveOID(supported: curve))
+        case .ed25519:
             // RFC 8410 §3: the parameters are absent.
             try algorithm.finish("algorithm")
-            return .ed25519(try Ed25519PublicKey(rawRepresentation: key))
-        case x25519:
+            self = .ed25519(try Ed25519PublicKey(rawRepresentation: key))
+        case .x25519:
             try algorithm.finish("algorithm")
-            return .x25519(try X25519PublicKey(rawRepresentation: key))
-        default:
-            throw .unsupportedKeyAlgorithm(oid: oid)
+            self = .x25519(try X25519PublicKey(rawRepresentation: key))
         }
     }
 
-    private static func ecPublicKey(x963: Data, curve: String) throws(JWKError) -> JWK.Key {
+    private init(x963: Data, curve: NamedCurveOID) throws(JWKError) {
         switch curve {
-        case p256:
-            return .p256(try ECPublicKey<P256Curve>(x963Representation: x963))
-        case p384:
-            return .p384(try ECPublicKey<P384Curve>(x963Representation: x963))
-        case p521:
-            return .p521(try ECPublicKey<P521Curve>(x963Representation: x963))
-        default:
-            throw .unsupportedKeyAlgorithm(oid: curve)
+        case .p256:
+            self = .p256(try ECPublicKey<P256Curve>(x963Representation: x963))
+        case .p384:
+            self = .p384(try ECPublicKey<P384Curve>(x963Representation: x963))
+        case .p521:
+            self = .p521(try ECPublicKey<P521Curve>(x963Representation: x963))
         }
     }
+}
 
-    // MARK: Private keys
+// MARK: - Private keys
 
-    static func privateKey(pkcs8 der: Data) throws(JWKError) -> PrivateJWK.Key {
+extension ECPrivateKey {
+    /// A private key from its scalar, which must match every public key carried with it.
+    fileprivate init(scalar: Data, matching publicKeys: [Data]) throws(JWKError) {
+        try self.init(rawRepresentation: scalar)
+        try publicKeys.requireEach(toMatch: publicKey.x963Representation, curve: Curve.name)
+    }
+}
+
+extension PrivateJWK.Key {
+    /// Reads a PKCS#8 PrivateKeyInfo (RFC 5208), or a OneAsymmetricKey (RFC 5958), which may add
+    /// the public key.
+    init(pkcs8 der: Data) throws(JWKError) {
         var info = try DERReader.wholeSequence(der, "PrivateKeyInfo")
         let version = try info.readUnsignedInteger("version")
         // 0 is PKCS#8 (RFC 5208); 1 is RFC 5958's OneAsymmetricKey, which may add the public key.
@@ -126,44 +176,32 @@ struct KeyDER {
         }
         try info.finish("PrivateKeyInfo")
 
-        switch oid {
-        case rsaEncryption:
-            try readRSAParameters(&algorithm)
+        switch try KeyAlgorithmOID(supported: oid) {
+        case .rsaEncryption:
+            try algorithm.finishRSAParameters()
             let key = try RSAPrivateKey(pkcs1DERRepresentation: privateKey)
-            try requireMatch(key.publicKey.pkcs1DERRepresentation, publicKeys, curve: "RSA")
-            return .rsa(key)
-        case ecPublicKey:
+            try publicKeys.requireEach(toMatch: key.publicKey.pkcs1DERRepresentation, curve: "RSA")
+            self = .rsa(key)
+        case .ecPublicKey:
             let curve = try algorithm.readObjectIdentifier("namedCurve")
             try algorithm.finish("privateKeyAlgorithm")
-            return try ecPrivateKey(sec1: privateKey, curve: curve, publicKeys: publicKeys)
-        case ed25519:
+            self = try Self(sec1: privateKey, curve: curve, publicKeys: publicKeys)
+        case .ed25519:
             try algorithm.finish("privateKeyAlgorithm")
-            let key = try Ed25519PrivateKey(rawRepresentation: try curvePrivateKey(privateKey))
-            try requireMatch(key.publicKey.rawRepresentation, publicKeys, curve: Ed25519PublicKey.curveName)
-            return .ed25519(key)
-        case x25519:
+            let key = try Ed25519PrivateKey(rawRepresentation: try Data(curvePrivateKey: privateKey))
+            try publicKeys.requireEach(toMatch: key.publicKey.rawRepresentation, curve: Ed25519PublicKey.curveName)
+            self = .ed25519(key)
+        case .x25519:
             try algorithm.finish("privateKeyAlgorithm")
-            let key = try X25519PrivateKey(rawRepresentation: try curvePrivateKey(privateKey))
-            try requireMatch(key.publicKey.rawRepresentation, publicKeys, curve: X25519PublicKey.curveName)
-            return .x25519(key)
-        default:
-            throw .unsupportedKeyAlgorithm(oid: oid)
+            let key = try X25519PrivateKey(rawRepresentation: try Data(curvePrivateKey: privateKey))
+            try publicKeys.requireEach(toMatch: key.publicKey.rawRepresentation, curve: X25519PublicKey.curveName)
+            self = .x25519(key)
         }
     }
 
-    /// RFC 8410 §7: the private key is itself an OCTET STRING inside PKCS#8's.
-    private static func curvePrivateKey(_ der: Data) throws(JWKError) -> Data {
-        var reader = DERReader(der)
-        let key = try reader.readOctetString("CurvePrivateKey")
-        try reader.finish("CurvePrivateKey")
-        return key
-    }
-
-    /// A SEC1 ECPrivateKey. The curve comes from the PKCS#8 algorithm, from the key's own
-    /// parameters, or from both, in which case they must agree.
-    static func ecPrivateKey(sec1 der: Data, curve outerCurve: String?, publicKeys: [Data]) throws(JWKError)
-        -> PrivateJWK.Key
-    {
+    /// Reads a SEC1 ECPrivateKey (RFC 5915). The curve comes from the PKCS#8 algorithm
+    /// (`outerCurve`), from the key's own parameters, or from both, in which case they must agree.
+    init(sec1 der: Data, curve outerCurve: String?, publicKeys: [Data]) throws(JWKError) {
         var key = try DERReader.wholeSequence(der, "ECPrivateKey")
         guard try key.readUnsignedInteger("version") == Data([0x01]) else {
             throw .invalidDER(reason: "ECPrivateKey version is not 1")
@@ -191,35 +229,18 @@ struct KeyDER {
         guard let curve = outerCurve ?? innerCurve else {
             throw .invalidDER(reason: "ECPrivateKey names no curve")
         }
-        switch curve {
-        case p256:
-            return .p256(try ecPrivateKey(P256Curve.self, scalar: scalar, publicKeys: embedded))
-        case p384:
-            return .p384(try ecPrivateKey(P384Curve.self, scalar: scalar, publicKeys: embedded))
-        case p521:
-            return .p521(try ecPrivateKey(P521Curve.self, scalar: scalar, publicKeys: embedded))
-        default:
-            throw .unsupportedKeyAlgorithm(oid: curve)
-        }
-    }
-
-    private static func ecPrivateKey<Curve: EllipticCurve>(
-        _ curve: Curve.Type,
-        scalar: Data,
-        publicKeys: [Data]
-    ) throws(JWKError) -> ECPrivateKey<Curve> {
-        let key = try ECPrivateKey<Curve>(rawRepresentation: scalar)
-        try requireMatch(key.publicKey.x963Representation, publicKeys, curve: Curve.name)
-        return key
-    }
-
-    /// A public key that travels with a private key must be that key's public key.
-    private static func requireMatch(_ derived: Data, _ embedded: [Data], curve: String) throws(JWKError) {
-        for publicKey in embedded where publicKey != derived {
-            throw .privateKeyDoesNotMatchPublicKey(curve: curve)
+        switch try NamedCurveOID(supported: curve) {
+        case .p256:
+            self = .p256(try ECPrivateKey<P256Curve>(scalar: scalar, matching: embedded))
+        case .p384:
+            self = .p384(try ECPrivateKey<P384Curve>(scalar: scalar, matching: embedded))
+        case .p521:
+            self = .p521(try ECPrivateKey<P521Curve>(scalar: scalar, matching: embedded))
         }
     }
 }
+
+// MARK: - PEM
 
 extension JWK {
     /// Reads a public key from PEM: `PUBLIC KEY` (SubjectPublicKeyInfo) holding an RSA, P-256,
@@ -228,7 +249,7 @@ extension JWK {
         let document = try PEMDocument(pem)
         switch document.label {
         case "PUBLIC KEY":
-            self.init(try KeyDER.publicKey(subjectPublicKeyInfo: document.der), metadata: metadata)
+            self.init(try Key(subjectPublicKeyInfo: document.der), metadata: metadata)
         case "RSA PUBLIC KEY":
             self.init(.rsa(try RSAPublicKey(pkcs1DERRepresentation: document.der)), metadata: metadata)
         default:
@@ -245,11 +266,11 @@ extension PrivateJWK {
         let document = try PEMDocument(pem)
         switch document.label {
         case "PRIVATE KEY":
-            self.init(try KeyDER.privateKey(pkcs8: document.der), metadata: metadata)
+            self.init(try Key(pkcs8: document.der), metadata: metadata)
         case "RSA PRIVATE KEY":
             self.init(.rsa(try RSAPrivateKey(pkcs1DERRepresentation: document.der)), metadata: metadata)
         case "EC PRIVATE KEY":
-            self.init(try KeyDER.ecPrivateKey(sec1: document.der, curve: nil, publicKeys: []), metadata: metadata)
+            self.init(try Key(sec1: document.der, curve: nil, publicKeys: []), metadata: metadata)
         default:
             throw .wrongPEMType(found: document.label, expected: ["PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY"])
         }

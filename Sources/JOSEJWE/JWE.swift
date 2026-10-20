@@ -120,7 +120,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
                     )
                     var additionalData: Data?
                     if let additionalDataEncoded {
-                        additionalData = try JWEJSON.decodeBase64URL(additionalDataEncoded, part: "aad")
+                        additionalData = try Data(jwePart: additionalDataEncoded, named: "aad")
                     }
                     return Decrypted(
                         header: recipient.header,
@@ -332,7 +332,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
 
         let protectedJSON: Data
         do {
-            protectedJSON = try JWEJSON.encoder().encode(protected)
+            protectedJSON = try JSONEncoder.deterministic().encode(protected)
         } catch {
             throw .headerEncodingFailed(description: String(describing: error))
         }

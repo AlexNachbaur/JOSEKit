@@ -1,4 +1,5 @@
 import Foundation
+import JOSECore
 
 @testable import JOSEJWK
 
@@ -8,12 +9,12 @@ import Foundation
     import Crypto
 #endif
 
-/// The crypto library's own DER encoding of a raw signature, for comparison with JOSECore's.
-struct PlatformDER {
-    private init() {}
-
-    static func matches<Curve: ECDSACurve>(_ curve: Curve.Type, raw: Data, der: Data) throws -> Bool {
-        switch Curve.name {
+extension Signature {
+    /// Whether the crypto library's own DER encoding of this raw signature is `der`, and its
+    /// reading of `der` is this signature, for comparison with JOSECore's encoding.
+    func matchesPlatformDER(_ der: Data, curve: String) throws -> Bool {
+        let raw = rawRepresentation
+        switch curve {
         case "P-256":
             let fromRaw = try P256.Signing.ECDSASignature(rawRepresentation: raw)
             let fromDER = try P256.Signing.ECDSASignature(derRepresentation: der)
@@ -27,7 +28,7 @@ struct PlatformDER {
             let fromDER = try P521.Signing.ECDSASignature(derRepresentation: der)
             return fromRaw.derRepresentation == der && fromDER.rawRepresentation == raw
         default:
-            throw FixtureError(description: "no platform DER comparison for \(Curve.name)")
+            throw FixtureError(description: "no platform DER comparison for \(curve)")
         }
     }
 }

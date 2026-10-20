@@ -156,14 +156,15 @@ public struct A256KW: AESKeyWrapAlgorithm {
     public static let keyByteCount = 32
 }
 
+/// AES Key Wrap (RFC 3394) under one key-wrapping key.
 struct AESKeyWrapping {
-    private init() {}
+    let wrappingKey: Data
 
-    static func wrap(_ key: Data, with wrappingKey: Data) throws -> Data {
+    func wrap(_ key: Data) throws -> Data {
         try AES.KeyWrap.wrap(SymmetricKey(data: key), using: SymmetricKey(data: wrappingKey))
     }
 
-    static func unwrap(_ wrapped: Data, with wrappingKey: Data) throws(JWEError) -> Data {
+    func unwrap(_ wrapped: Data) throws(JWEError) -> Data {
         do {
             return try AES.KeyWrap.unwrap(wrapped, using: SymmetricKey(data: wrappingKey)).withUnsafeBytes { Data($0) }
         } catch {
@@ -205,7 +206,7 @@ public struct AESKeyWrapEncrypter<Algorithm: AESKeyWrapAlgorithm>: KeyEncrypter 
         do {
             return KeyEncryptionResult(
                 contentEncryptionKey: contentKey,
-                encryptedKey: try AESKeyWrapping.wrap(contentKey, with: key)
+                encryptedKey: try AESKeyWrapping(wrappingKey: key).wrap(contentKey)
             )
         } catch {
             throw .contentEncryptionFailed(description: "\(Algorithm.identifier) key wrap failed: \(error)")
@@ -230,7 +231,7 @@ public struct AESKeyWrapDecrypter<Algorithm: AESKeyWrapAlgorithm>: KeyDecrypter 
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
-        try AESKeyWrapping.unwrap(request.encryptedKey, with: key)
+        try AESKeyWrapping(wrappingKey: key).unwrap(request.encryptedKey)
     }
 }
 
@@ -277,7 +278,7 @@ public struct AESGCMKeyWrapEncrypter<Algorithm: AESGCMKeyWrapAlgorithm>: KeyEncr
         // A fresh random 96-bit IV for every wrap, as RFC 7518 §4.7.1.1 requires: reusing an IV
         // with the same key breaks GCM completely.
         let iv = SymmetricKeyMaterial(randomByteCount: 12).rawRepresentation
-        let (encryptedKey, tag) = try AESGCM.seal(contentKey, key: key, nonce: iv, aad: Data())
+        let (encryptedKey, tag) = try AESGCM(key: key).seal(contentKey, nonce: iv, aad: Data())
         return KeyEncryptionResult(
             contentEncryptionKey: contentKey,
             encryptedKey: encryptedKey,
@@ -311,6 +312,6 @@ public struct AESGCMKeyWrapDecrypter<Algorithm: AESGCMKeyWrapAlgorithm>: KeyDecr
         guard tag.count == 16 else {
             throw .wrongAuthenticationTagSize(algorithm: Algorithm.identifier, expected: 16, found: tag.count)
         }
-        return try AESGCM.open(request.encryptedKey, tag: tag, key: key, nonce: iv, aad: Data())
+        return try AESGCM(key: key).open(request.encryptedKey, tag: tag, nonce: iv, aad: Data())
     }
 }

@@ -27,7 +27,7 @@ struct PEMFixture: Decodable {
     let refused: [Refused]
 
     static func load() throws -> PEMFixture {
-        try Fixtures.load(PEMFixture.self, named: "pem")
+        try PEMFixture(fixture: "pem")
     }
 
     func key(_ label: String) throws -> Key {
@@ -47,46 +47,45 @@ extension PEMFixture.Key {
     }
 }
 
-/// Writes DER for hand-made inputs, independently of the reader under test.
-struct DERBuilder {
-    private init() {}
-
-    static let null: [UInt8] = [0x05, 0x00]
-
-    static func element(_ tag: UInt8, _ content: [UInt8]) -> [UInt8] {
-        [tag] + length(content.count) + content
+// DER for hand-made inputs, written independently of the reader under test.
+extension [UInt8] {
+    /// `NULL`.
+    static var derNull: [UInt8] {
+        [0x05, 0x00]
     }
 
-    private static func length(_ count: Int) -> [UInt8] {
-        if count < 0x80 {
-            return [UInt8(count)]
+    /// One element: `tag`, the definite length, then `content`.
+    init(derTag tag: UInt8, _ content: [UInt8]) {
+        guard content.count >= 0x80 else {
+            self = [tag, UInt8(content.count)] + content
+            return
         }
         var octets: [UInt8] = []
-        var remaining = count
+        var remaining = content.count
         while remaining > 0 {
             octets.insert(UInt8(remaining & 0xFF), at: 0)
             remaining >>= 8
         }
-        return [0x80 | UInt8(octets.count)] + octets
+        self = [tag, 0x80 | UInt8(octets.count)] + octets + content
     }
 
-    static func sequence(_ parts: [UInt8]...) -> [UInt8] {
-        element(0x30, parts.flatMap { $0 })
+    init(derSequence parts: [UInt8]...) {
+        self.init(derTag: 0x30, parts.flatMap { $0 })
     }
 
-    static func integer(_ value: UInt8) -> [UInt8] {
-        element(0x02, [value])
+    init(derInteger value: UInt8) {
+        self.init(derTag: 0x02, [value])
     }
 
-    static func octetString(_ content: [UInt8]) -> [UInt8] {
-        element(0x04, content)
+    init(derOctetString content: [UInt8]) {
+        self.init(derTag: 0x04, content)
     }
 
-    static func bitString(_ content: [UInt8], tag: UInt8 = 0x03) -> [UInt8] {
-        element(tag, [0x00] + content)
+    init(derBitString content: [UInt8], tag: UInt8 = 0x03) {
+        self.init(derTag: tag, [0x00] + content)
     }
 
-    static func oid(_ dotted: String) throws -> [UInt8] {
+    init(derOID dotted: String) throws {
         var arcs: [UInt64] = []
         for part in dotted.split(separator: ".") {
             guard let arc = UInt64(part) else {
@@ -107,43 +106,47 @@ struct DERBuilder {
             }
             content += groups
         }
-        return element(0x06, content)
+        self.init(derTag: 0x06, content)
     }
 
     /// `SubjectPublicKeyInfo ::= SEQUENCE { algorithm AlgorithmIdentifier, subjectPublicKey BIT STRING }`
-    static func spki(_ algorithm: [UInt8], _ key: [UInt8], trailing: [UInt8] = []) -> [UInt8] {
-        sequence(sequence(algorithm), bitString(key), trailing)
+    init(spki algorithm: [UInt8], _ key: [UInt8], trailing: [UInt8] = []) {
+        self.init(derSequence: [UInt8](derSequence: algorithm), [UInt8](derBitString: key), trailing)
     }
 
     /// `PrivateKeyInfo ::= SEQUENCE { version, privateKeyAlgorithm, privateKey OCTET STRING, ... }`
-    static func pkcs8(version: UInt8 = 0, _ algorithm: [UInt8], _ privateKey: [UInt8], _ rest: [UInt8] = [])
-        -> [UInt8]
-    {
-        sequence(integer(version), sequence(algorithm), octetString(privateKey), rest)
+    init(pkcs8Version version: UInt8, _ algorithm: [UInt8], _ privateKey: [UInt8], _ rest: [UInt8] = []) {
+        self.init(
+            derSequence: [UInt8](derInteger: version),
+            [UInt8](derSequence: algorithm),
+            [UInt8](derOctetString: privateKey),
+            rest
+        )
     }
 
     /// `ECPrivateKey ::= SEQUENCE { version, privateKey OCTET STRING, [0] parameters, [1] publicKey }`
-    static func sec1(version: UInt8 = 1, _ scalar: Data, curve: [UInt8] = [], publicKey: [UInt8] = []) -> [UInt8] {
-        var parts = integer(version) + octetString([UInt8](scalar))
+    init(sec1Version version: UInt8, _ scalar: Data, curve: [UInt8] = [], publicKey: [UInt8] = []) {
+        var parts = [UInt8](derInteger: version) + [UInt8](derOctetString: [UInt8](scalar))
         if !curve.isEmpty {
-            parts += element(0xA0, curve)
+            parts += [UInt8](derTag: 0xA0, curve)
         }
         if !publicKey.isEmpty {
-            parts += element(0xA1, publicKey)
+            parts += [UInt8](derTag: 0xA1, publicKey)
         }
-        return element(0x30, parts)
+        self.init(derTag: 0x30, parts)
     }
+}
 
-    static func pem(_ label: String, _ der: [UInt8]) -> String {
+extension String {
+    /// `der` as a PEM block labelled `label`.
+    init(pemLabel label: String, _ der: [UInt8]) {
         let body = Data(der).base64EncodedString(options: .lineLength64Characters)
-        return "-----BEGIN \(label)-----\n\(body)\n-----END \(label)-----\n"
+        self = "-----BEGIN \(label)-----\n\(body)\n-----END \(label)-----\n"
     }
 }
 
 @Suite("PEM import")
 struct PEMTests {
-    private typealias D = DERBuilder
-
     private static let publicLabels = ["PUBLIC KEY", "RSA PUBLIC KEY"]
     private static let privateLabels = ["PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY"]
 
@@ -225,7 +228,7 @@ struct PEMTests {
                 }
             }
         }
-        let certificate = D.pem("CERTIFICATE", D.sequence(D.null))
+        let certificate = String(pemLabel: "CERTIFICATE", [UInt8](derSequence: [UInt8].derNull))
         #expect(publicFailure(certificate) == .wrongPEMType(found: "CERTIFICATE", expected: Self.publicLabels))
         #expect(privateFailure(certificate) == .wrongPEMType(found: "CERTIFICATE", expected: Self.privateLabels))
     }
@@ -347,51 +350,63 @@ struct PEMTests {
     @Test("SubjectPublicKeyInfo is read strictly")
     func subjectPublicKeyInfo() throws {
         let keys = try Keys()
-        let rsaAlgorithm = try D.oid(KeyDER.rsaEncryption)
+        let rsaAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.rsaEncryption.rawValue)
         let rsaKey = [UInt8](keys.rsa.publicKey.pkcs1DERRepresentation)
-        let ecAlgorithm = try D.oid(KeyDER.ecPublicKey) + D.oid(KeyDER.p256)
+        let ecAlgorithm =
+            try [UInt8](derOID: KeyAlgorithmOID.ecPublicKey.rawValue) + [UInt8](derOID: NamedCurveOID.p256.rawValue)
         let ecKey = [UInt8](keys.p256.publicKey.x963Representation)
         func pem(_ der: [UInt8]) -> String {
-            D.pem("PUBLIC KEY", der)
+            String(pemLabel: "PUBLIC KEY", der)
         }
 
         // RSA parameters are NULL, as OpenSSL writes them, or absent, as some encoders write them.
-        #expect(try JWK(pem: pem(D.spki(rsaAlgorithm + D.null, rsaKey))) == JWK(.rsa(keys.rsa.publicKey)))
-        #expect(try JWK(pem: pem(D.spki(rsaAlgorithm, rsaKey))) == JWK(.rsa(keys.rsa.publicKey)))
         #expect(
-            derReason(publicFailure(pem(D.spki(rsaAlgorithm + (try D.oid(KeyDER.p256)), rsaKey))))
+            try JWK(pem: pem([UInt8](spki: rsaAlgorithm + [UInt8].derNull, rsaKey))) == JWK(.rsa(keys.rsa.publicKey))
+        )
+        #expect(try JWK(pem: pem([UInt8](spki: rsaAlgorithm, rsaKey))) == JWK(.rsa(keys.rsa.publicKey)))
+        #expect(
+            derReason(
+                publicFailure(
+                    pem([UInt8](spki: rsaAlgorithm + (try [UInt8](derOID: NamedCurveOID.p256.rawValue)), rsaKey))
+                )
+            )
                 == "10 unexpected bytes after algorithm"
         )
         #expect(
-            derReason(publicFailure(pem(D.spki(rsaAlgorithm + D.element(0x05, [0x00]), rsaKey))))
+            derReason(publicFailure(pem([UInt8](spki: rsaAlgorithm + [UInt8](derTag: 0x05, [0x00]), rsaKey))))
                 == "parameters is a NULL with content"
         )
 
-        #expect(try JWK(pem: pem(D.spki(ecAlgorithm, ecKey))) == JWK(.p256(keys.p256.publicKey)))
+        #expect(try JWK(pem: pem([UInt8](spki: ecAlgorithm, ecKey))) == JWK(.p256(keys.p256.publicKey)))
         #expect(
-            derReason(publicFailure(pem(D.spki(try D.oid(KeyDER.ecPublicKey), ecKey))))
+            derReason(
+                publicFailure(pem([UInt8](spki: try [UInt8](derOID: KeyAlgorithmOID.ecPublicKey.rawValue), ecKey)))
+            )
                 == "input ends inside namedCurve"
         )
         #expect(
-            derReason(publicFailure(pem(D.spki(ecAlgorithm + D.null, ecKey)))) == "2 unexpected bytes after algorithm"
+            derReason(publicFailure(pem([UInt8](spki: ecAlgorithm + [UInt8].derNull, ecKey))))
+                == "2 unexpected bytes after algorithm"
         )
         #expect(
-            derReason(publicFailure(pem(D.spki(ecAlgorithm, ecKey, trailing: D.null))))
+            derReason(publicFailure(pem([UInt8](spki: ecAlgorithm, ecKey, trailing: [UInt8].derNull))))
                 == "2 unexpected bytes after SubjectPublicKeyInfo"
         )
 
         // RFC 8410 §3: Ed25519 and X25519 have no parameters.
-        let edAlgorithm = try D.oid(KeyDER.ed25519)
+        let edAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.ed25519.rawValue)
         let edKey = [UInt8](keys.ed25519.publicKey.rawRepresentation)
-        #expect(try JWK(pem: pem(D.spki(edAlgorithm, edKey))) == JWK(.ed25519(keys.ed25519.publicKey)))
+        #expect(try JWK(pem: pem([UInt8](spki: edAlgorithm, edKey))) == JWK(.ed25519(keys.ed25519.publicKey)))
         #expect(
-            derReason(publicFailure(pem(D.spki(edAlgorithm + D.null, edKey)))) == "2 unexpected bytes after algorithm"
+            derReason(publicFailure(pem([UInt8](spki: edAlgorithm + [UInt8].derNull, edKey))))
+                == "2 unexpected bytes after algorithm"
         )
-        let xAlgorithm = try D.oid(KeyDER.x25519)
+        let xAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.x25519.rawValue)
         let xKey = [UInt8](keys.x25519.publicKey.rawRepresentation)
-        #expect(try JWK(pem: pem(D.spki(xAlgorithm, xKey))) == JWK(.x25519(keys.x25519.publicKey)))
+        #expect(try JWK(pem: pem([UInt8](spki: xAlgorithm, xKey))) == JWK(.x25519(keys.x25519.publicKey)))
         #expect(
-            derReason(publicFailure(pem(D.spki(xAlgorithm + D.null, xKey)))) == "2 unexpected bytes after algorithm"
+            derReason(publicFailure(pem([UInt8](spki: xAlgorithm + [UInt8].derNull, xKey))))
+                == "2 unexpected bytes after algorithm"
         )
     }
 
@@ -399,106 +414,143 @@ struct PEMTests {
     func pkcs8() throws {
         let keys = try Keys()
         func pem(_ der: [UInt8]) -> String {
-            D.pem("PRIVATE KEY", der)
+            String(pemLabel: "PRIVATE KEY", der)
         }
         func publicKey(_ bytes: Data) -> [UInt8] {
-            D.bitString([UInt8](bytes), tag: 0x81)
+            [UInt8](derBitString: [UInt8](bytes), tag: 0x81)
         }
         func publicMembers(_ der: [UInt8]) throws -> [String: String] {
             try members(PrivateJWK(pem: pem(der)).publicJWK.jsonRepresentation())
         }
 
-        let edAlgorithm = try D.oid(KeyDER.ed25519)
-        let edKey = D.octetString([UInt8](keys.ed25519.rawRepresentation))
+        let edAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.ed25519.rawValue)
+        let edKey = [UInt8](derOctetString: [UInt8](keys.ed25519.rawRepresentation))
         let edPublic = try members(JWK(.ed25519(keys.ed25519.publicKey)).jsonRepresentation())
-        #expect(try publicMembers(D.pkcs8(edAlgorithm, edKey)) == edPublic)
+        #expect(try publicMembers([UInt8](pkcs8Version: 0, edAlgorithm, edKey)) == edPublic)
         // Version 1 (RFC 5958) adds the public key; attributes are skipped.
         let edPublicKey = publicKey(keys.ed25519.publicKey.rawRepresentation)
-        #expect(try publicMembers(D.pkcs8(version: 1, edAlgorithm, edKey, edPublicKey)) == edPublic)
-        let attributes = D.element(0xA0, D.sequence(try D.oid("1.2.840.113549.1.9.9.20"), D.element(0x31, [])))
-        #expect(try publicMembers(D.pkcs8(edAlgorithm, edKey, attributes)) == edPublic)
-        #expect(try publicMembers(D.pkcs8(version: 1, edAlgorithm, edKey, attributes + edPublicKey)) == edPublic)
-        #expect(
-            privateFailure(
-                pem(D.pkcs8(version: 1, edAlgorithm, edKey, publicKey(keys.otherEd25519.publicKey.rawRepresentation)))
-            ) == .privateKeyDoesNotMatchPublicKey(curve: "Ed25519")
+        #expect(try publicMembers([UInt8](pkcs8Version: 1, edAlgorithm, edKey, edPublicKey)) == edPublic)
+        let attributes = [UInt8](
+            derTag: 0xA0,
+            [UInt8](derSequence: try [UInt8](derOID: "1.2.840.113549.1.9.9.20"), [UInt8](derTag: 0x31, []))
         )
-        #expect(
-            derReason(privateFailure(pem(D.pkcs8(version: 2, edAlgorithm, edKey))))
-                == "PrivateKeyInfo version is not 0 or 1"
-        )
-        #expect(
-            derReason(privateFailure(pem(D.pkcs8(edAlgorithm, edKey, D.null))))
-                == "2 unexpected bytes after PrivateKeyInfo"
-        )
-        #expect(
-            derReason(privateFailure(pem(D.pkcs8(edAlgorithm + D.null, edKey))))
-                == "2 unexpected bytes after privateKeyAlgorithm"
-        )
-        #expect(
-            derReason(privateFailure(pem(D.pkcs8(edAlgorithm, edKey + D.null))))
-                == "2 unexpected bytes after CurvePrivateKey"
-        )
-
-        let xAlgorithm = try D.oid(KeyDER.x25519)
-        let xKey = D.octetString([UInt8](keys.x25519.rawRepresentation))
-        let xPublic = try members(JWK(.x25519(keys.x25519.publicKey)).jsonRepresentation())
-        let xPublicKey = publicKey(keys.x25519.publicKey.rawRepresentation)
-        #expect(try publicMembers(D.pkcs8(version: 1, xAlgorithm, xKey, xPublicKey)) == xPublic)
-        #expect(
-            privateFailure(
-                pem(D.pkcs8(version: 1, xAlgorithm, xKey, publicKey(keys.otherX25519.publicKey.rawRepresentation)))
-            ) == .privateKeyDoesNotMatchPublicKey(curve: "X25519")
-        )
-        #expect(
-            derReason(privateFailure(pem(D.pkcs8(xAlgorithm + D.null, xKey))))
-                == "2 unexpected bytes after privateKeyAlgorithm"
-        )
-
-        let rsaAlgorithm = try D.oid(KeyDER.rsaEncryption) + D.null
-        let rsaKey = [UInt8](keys.rsa.pkcs1DERRepresentation)
-        let rsaPublic = try members(JWK(.rsa(keys.rsa.publicKey)).jsonRepresentation())
-        let rsaPublicKey = publicKey(keys.rsa.publicKey.pkcs1DERRepresentation)
-        #expect(try publicMembers(D.pkcs8(version: 1, rsaAlgorithm, rsaKey, rsaPublicKey)) == rsaPublic)
+        #expect(try publicMembers([UInt8](pkcs8Version: 0, edAlgorithm, edKey, attributes)) == edPublic)
+        #expect(try publicMembers([UInt8](pkcs8Version: 1, edAlgorithm, edKey, attributes + edPublicKey)) == edPublic)
         #expect(
             privateFailure(
                 pem(
-                    D.pkcs8(version: 1, rsaAlgorithm, rsaKey, publicKey(keys.otherRSA.publicKey.pkcs1DERRepresentation))
+                    [UInt8](
+                        pkcs8Version: 1,
+                        edAlgorithm,
+                        edKey,
+                        publicKey(keys.otherEd25519.publicKey.rawRepresentation)
+                    )
+                )
+            ) == .privateKeyDoesNotMatchPublicKey(curve: "Ed25519")
+        )
+        #expect(
+            derReason(privateFailure(pem([UInt8](pkcs8Version: 2, edAlgorithm, edKey))))
+                == "PrivateKeyInfo version is not 0 or 1"
+        )
+        #expect(
+            derReason(privateFailure(pem([UInt8](pkcs8Version: 0, edAlgorithm, edKey, [UInt8].derNull))))
+                == "2 unexpected bytes after PrivateKeyInfo"
+        )
+        #expect(
+            derReason(privateFailure(pem([UInt8](pkcs8Version: 0, edAlgorithm + [UInt8].derNull, edKey))))
+                == "2 unexpected bytes after privateKeyAlgorithm"
+        )
+        #expect(
+            derReason(privateFailure(pem([UInt8](pkcs8Version: 0, edAlgorithm, edKey + [UInt8].derNull))))
+                == "2 unexpected bytes after CurvePrivateKey"
+        )
+
+        let xAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.x25519.rawValue)
+        let xKey = [UInt8](derOctetString: [UInt8](keys.x25519.rawRepresentation))
+        let xPublic = try members(JWK(.x25519(keys.x25519.publicKey)).jsonRepresentation())
+        let xPublicKey = publicKey(keys.x25519.publicKey.rawRepresentation)
+        #expect(try publicMembers([UInt8](pkcs8Version: 1, xAlgorithm, xKey, xPublicKey)) == xPublic)
+        #expect(
+            privateFailure(
+                pem([UInt8](pkcs8Version: 1, xAlgorithm, xKey, publicKey(keys.otherX25519.publicKey.rawRepresentation)))
+            ) == .privateKeyDoesNotMatchPublicKey(curve: "X25519")
+        )
+        #expect(
+            derReason(privateFailure(pem([UInt8](pkcs8Version: 0, xAlgorithm + [UInt8].derNull, xKey))))
+                == "2 unexpected bytes after privateKeyAlgorithm"
+        )
+
+        let rsaAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.rsaEncryption.rawValue) + [UInt8].derNull
+        let rsaKey = [UInt8](keys.rsa.pkcs1DERRepresentation)
+        let rsaPublic = try members(JWK(.rsa(keys.rsa.publicKey)).jsonRepresentation())
+        let rsaPublicKey = publicKey(keys.rsa.publicKey.pkcs1DERRepresentation)
+        #expect(try publicMembers([UInt8](pkcs8Version: 1, rsaAlgorithm, rsaKey, rsaPublicKey)) == rsaPublic)
+        #expect(
+            privateFailure(
+                pem(
+                    [UInt8](
+                        pkcs8Version: 1,
+                        rsaAlgorithm,
+                        rsaKey,
+                        publicKey(keys.otherRSA.publicKey.pkcs1DERRepresentation)
+                    )
                 )
             ) == .privateKeyDoesNotMatchPublicKey(curve: "RSA")
         )
         #expect(
-            derReason(privateFailure(pem(D.pkcs8(rsaAlgorithm + (try D.oid(KeyDER.p256)), rsaKey))))
+            derReason(
+                privateFailure(
+                    pem(
+                        [UInt8](
+                            pkcs8Version: 0,
+                            rsaAlgorithm + (try [UInt8](derOID: NamedCurveOID.p256.rawValue)),
+                            rsaKey
+                        )
+                    )
+                )
+            )
                 == "10 unexpected bytes after algorithm"
         )
 
-        let p256 = try D.oid(KeyDER.p256)
-        let p384 = try D.oid(KeyDER.p384)
-        let ecAlgorithm = try D.oid(KeyDER.ecPublicKey) + p256
+        let p256 = try [UInt8](derOID: NamedCurveOID.p256.rawValue)
+        let p384 = try [UInt8](derOID: NamedCurveOID.p384.rawValue)
+        let ecAlgorithm = try [UInt8](derOID: KeyAlgorithmOID.ecPublicKey.rawValue) + p256
         let ecPublic = try members(JWK(.p256(keys.p256.publicKey)).jsonRepresentation())
         let scalar = keys.p256.rawRepresentation
         let ecPublicKey = publicKey(keys.p256.publicKey.x963Representation)
-        #expect(try publicMembers(D.pkcs8(version: 1, ecAlgorithm, D.sec1(scalar), ecPublicKey)) == ecPublic)
+        #expect(
+            try publicMembers([UInt8](pkcs8Version: 1, ecAlgorithm, [UInt8](sec1Version: 1, scalar), ecPublicKey))
+                == ecPublic
+        )
         #expect(
             privateFailure(
                 pem(
-                    D.pkcs8(
-                        version: 1,
+                    [UInt8](
+                        pkcs8Version: 1,
                         ecAlgorithm,
-                        D.sec1(scalar),
+                        [UInt8](sec1Version: 1, scalar),
                         publicKey(keys.otherP256.publicKey.x963Representation)
                     )
                 )
             ) == .privateKeyDoesNotMatchPublicKey(curve: "P-256")
         )
         // The algorithm's curve and the key's own may both be given, and must then agree.
-        #expect(try publicMembers(D.pkcs8(ecAlgorithm, D.sec1(scalar, curve: p256))) == ecPublic)
         #expect(
-            derReason(privateFailure(pem(D.pkcs8(ecAlgorithm, D.sec1(scalar, curve: p384)))))
-                == "the key's curve \(KeyDER.p384) differs from the algorithm's \(KeyDER.p256)"
+            try publicMembers([UInt8](pkcs8Version: 0, ecAlgorithm, [UInt8](sec1Version: 1, scalar, curve: p256)))
+                == ecPublic
         )
         #expect(
-            derReason(privateFailure(pem(D.pkcs8(ecAlgorithm + D.null, D.sec1(scalar)))))
+            derReason(
+                privateFailure(pem([UInt8](pkcs8Version: 0, ecAlgorithm, [UInt8](sec1Version: 1, scalar, curve: p384))))
+            )
+                == "the key's curve \(NamedCurveOID.p384.rawValue) differs from the algorithm's \(NamedCurveOID.p256.rawValue)"
+        )
+        #expect(
+            derReason(
+                privateFailure(
+                    pem([UInt8](pkcs8Version: 0, ecAlgorithm + [UInt8].derNull, [UInt8](sec1Version: 1, scalar)))
+                )
+            )
                 == "2 unexpected bytes after privateKeyAlgorithm"
         )
     }
@@ -507,47 +559,58 @@ struct PEMTests {
     func sec1() throws {
         let keys = try Keys()
         func pem(_ der: [UInt8]) -> String {
-            D.pem("EC PRIVATE KEY", der)
+            String(pemLabel: "EC PRIVATE KEY", der)
         }
-        let p256 = try D.oid(KeyDER.p256)
+        let p256 = try [UInt8](derOID: NamedCurveOID.p256.rawValue)
         let scalar = keys.p256.rawRepresentation
-        let publicKey = D.bitString([UInt8](keys.p256.publicKey.x963Representation))
+        let publicKey = [UInt8](derBitString: [UInt8](keys.p256.publicKey.x963Representation))
         let expected = try members(JWK(.p256(keys.p256.publicKey)).jsonRepresentation())
 
         #expect(
-            try members(PrivateJWK(pem: pem(D.sec1(scalar, curve: p256))).publicJWK.jsonRepresentation()) == expected
+            try members(
+                PrivateJWK(pem: pem([UInt8](sec1Version: 1, scalar, curve: p256))).publicJWK.jsonRepresentation()
+            ) == expected
         )
         #expect(
             try members(
-                PrivateJWK(pem: pem(D.sec1(scalar, curve: p256, publicKey: publicKey))).publicJWK.jsonRepresentation()
+                PrivateJWK(pem: pem([UInt8](sec1Version: 1, scalar, curve: p256, publicKey: publicKey))).publicJWK
+                    .jsonRepresentation()
             ) == expected
         )
         #expect(
             privateFailure(
                 pem(
-                    D.sec1(
+                    [UInt8](
+                        sec1Version: 1,
                         scalar,
                         curve: p256,
-                        publicKey: D.bitString([UInt8](keys.otherP256.publicKey.x963Representation))
+                        publicKey: [UInt8](derBitString: [UInt8](keys.otherP256.publicKey.x963Representation))
                     )
                 )
             ) == .privateKeyDoesNotMatchPublicKey(curve: "P-256")
         )
-        #expect(derReason(privateFailure(pem(D.sec1(scalar)))) == "ECPrivateKey names no curve")
+        #expect(derReason(privateFailure(pem([UInt8](sec1Version: 1, scalar)))) == "ECPrivateKey names no curve")
         #expect(
-            derReason(privateFailure(pem(D.sec1(version: 0, scalar, curve: p256)))) == "ECPrivateKey version is not 1"
+            derReason(privateFailure(pem([UInt8](sec1Version: 0, scalar, curve: p256))))
+                == "ECPrivateKey version is not 1"
         )
         #expect(
-            derReason(privateFailure(pem(D.sec1(scalar, curve: p256 + D.null))))
+            derReason(privateFailure(pem([UInt8](sec1Version: 1, scalar, curve: p256 + [UInt8].derNull))))
                 == "2 unexpected bytes after parameters"
         )
         #expect(
-            derReason(privateFailure(pem(D.sec1(scalar, curve: p256, publicKey: publicKey + D.null))))
+            derReason(
+                privateFailure(
+                    pem([UInt8](sec1Version: 1, scalar, curve: p256, publicKey: publicKey + [UInt8].derNull))
+                )
+            )
                 == "2 unexpected bytes after publicKey"
         )
-        let trailing = D.element(
-            0x30,
-            D.integer(1) + D.octetString([UInt8](scalar)) + D.element(0xA0, p256) + D.null
+        let trailing = [UInt8](
+            derTag:
+                0x30,
+            [UInt8](derInteger: 1) + [UInt8](derOctetString: [UInt8](scalar)) + [UInt8](derTag: 0xA0, p256)
+                + [UInt8].derNull
         )
         #expect(derReason(privateFailure(pem(trailing))) == "2 unexpected bytes after ECPrivateKey")
     }
@@ -580,7 +643,9 @@ struct DERReaderTests {
         #expect(try objectIdentifier([0x4F]) == "1.39")
         #expect(try objectIdentifier([0x50]) == "2.0")
         #expect(try objectIdentifier([0x88, 0x37]) == "2.999")
-        #expect(try objectIdentifier([0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01]) == KeyDER.ecPublicKey)
+        #expect(
+            try objectIdentifier([0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01]) == KeyAlgorithmOID.ecPublicKey.rawValue
+        )
         // The largest arc that fits in 63 bits reads; one more group does not.
         let largest: [UInt8] = Array(repeating: 0xFF, count: 8) + [0x7F]
         #expect(try objectIdentifier([0x2A] + largest) == "1.2.\(UInt64.max >> 1)")

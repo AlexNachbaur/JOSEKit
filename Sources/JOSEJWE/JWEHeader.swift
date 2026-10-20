@@ -132,36 +132,30 @@ let registeredJWEHeaderNames: Set<String> = [
     "epk", "apu", "apv", "iv", "tag", "p2s", "p2c",
 ]
 
-struct JWEJSON {
-    private init() {}
-
-    static func encoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        // Sorted so that the same header always produces the same bytes.
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return encoder
-    }
-
-    static func decodeBase64URL(_ text: String, part: String) throws(JWEError) -> Data {
+extension Data {
+    /// Decodes one base64url part of a JWE, naming the part in any error.
+    init(jwePart text: String, named part: String) throws(JWEError) {
         guard !text.utf8.contains(UInt8(ascii: "=")) else {
             throw .paddingNotAllowed(part: part)
         }
         do {
-            return try Base64URL.decode(text)
+            self = try Base64URL.decode(text)
         } catch {
             throw .invalidBase64URL(part: part, error)
         }
     }
+}
 
-    /// Reads the protected header's JSON, rejecting duplicate member names.
-    static func protectedValues(_ json: Data) throws(JWEError) -> [String: JSONValue] {
+extension [String: JSONValue] {
+    /// Reads a JWE protected header's JSON, rejecting duplicate member names.
+    init(jweProtectedHeader json: Data) throws(JWEError) {
         do {
             try JSONMemberUniqueness.validate(json)
         } catch {
             throw .invalidHeaderStructure(error)
         }
         do {
-            return try JSONDecoder().decode([String: JSONValue].self, from: json)
+            self = try JSONDecoder().decode([String: JSONValue].self, from: json)
         } catch {
             throw .invalidHeaderJSON(description: String(describing: error))
         }
@@ -205,7 +199,7 @@ extension JWEHeader {
             if let protectedJSON, unprotectedNames.isEmpty {
                 custom = try JSONDecoder().decode(Custom.self, from: protectedJSON)
             } else {
-                custom = try JSONDecoder().decode(Custom.self, from: try JWEJSON.encoder().encode(values))
+                custom = try JSONDecoder().decode(Custom.self, from: try JSONEncoder.deterministic().encode(values))
             }
         } catch {
             throw .invalidCustomParameters(description: String(describing: error))
@@ -292,7 +286,7 @@ extension JWEHeader {
             throw .headerParameterWrongType(name: "jwk", expected: "an object")
         }
         do {
-            return try JWK(json: try JWEJSON.encoder().encode(value))
+            return try JWK(json: try JSONEncoder.deterministic().encode(value))
         } catch let error as JWKError {
             throw .invalidJWKParameter(error)
         } catch {
@@ -346,7 +340,7 @@ extension JWEHeaderParameters {
     func values() throws(JWEError) -> [String: JSONValue] {
         var values: [String: JSONValue]
         do {
-            let customJSON = try JWEJSON.encoder().encode(custom)
+            let customJSON = try JSONEncoder.deterministic().encode(custom)
             guard case .object(let object) = try JSONDecoder().decode(JSONValue.self, from: customJSON) else {
                 throw JWEError.customParametersNotObject
             }

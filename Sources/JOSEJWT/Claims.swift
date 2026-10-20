@@ -138,17 +138,6 @@ extension JWTClaims where Custom == EmptyClaims {
 
 let registeredClaimNames: Set<String> = ["iss", "sub", "aud", "exp", "nbf", "iat", "jti"]
 
-struct ClaimsJSON {
-    private init() {}
-
-    static func encoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        // Sorted so that the same claims always produce the same bytes.
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return encoder
-    }
-}
-
 extension JWTClaims: Equatable where Custom: Equatable {}
 
 extension JWTClaims {
@@ -159,7 +148,7 @@ extension JWTClaims {
         let customJSON: Data
         let customNames: Set<String>
         do {
-            customJSON = try ClaimsJSON.encoder().encode(custom)
+            customJSON = try JSONEncoder.deterministic().encode(custom)
             // Only the names are read back. The values stay as the encoder wrote them, because
             // `JSONValue` cannot hold every number exactly (a `UInt64` above `Int64.max`, say).
             guard case .object(let object) = try JSONDecoder().decode(JSONValue.self, from: customJSON) else {
@@ -211,7 +200,7 @@ extension JWTClaims {
 
         let rest: Data
         do {
-            rest = try ClaimsJSON.encoder().encode(values)
+            rest = try JSONEncoder.deterministic().encode(values)
         } catch {
             throw .claimsEncodingFailed(description: String(describing: error))
         }

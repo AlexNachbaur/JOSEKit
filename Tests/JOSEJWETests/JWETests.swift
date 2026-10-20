@@ -951,66 +951,29 @@ struct JWETests {
     @Test("the Concat KDF binds the algorithm name and key length, and spans more than one hash block")
     func concatKDF() {
         let secret = Data(repeating: 0x0B, count: 32)
-        let base = ConcatKDF.derive(
-            sharedSecret: secret,
-            algorithmID: "A256GCM",
-            partyUInfo: Data(),
-            partyVInfo: Data(),
-            keyByteCount: 32
-        )
+        func derive(
+            _ algorithmID: String,
+            partyUInfo: Data = Data(),
+            partyVInfo: Data = Data(),
+            keyByteCount: Int = 32
+        ) -> Data {
+            ConcatKDF(
+                algorithmID: algorithmID,
+                partyUInfo: partyUInfo,
+                partyVInfo: partyVInfo,
+                keyByteCount: keyByteCount
+            ).deriveKey(from: secret)
+        }
+        let base = derive("A256GCM")
         #expect(base.count == 32)
-        #expect(
-            ConcatKDF.derive(
-                sharedSecret: secret,
-                algorithmID: "A256GCM",
-                partyUInfo: Data(),
-                partyVInfo: Data(),
-                keyByteCount: 32
-            ) == base
-        )
-        #expect(
-            ConcatKDF.derive(
-                sharedSecret: secret,
-                algorithmID: "A128GCM",
-                partyUInfo: Data(),
-                partyVInfo: Data(),
-                keyByteCount: 32
-            ) != base
-        )
-        #expect(
-            ConcatKDF.derive(
-                sharedSecret: secret,
-                algorithmID: "A256GCM",
-                partyUInfo: Data([1]),
-                partyVInfo: Data(),
-                keyByteCount: 32
-            ) != base
-        )
-        #expect(
-            ConcatKDF.derive(
-                sharedSecret: secret,
-                algorithmID: "A256GCM",
-                partyUInfo: Data(),
-                partyVInfo: Data([1]),
-                keyByteCount: 32
-            ) != base
-        )
+        #expect(derive("A256GCM") == base)
+        #expect(derive("A128GCM") != base)
+        #expect(derive("A256GCM", partyUInfo: Data([1])) != base)
+        #expect(derive("A256GCM", partyVInfo: Data([1])) != base)
         // The key length is itself an input, so a shorter key is not a prefix of a longer one.
-        let short = ConcatKDF.derive(
-            sharedSecret: secret,
-            algorithmID: "A256GCM",
-            partyUInfo: Data(),
-            partyVInfo: Data(),
-            keyByteCount: 16
-        )
+        let short = derive("A256GCM", keyByteCount: 16)
         #expect(short != base.prefix(16))
-        let long = ConcatKDF.derive(
-            sharedSecret: secret,
-            algorithmID: "A256CBC-HS512",
-            partyUInfo: Data(),
-            partyVInfo: Data(),
-            keyByteCount: 64
-        )
+        let long = derive("A256CBC-HS512", keyByteCount: 64)
         #expect(long.count == 64)
         #expect(long.prefix(32) != long.suffix(32))
     }
@@ -1374,22 +1337,23 @@ struct JWETests {
     func aesCBC() throws {
         let key = secret(16).rawRepresentation
         let iv = secret(16).rawRepresentation
+        let cipher = PlatformAESCBC(key: key)
         for length in 0...48 {
             let plaintext = Data((0..<length).map { UInt8($0) })
-            let ciphertext = try AESCBC.encrypt(plaintext, key: key, iv: iv)
+            let ciphertext = try cipher.encrypt(plaintext, iv: iv)
             #expect(ciphertext.count == (length / 16 + 1) * 16)
-            #expect(try AESCBC.decrypt(ciphertext, key: key, iv: iv) == plaintext)
+            #expect(try cipher.decrypt(ciphertext, iv: iv) == plaintext)
         }
-        #expect(throws: (any Error).self) { try AESCBC.encrypt(Data(count: 16), key: key, iv: Data(count: 8)) }
+        #expect(throws: (any Error).self) { try cipher.encrypt(Data(count: 16), iv: Data(count: 8)) }
     }
 
     @Test("constant-time comparison is correct")
     func constantTime() {
-        #expect(ConstantTime.equal(Data([1, 2, 3]), Data([1, 2, 3])))
-        #expect(!ConstantTime.equal(Data([1, 2, 3]), Data([1, 2, 4])))
-        #expect(!ConstantTime.equal(Data([0, 2, 3]), Data([1, 2, 3])))
-        #expect(!ConstantTime.equal(Data([1, 2, 3]), Data([1, 2])))
-        #expect(ConstantTime.equal(Data(), Data()))
+        #expect(Data([1, 2, 3]).constantTimeEquals(Data([1, 2, 3])))
+        #expect(!Data([1, 2, 3]).constantTimeEquals(Data([1, 2, 4])))
+        #expect(!Data([0, 2, 3]).constantTimeEquals(Data([1, 2, 3])))
+        #expect(!Data([1, 2, 3]).constantTimeEquals(Data([1, 2])))
+        #expect(Data().constantTimeEquals(Data()))
     }
 
     @Test("decryption keys can be assembled with the result builder")

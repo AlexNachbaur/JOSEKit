@@ -5,15 +5,14 @@ struct FixtureError: Error, CustomStringConvertible {
     let description: String
 }
 
-struct Fixtures {
-    private init() {}
-
-    /// Loads a fixture written by `interop/jwk/generate-fixtures.mjs`.
-    static func load<T: Decodable>(_ type: T.Type, named name: String) throws -> T {
+extension Decodable {
+    /// Loads a fixture written by `interop/jwk/generate-fixtures.mjs` or
+    /// `interop/jwk/generate-pem-fixtures.mjs`.
+    init(fixture name: String) throws {
         guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures") else {
             throw FixtureError(description: "fixture \(name).json is missing from the test bundle")
         }
-        return try JSONDecoder().decode(type, from: Data(contentsOf: url))
+        self = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
     }
 }
 
@@ -114,6 +113,6 @@ struct KeysFixture: Decodable {
     let agreements: [Agreement]
 
     static func load() throws -> KeysFixture {
-        try Fixtures.load(KeysFixture.self, named: "keys")
+        try KeysFixture(fixture: "keys")
     }
 }

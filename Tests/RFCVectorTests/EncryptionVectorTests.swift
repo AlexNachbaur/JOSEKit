@@ -52,7 +52,7 @@ struct EncryptionVectorTests {
     func decrypts(file: String) async throws {
         let vector = try Vector(file)
         let keys = DecryptionKeys([
-            try VectorKeys.decrypter(
+            try AnyKeyDecrypter(
                 algorithm: try vector.string("input", "alg"),
                 key: try vector.value("input", "key")
             )
@@ -88,7 +88,7 @@ struct EncryptionVectorTests {
         #expect(jwe.headers.map(\.algorithm.rawValue) == algorithms)
         #expect(algorithms == ["RSA1_5", "ECDH-ES+A256KW", "A256GCMKW"])
         for (algorithm, key) in zip(algorithms, keys) {
-            let keys = DecryptionKeys([try VectorKeys.decrypter(algorithm: algorithm, key: key)])
+            let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: algorithm, key: key)])
             let decrypted = try await jwe.decrypt(with: keys)
             #expect(decrypted.plaintext == plaintext, "\(algorithm)")
             #expect(decrypted.header.algorithm.rawValue == algorithm)
@@ -167,7 +167,7 @@ struct EncryptionVectorTests {
         ] {
             let vector = try Vector(file)
             let wrappingKey = try SymmetricJWK(json: try vector.value("input", "key").json).key.rawRepresentation
-            let wrapped = try AESKeyWrapping.wrap(try vector.bytes("generated", "cek"), with: wrappingKey)
+            let wrapped = try AESKeyWrapping(wrappingKey: wrappingKey).wrap(try vector.bytes("generated", "cek"))
             #expect(wrapped == (try vector.bytes("encrypting_key", "encrypted_key")), "\(file)")
         }
     }
@@ -176,7 +176,7 @@ struct EncryptionVectorTests {
     func refusesTampering(file: String) async throws {
         let vector = try Vector(file)
         let keys = DecryptionKeys([
-            try VectorKeys.decrypter(
+            try AnyKeyDecrypter(
                 algorithm: try vector.string("input", "alg"),
                 key: try vector.value("input", "key")
             )
@@ -215,7 +215,7 @@ struct EncryptionVectorTests {
             let jwe = try SimpleJWE.Encrypted(compact: try vector.string("output", "compact"))
             #expect(jwe.header.compression == .deflate)
             let keys = DecryptionKeys([
-                try VectorKeys.decrypter(algorithm: "A128KW", key: try vector.value("input", "key"))
+                try AnyKeyDecrypter(algorithm: "A128KW", key: try vector.value("input", "key"))
             ])
             await #expect(throws: JWEError.decompressedSizeExceedsLimit(maximum: 100)) {
                 try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100)

@@ -42,7 +42,7 @@ struct Base64URLTests {
 
     @Test("encoding matches jose for every fixture input")
     func encodeMatchesCounterpart() throws {
-        let fixture = try Fixtures.load(Base64URLFixture.self, named: "base64url")
+        let fixture = try Base64URLFixture(fixture: "base64url")
         #expect(fixture.encode.count > 50)
         for vector in fixture.encode {
             let bytes = try Data(hex: vector.hex)
@@ -52,7 +52,7 @@ struct Base64URLTests {
 
     @Test("decoding jose's encodings returns the original bytes")
     func decodeMatchesCounterpart() throws {
-        let fixture = try Fixtures.load(Base64URLFixture.self, named: "base64url")
+        let fixture = try Base64URLFixture(fixture: "base64url")
         for vector in fixture.encode {
             let decoded = try Base64URL.decode(vector.base64url)
             let expected = try Data(hex: vector.hex)
@@ -62,7 +62,7 @@ struct Base64URLTests {
 
     @Test("decode accepts and rejects the same inputs as jose, apart from the documented stricter cases")
     func decodeAgreesWithCounterpart() throws {
-        let fixture = try Fixtures.load(Base64URLFixture.self, named: "base64url")
+        let fixture = try Base64URLFixture(fixture: "base64url")
         var accepted = 0
         var rejected = 0
         var stricter = 0

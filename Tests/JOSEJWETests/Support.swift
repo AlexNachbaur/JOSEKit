@@ -8,15 +8,13 @@ struct FixtureError: Error, CustomStringConvertible {
     let description: String
 }
 
-struct Fixtures {
-    private init() {}
-
+extension Decodable {
     /// Loads a fixture written by `interop/jwe/generate-fixtures.mjs`.
-    static func load<T: Decodable>(_ type: T.Type, named name: String) throws -> T {
+    init(fixture name: String) throws {
         guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures") else {
             throw FixtureError(description: "fixture \(name).json is missing from the test bundle")
         }
-        return try JSONDecoder().decode(type, from: Data(contentsOf: url))
+        self = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
     }
 }
 
@@ -62,30 +60,28 @@ struct ExampleHeader: HeaderParameters, Equatable {
     }
 }
 
-struct TestKeys {
-    private init() {}
-
-    private static func ecdh<Algorithm: ECDHESAlgorithm>(
-        _ algorithm: Algorithm.Type,
+extension AnyKeyDecrypter {
+    private init<Algorithm: ECDHESAlgorithm>(
+        ecdh algorithm: Algorithm.Type,
         _ jwk: PrivateJWK,
         keyID: KeyID?
-    ) throws -> AnyKeyDecrypter {
+    ) throws {
         switch jwk.key {
         case .p256(let key):
-            return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, ECPrivateKey<P256Curve>>(privateKey: key, keyID: keyID))
+            self.init(ECDHESDecrypter<Algorithm, ECPrivateKey<P256Curve>>(privateKey: key, keyID: keyID))
         case .p384(let key):
-            return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, ECPrivateKey<P384Curve>>(privateKey: key, keyID: keyID))
+            self.init(ECDHESDecrypter<Algorithm, ECPrivateKey<P384Curve>>(privateKey: key, keyID: keyID))
         case .p521(let key):
-            return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, ECPrivateKey<P521Curve>>(privateKey: key, keyID: keyID))
+            self.init(ECDHESDecrypter<Algorithm, ECPrivateKey<P521Curve>>(privateKey: key, keyID: keyID))
         case .x25519(let key):
-            return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, X25519PrivateKey>(privateKey: key, keyID: keyID))
+            self.init(ECDHESDecrypter<Algorithm, X25519PrivateKey>(privateKey: key, keyID: keyID))
         case .ed25519, .rsa:
             throw FixtureError(description: "not an ECDH key")
         }
     }
 
     /// A decrypter for `algorithm` from the private or symmetric JWK the counterpart exported.
-    static func decrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> AnyKeyDecrypter {
+    init(algorithm: String, jwk: String, keyID: KeyID? = nil) throws {
         let json = Data(jwk.utf8)
         func secret() throws -> SymmetricKeyMaterial {
             try SymmetricJWK(json: json).key
@@ -98,43 +94,37 @@ struct TestKeys {
         }
         switch algorithm {
         case "dir":
-            return AnyKeyDecrypter(DirectDecrypter(key: try secret(), keyID: keyID))
+            self.init(DirectDecrypter(key: try secret(), keyID: keyID))
         case "A128KW":
-            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A128KW>(key: try secret(), keyID: keyID))
+            self.init(try AESKeyWrapDecrypter<A128KW>(key: try secret(), keyID: keyID))
         case "A192KW":
-            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A192KW>(key: try secret(), keyID: keyID))
+            self.init(try AESKeyWrapDecrypter<A192KW>(key: try secret(), keyID: keyID))
         case "A256KW":
-            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: try secret(), keyID: keyID))
+            self.init(try AESKeyWrapDecrypter<A256KW>(key: try secret(), keyID: keyID))
         case "A128GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A128GCMKW>(key: try secret(), keyID: keyID))
+            self.init(try AESGCMKeyWrapDecrypter<A128GCMKW>(key: try secret(), keyID: keyID))
         case "A192GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A192GCMKW>(key: try secret(), keyID: keyID))
+            self.init(try AESGCMKeyWrapDecrypter<A192GCMKW>(key: try secret(), keyID: keyID))
         case "A256GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: try secret(), keyID: keyID))
+            self.init(try AESGCMKeyWrapDecrypter<A256GCMKW>(key: try secret(), keyID: keyID))
         case "ECDH-ES":
-            return try ecdh(ECDHES.self, try PrivateJWK(json: json), keyID: keyID)
+            try self.init(ecdh: ECDHES.self, try PrivateJWK(json: json), keyID: keyID)
         case "ECDH-ES+A128KW":
-            return try ecdh(ECDHESA128KW.self, try PrivateJWK(json: json), keyID: keyID)
+            try self.init(ecdh: ECDHESA128KW.self, try PrivateJWK(json: json), keyID: keyID)
         case "ECDH-ES+A192KW":
-            return try ecdh(ECDHESA192KW.self, try PrivateJWK(json: json), keyID: keyID)
+            try self.init(ecdh: ECDHESA192KW.self, try PrivateJWK(json: json), keyID: keyID)
         case "ECDH-ES+A256KW":
-            return try ecdh(ECDHESA256KW.self, try PrivateJWK(json: json), keyID: keyID)
+            try self.init(ecdh: ECDHESA256KW.self, try PrivateJWK(json: json), keyID: keyID)
         case "RSA-OAEP":
-            return AnyKeyDecrypter(try RSADecrypter<RSAOAEP>(privateKey: try rsa(), keyID: keyID))
+            self.init(try RSADecrypter<RSAOAEP>(privateKey: try rsa(), keyID: keyID))
         case "RSA-OAEP-256":
-            return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: try rsa(), keyID: keyID))
+            self.init(try RSADecrypter<RSAOAEP256>(privateKey: try rsa(), keyID: keyID))
         case "PBES2-HS256+A128KW":
-            return AnyKeyDecrypter(
-                PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
-            )
+            self.init(PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID))
         case "PBES2-HS384+A192KW":
-            return AnyKeyDecrypter(
-                PBES2Decrypter<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID)
-            )
+            self.init(PBES2Decrypter<PBES2HS384A192KW>(password: try secret().rawRepresentation, keyID: keyID))
         case "PBES2-HS512+A256KW":
-            return AnyKeyDecrypter(
-                PBES2Decrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID)
-            )
+            self.init(PBES2Decrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID))
         default:
             throw FixtureError(description: "no decrypter for \(algorithm)")
         }

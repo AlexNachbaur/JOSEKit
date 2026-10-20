@@ -198,14 +198,13 @@ public struct HeaderKeyResolver: Sendable {
             }
             certificates.append(der)
         }
-        if let thumbprint = header.parameters.x509CertificateSHA1Thumbprint {
-            guard thumbprint == Base64URL.encode(CertificateDigest.sha1(certificates[0])) else {
-                throw .certificateThumbprintMismatch(parameter: "x5t")
-            }
-        }
-        if let thumbprint = header.parameters.x509CertificateSHA256Thumbprint {
-            guard thumbprint == Base64URL.encode(CertificateDigest.sha256(certificates[0])) else {
-                throw .certificateThumbprintMismatch(parameter: "x5t#S256")
+        let thumbprints: [(CertificateDigest, String?)] = [
+            (.sha1, header.parameters.x509CertificateSHA1Thumbprint),
+            (.sha256, header.parameters.x509CertificateSHA256Thumbprint),
+        ]
+        for case (let digest, let thumbprint?) in thumbprints {
+            guard thumbprint == Base64URL.encode(digest.digest(of: certificates[0])) else {
+                throw .certificateThumbprintMismatch(parameter: digest.parameter)
             }
         }
         do {

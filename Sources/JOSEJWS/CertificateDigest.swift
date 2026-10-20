@@ -7,14 +7,28 @@ import Foundation
 #endif
 
 /// The digests `x5t` and `x5t#S256` carry: over the DER of the first certificate in `x5c`.
-struct CertificateDigest {
-    private init() {}
+enum CertificateDigest {
+    /// `x5t` (RFC 7515 §4.1.7).
+    case sha1
+    /// `x5t#S256` (RFC 7515 §4.1.8).
+    case sha256
 
-    static func sha1(_ der: Data) -> Data {
-        Data(Insecure.SHA1.hash(data: der))
+    /// The header parameter that carries this digest.
+    var parameter: String {
+        switch self {
+        case .sha1:
+            return "x5t"
+        case .sha256:
+            return "x5t#S256"
+        }
     }
 
-    static func sha256(_ der: Data) -> Data {
-        Data(SHA256.hash(data: der))
+    func digest(of der: Data) -> Data {
+        switch self {
+        case .sha1:
+            return Data(Insecure.SHA1.hash(data: der))
+        case .sha256:
+            return Data(SHA256.hash(data: der))
+        }
     }
 }

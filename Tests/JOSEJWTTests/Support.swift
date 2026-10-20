@@ -9,15 +9,13 @@ struct FixtureError: Error, CustomStringConvertible {
     let description: String
 }
 
-struct Fixtures {
-    private init() {}
-
+extension Decodable {
     /// Loads a fixture written by `interop/jwt/generate-fixtures.mjs`.
-    static func load<T: Decodable>(_ type: T.Type, named name: String) throws -> T {
+    init(fixture name: String) throws {
         guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures") else {
             throw FixtureError(description: "fixture \(name).json is missing from the test bundle")
         }
-        return try JSONDecoder().decode(type, from: Data(contentsOf: url))
+        self = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
     }
 }
 
@@ -50,41 +48,39 @@ extension Data {
     }
 }
 
-struct TestKeys {
-    private init() {}
-
+extension AnyVerifier {
     /// A verifier for `algorithm` from a JWK produced by the counterpart.
-    static func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
+    init(algorithm: String, jwk: String) throws {
         let json = Data(jwk.utf8)
         switch algorithm {
         case "ES256":
-            return try ES256.verifier(for: try JWK(json: json))
+            self = try ES256.verifier(for: try JWK(json: json))
         case "ES384":
-            return try ES384.verifier(for: try JWK(json: json))
+            self = try ES384.verifier(for: try JWK(json: json))
         case "ES512":
-            return try ES512.verifier(for: try JWK(json: json))
+            self = try ES512.verifier(for: try JWK(json: json))
         case "Ed25519":
-            return try JOSECore.Ed25519.verifier(for: try JWK(json: json))
+            self = try JOSECore.Ed25519.verifier(for: try JWK(json: json))
         case "EdDSA":
-            return try EdDSA.verifier(for: try JWK(json: json))
+            self = try EdDSA.verifier(for: try JWK(json: json))
         case "RS256":
-            return try RS256.verifier(for: try JWK(json: json))
+            self = try RS256.verifier(for: try JWK(json: json))
         case "RS384":
-            return try RS384.verifier(for: try JWK(json: json))
+            self = try RS384.verifier(for: try JWK(json: json))
         case "RS512":
-            return try RS512.verifier(for: try JWK(json: json))
+            self = try RS512.verifier(for: try JWK(json: json))
         case "PS256":
-            return try PS256.verifier(for: try JWK(json: json))
+            self = try PS256.verifier(for: try JWK(json: json))
         case "PS384":
-            return try PS384.verifier(for: try JWK(json: json))
+            self = try PS384.verifier(for: try JWK(json: json))
         case "PS512":
-            return try PS512.verifier(for: try JWK(json: json))
+            self = try PS512.verifier(for: try JWK(json: json))
         case "HS256":
-            return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
+            self = AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
         case "HS384":
-            return AnyVerifier(try HMACVerifier<HS384>(jwk: try SymmetricJWK(json: json)))
+            self = AnyVerifier(try HMACVerifier<HS384>(jwk: try SymmetricJWK(json: json)))
         case "HS512":
-            return AnyVerifier(try HMACVerifier<HS512>(jwk: try SymmetricJWK(json: json)))
+            self = AnyVerifier(try HMACVerifier<HS512>(jwk: try SymmetricJWK(json: json)))
         default:
             throw FixtureError(description: "no verifier for \(algorithm)")
         }

@@ -128,7 +128,7 @@ struct JWKTests {
 
     @Test("accepts and rejects the same documents as jose, apart from the documented stricter cases")
     func parsingAgreesWithCounterpart() throws {
-        let fixture = try Fixtures.load(ParsingFixture.self, named: "jwk-parsing")
+        let fixture = try ParsingFixture(fixture: "jwk-parsing")
         var accepted = 0
         var rejected = 0
         var stricter = 0

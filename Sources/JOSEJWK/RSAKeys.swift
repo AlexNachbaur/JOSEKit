@@ -22,7 +22,10 @@ public struct RSAPublicKey: Sendable, Hashable {
     /// `RSAPublicKey` as defined by PKCS#1. This is not SubjectPublicKeyInfo: a "BEGIN PUBLIC
     /// KEY" PEM has an extra wrapper around these bytes.
     public var pkcs1DERRepresentation: Data {
-        RSAKeyDER.publicKey(modulus: modulus, exponent: exponent)
+        var writer = DERWriter()
+        writer.writeUnsignedInteger(modulus)
+        writer.writeUnsignedInteger(exponent)
+        return writer.sequence()
     }
 
     public init(modulus: Data, exponent: Data) throws(JWKError) {
@@ -61,7 +64,10 @@ public struct RSAPublicKey: Sendable, Hashable {
     }
 
     public init(pkcs1DERRepresentation: Data) throws(JWKError) {
-        let (modulus, exponent) = try RSAKeyDER.parsePublicKey(pkcs1DERRepresentation)
+        var reader = try DERReader.wholeSequence(pkcs1DERRepresentation, "key")
+        let modulus = try reader.readUnsignedInteger("modulus")
+        let exponent = try reader.readUnsignedInteger("publicExponent")
+        try reader.finish("the last value")
         try self.init(modulus: modulus, exponent: exponent)
     }
 
@@ -92,7 +98,7 @@ public struct RSAPrivateKey: Sendable {
     /// `RSAPrivateKey` as defined by PKCS#1 (a "BEGIN RSA PRIVATE KEY" PEM, decoded). This output
     /// contains the private key.
     public var pkcs1DERRepresentation: Data {
-        RSAKeyDER.privateKey(components)
+        components.pkcs1DER
     }
 
     /// Generates a new key.
@@ -107,7 +113,7 @@ public struct RSAPrivateKey: Sendable {
     }
 
     public init(pkcs1DERRepresentation: Data) throws(JWKError) {
-        try self.init(components: RSAKeyDER.parsePrivateKey(pkcs1DERRepresentation))
+        try self.init(components: RSAPrivateKeyComponents(pkcs1DER: pkcs1DERRepresentation))
     }
 
     init(components: RSAPrivateKeyComponents) throws(JWKError) {

@@ -41,8 +41,8 @@ struct CounterpartTests {
 
     @Test("compact JWSs: accepts and rejects what jose does, apart from the documented stricter cases")
     func compactVerdictsAgree() async throws {
-        let fixture = try Fixtures.load(CompactFixture.self, named: "compact-verification")
-        let keys = VerificationKeys([try TestKeys.verifier(algorithm: "ES256", jwk: fixture.jwk)])
+        let fixture = try CompactFixture(fixture: "compact-verification")
+        let keys = VerificationKeys([try AnyVerifier(algorithm: "ES256", jwk: fixture.jwk)])
         var accepted = 0
         var rejected = 0
         var stricter = 0
@@ -86,8 +86,8 @@ struct CounterpartTests {
 
     @Test("the well-known forgeries fail for the reason they should")
     func forgeriesFailSpecifically() async throws {
-        let fixture = try Fixtures.load(CompactFixture.self, named: "compact-verification")
-        let keys = VerificationKeys([try TestKeys.verifier(algorithm: "ES256", jwk: fixture.jwk)])
+        let fixture = try CompactFixture(fixture: "compact-verification")
+        let keys = VerificationKeys([try AnyVerifier(algorithm: "ES256", jwk: fixture.jwk)])
         func outcome(_ name: String) async throws -> String? {
             let token = try #require(fixture.cases.first { $0.name == name }).token
             return await thrownCase { () async throws(JWSError) in
@@ -131,7 +131,7 @@ struct CounterpartTests {
 
     @Test("every serialization jose produces verifies, for every algorithm")
     func validTokens() async throws {
-        let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
+        let fixture = try ValidFixture(fixture: "valid")
         #expect(
             fixture.tokens.map(\.algorithm) == [
                 "ES256", "ES384", "ES512", "Ed25519", "EdDSA", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512",
@@ -140,7 +140,7 @@ struct CounterpartTests {
         )
         for token in fixture.tokens {
             let label = Comment(rawValue: token.algorithm)
-            let keys = VerificationKeys([try TestKeys.verifier(algorithm: token.algorithm, jwk: token.jwk)])
+            let keys = VerificationKeys([try AnyVerifier(algorithm: token.algorithm, jwk: token.jwk)])
             let payload = try Data(hex: token.payload)
 
             // Compact, with a custom header type reading the extension parameter jose wrote.
@@ -200,7 +200,7 @@ struct CounterpartTests {
 
     @Test("a general-serialization JWS from jose verifies with any one of its signers' keys")
     func generalSerialization() async throws {
-        let general = try Fixtures.load(ValidFixture.self, named: "valid").general
+        let general = try ValidFixture(fixture: "valid").general
         let payload = try Data(hex: general.payload)
         let jws = try SimpleJWS.Unverified(json: Data(general.json.utf8))
         #expect(jws.headers.count == general.signers.count)
@@ -208,7 +208,7 @@ struct CounterpartTests {
 
         var all: [AnyVerifier] = []
         for signer in general.signers {
-            let verifier = try TestKeys.verifier(algorithm: signer.algorithm, jwk: signer.jwk)
+            let verifier = try AnyVerifier(algorithm: signer.algorithm, jwk: signer.jwk)
             all.append(verifier)
             let verified = try await jws.verify(with: VerificationKeys([verifier]))
             #expect(verified.payload == payload)

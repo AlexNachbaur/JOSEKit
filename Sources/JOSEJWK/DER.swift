@@ -190,3 +190,40 @@ struct DERReader {
         return dotted.map(String.init).joined(separator: ".")
     }
 }
+
+/// Writes the DER that `DERReader` reads, for the structures this package produces: a SEQUENCE
+/// of unsigned INTEGERs.
+struct DERWriter {
+    private var body: [UInt8] = []
+
+    /// Appends a DER INTEGER for an unsigned value: leading zeros dropped, and a `0x00` prepended
+    /// when the top bit is set, since DER INTEGERs are signed.
+    mutating func writeUnsignedInteger(_ value: Data) {
+        var magnitude = [UInt8](value.drop(while: { $0 == 0 }))
+        if magnitude.isEmpty {
+            magnitude = [0]
+        }
+        if magnitude[0] & 0x80 != 0 {
+            magnitude.insert(0x00, at: 0)
+        }
+        body += [DERReader.integer] + Self.length(magnitude.count) + magnitude
+    }
+
+    /// Everything written, as the content of one SEQUENCE.
+    func sequence() -> Data {
+        Data([DERReader.sequence] + Self.length(body.count) + body)
+    }
+
+    private static func length(_ count: Int) -> [UInt8] {
+        if count < 0x80 {
+            return [UInt8(count)]
+        }
+        var octets: [UInt8] = []
+        var remaining = count
+        while remaining > 0 {
+            octets.insert(UInt8(remaining & 0xFF), at: 0)
+            remaining >>= 8
+        }
+        return [0x80 | UInt8(octets.count)] + octets
+    }
+}

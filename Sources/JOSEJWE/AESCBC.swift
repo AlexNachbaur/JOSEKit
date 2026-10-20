@@ -8,21 +8,31 @@ struct AESCBCError: Error, CustomStringConvertible {
     let description: String
 }
 
+/// AES-CBC with PKCS#7 padding, under one key.
+protocol AESCBCCipher: Sendable {
+    init(key: Data)
+    func encrypt(_ plaintext: Data, iv: Data) throws -> Data
+    func decrypt(_ ciphertext: Data, iv: Data) throws -> Data
+}
+
 #if canImport(CommonCrypto)
     import CommonCrypto
 
-    struct AESCBC {
-        private init() {}
+    /// The AES-CBC implementation for this platform.
+    typealias PlatformAESCBC = CommonCryptoAESCBC
 
-        static func encrypt(_ plaintext: Data, key: Data, iv: Data) throws -> Data {
-            try crypt(CCOperation(kCCEncrypt), plaintext, key: key, iv: iv)
+    struct CommonCryptoAESCBC: AESCBCCipher {
+        let key: Data
+
+        func encrypt(_ plaintext: Data, iv: Data) throws -> Data {
+            try crypt(CCOperation(kCCEncrypt), plaintext, iv: iv)
         }
 
-        static func decrypt(_ ciphertext: Data, key: Data, iv: Data) throws -> Data {
-            try crypt(CCOperation(kCCDecrypt), ciphertext, key: key, iv: iv)
+        func decrypt(_ ciphertext: Data, iv: Data) throws -> Data {
+            try crypt(CCOperation(kCCDecrypt), ciphertext, iv: iv)
         }
 
-        private static func crypt(_ operation: CCOperation, _ input: Data, key: Data, iv: Data) throws -> Data {
+        private func crypt(_ operation: CCOperation, _ input: Data, iv: Data) throws -> Data {
             guard iv.count == kCCBlockSizeAES128 else {
                 throw AESCBCError(description: "AES-CBC needs a 16-byte IV; got \(iv.count)")
             }
@@ -55,14 +65,17 @@ struct AESCBCError: Error, CustomStringConvertible {
     import Crypto
     import CryptoExtras
 
-    struct AESCBC {
-        private init() {}
+    /// The AES-CBC implementation for this platform.
+    typealias PlatformAESCBC = SwiftCryptoAESCBC
 
-        static func encrypt(_ plaintext: Data, key: Data, iv: Data) throws -> Data {
+    struct SwiftCryptoAESCBC: AESCBCCipher {
+        let key: Data
+
+        func encrypt(_ plaintext: Data, iv: Data) throws -> Data {
             try AES._CBC.encrypt(plaintext, using: SymmetricKey(data: key), iv: try AES._CBC.IV(ivBytes: [UInt8](iv)))
         }
 
-        static func decrypt(_ ciphertext: Data, key: Data, iv: Data) throws -> Data {
+        func decrypt(_ ciphertext: Data, iv: Data) throws -> Data {
             try AES._CBC.decrypt(ciphertext, using: SymmetricKey(data: key), iv: try AES._CBC.IV(ivBytes: [UInt8](iv)))
         }
     }

@@ -112,7 +112,7 @@ public struct JWK: Sendable, Hashable {
             }
             recognizedNames.formUnion(["crv", "x"])
         case "RSA":
-            for privateMember in RSAPrivateMembers.names {
+            for privateMember in Self.rsaPrivateMemberNames {
                 try members.requireAbsent(privateMember, keyType: keyType)
             }
             key = .rsa(
@@ -211,11 +211,9 @@ extension JWKMembers {
     }
 }
 
-/// The members that make an RSA JWK a private key (RFC 7518 §6.3.2).
-struct RSAPrivateMembers {
-    private init() {}
-
-    static let names = ["d", "p", "q", "dp", "dq", "qi", "oth"]
+extension JWK {
+    /// The members that make an RSA JWK a private key (RFC 7518 §6.3.2).
+    static let rsaPrivateMemberNames = ["d", "p", "q", "dp", "dq", "qi", "oth"]
 }
 
 extension JWKMembers {

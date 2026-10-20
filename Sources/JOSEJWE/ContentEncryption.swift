@@ -38,10 +38,11 @@ public protocol ContentEncryptionAlgorithm: Sendable {
 
 // MARK: - AES-GCM
 
+/// AES-GCM with one key, for content encryption and for key wrapping.
 struct AESGCM {
-    private init() {}
+    let key: Data
 
-    static func seal(_ plaintext: Data, key: Data, nonce: Data, aad: Data) throws(JWEError) -> (Data, Data) {
+    func seal(_ plaintext: Data, nonce: Data, aad: Data) throws(JWEError) -> (Data, Data) {
         do {
             let box = try AES.GCM.seal(
                 plaintext,
@@ -55,7 +56,7 @@ struct AESGCM {
         }
     }
 
-    static func open(_ ciphertext: Data, tag: Data, key: Data, nonce: Data, aad: Data) throws(JWEError) -> Data {
+    func open(_ ciphertext: Data, tag: Data, nonce: Data, aad: Data) throws(JWEError) -> Data {
         do {
             let box = try AES.GCM.SealedBox(nonce: try AES.GCM.Nonce(data: nonce), ciphertext: ciphertext, tag: tag)
             return try AES.GCM.open(box, using: SymmetricKey(data: key), authenticating: aad)
@@ -82,7 +83,7 @@ extension AESGCMContentEncryption {
         initializationVector: Data,
         additionalAuthenticatedData: Data
     ) throws(JWEError) -> (ciphertext: Data, tag: Data) {
-        try AESGCM.seal(plaintext, key: key, nonce: initializationVector, aad: additionalAuthenticatedData)
+        try AESGCM(key: key).seal(plaintext, nonce: initializationVector, aad: additionalAuthenticatedData)
     }
 
     public static func decrypt(
@@ -92,7 +93,7 @@ extension AESGCMContentEncryption {
         initializationVector: Data,
         additionalAuthenticatedData: Data
     ) throws(JWEError) -> Data {
-        try AESGCM.open(ciphertext, tag: tag, key: key, nonce: initializationVector, aad: additionalAuthenticatedData)
+        try AESGCM(key: key).open(ciphertext, tag: tag, nonce: initializationVector, aad: additionalAuthenticatedData)
     }
 }
 
@@ -157,7 +158,7 @@ extension AESCBCHMACContentEncryption {
         let keyBytes = Data(key)
         let ciphertext: Data
         do {
-            ciphertext = try AESCBC.encrypt(plaintext, key: keyBytes.suffix(half), iv: initializationVector)
+            ciphertext = try PlatformAESCBC(key: keyBytes.suffix(half)).encrypt(plaintext, iv: initializationVector)
         } catch {
             throw .contentEncryptionFailed(description: String(describing: error))
         }
@@ -187,28 +188,26 @@ extension AESCBCHMACContentEncryption {
         )
         // The tag is checked, in constant time, before any decryption. Decrypting first and
         // reporting bad padding is the classic padding-oracle mistake.
-        guard ConstantTime.equal(expected, tag) else {
+        guard expected.constantTimeEquals(tag) else {
             throw .decryptionFailed
         }
         do {
-            return try AESCBC.decrypt(ciphertext, key: keyBytes.suffix(half), iv: initializationVector)
+            return try PlatformAESCBC(key: keyBytes.suffix(half)).decrypt(ciphertext, iv: initializationVector)
         } catch {
             throw .decryptionFailed
         }
     }
 }
 
-struct ConstantTime {
-    private init() {}
-
+extension Data {
     /// Compares without stopping at the first difference, so that timing does not reveal how
     /// many leading bytes of a forged tag were right.
-    static func equal(_ lhs: Data, _ rhs: Data) -> Bool {
-        guard lhs.count == rhs.count else {
+    func constantTimeEquals(_ other: Data) -> Bool {
+        guard count == other.count else {
             return false
         }
         var difference: UInt8 = 0
-        for (left, right) in zip(lhs, rhs) {
+        for (left, right) in zip(self, other) {
             difference |= left ^ right
         }
         return difference == 0

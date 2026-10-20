@@ -59,7 +59,7 @@ extension ECPublicKey: ECDHRecipientPublicKey where Curve: KeyAgreementCurve {
     public func ephemeralAgreement() throws(JWKError) -> (ephemeralPublicKey: JWK, sharedSecret: Data) {
         let ephemeral = try ECPrivateKey<Curve>()
         let secret = try ephemeral.sharedSecret(with: self)
-        return (try ECDHJSON.jwk(for: ephemeral.publicKey), secret)
+        return (try ephemeral.publicKey.ephemeralJWK(), secret)
     }
 }
 
@@ -107,50 +107,44 @@ extension X25519PrivateKey: ECDHRecipientPrivateKey {
     }
 }
 
-struct ECDHJSON {
-    private init() {}
-
-    /// A typed public key as a `JWK`. The curves this package knows have their own case; a curve
-    /// added outside it goes through JSON, which is the only form every curve shares.
-    static func jwk<Curve: EllipticCurve>(for key: ECPublicKey<Curve>) throws(JWKError) -> JWK {
-        if let key = key as? ECPublicKey<P256Curve> {
+extension ECPublicKey {
+    /// This key as a `JWK`, for the `epk` header. The curves this package knows have their own
+    /// case; a curve added outside it goes through JSON, which is the only form every curve shares.
+    func ephemeralJWK() throws(JWKError) -> JWK {
+        if let key = self as? ECPublicKey<P256Curve> {
             return JWK(.p256(key))
         }
-        if let key = key as? ECPublicKey<P384Curve> {
+        if let key = self as? ECPublicKey<P384Curve> {
             return JWK(.p384(key))
         }
-        if let key = key as? ECPublicKey<P521Curve> {
+        if let key = self as? ECPublicKey<P521Curve> {
             return JWK(.p521(key))
         }
-        return try JWK(json: try ecPublicKey(key))
-    }
-
-    static func ecPublicKey<Curve: EllipticCurve>(_ key: ECPublicKey<Curve>) throws(JWKError) -> Data {
         let members: [String: JSONValue] = [
             "kty": "EC",
             "crv": .string(Curve.name),
-            "x": .string(Base64URL.encode(key.x)),
-            "y": .string(Base64URL.encode(key.y)),
+            "x": .string(Base64URL.encode(x)),
+            "y": .string(Base64URL.encode(y)),
         ]
+        let json: Data
         do {
-            return try JSONEncoder().encode(members)
+            json = try JSONEncoder().encode(members)
         } catch {
             throw .invalidJSON(description: String(describing: error))
         }
+        return try JWK(json: json)
     }
 }
 
-/// The Concat KDF of NIST SP 800-56A with SHA-256, as profiled by RFC 7518 §4.6.2.
+/// The Concat KDF of NIST SP 800-56A with SHA-256, as profiled by RFC 7518 §4.6.2, with the
+/// parameters RFC 7518 binds into it.
 struct ConcatKDF {
-    private init() {}
+    let algorithmID: String
+    let partyUInfo: Data
+    let partyVInfo: Data
+    let keyByteCount: Int
 
-    static func derive(
-        sharedSecret: Data,
-        algorithmID: String,
-        partyUInfo: Data,
-        partyVInfo: Data,
-        keyByteCount: Int
-    ) -> Data {
+    func deriveKey(from sharedSecret: Data) -> Data {
         var otherInfo = lengthPrefixed(Data(algorithmID.utf8))
         otherInfo += lengthPrefixed(partyUInfo)
         otherInfo += lengthPrefixed(partyVInfo)
@@ -170,11 +164,11 @@ struct ConcatKDF {
         return derived.prefix(keyByteCount)
     }
 
-    private static func bigEndian(_ value: UInt32) -> Data {
+    private func bigEndian(_ value: UInt32) -> Data {
         Data([UInt8(value >> 24), UInt8(value >> 16 & 0xFF), UInt8(value >> 8 & 0xFF), UInt8(value & 0xFF)])
     }
 
-    private static func lengthPrefixed(_ data: Data) -> Data {
+    private func lengthPrefixed(_ data: Data) -> Data {
         bigEndian(UInt32(data.count)) + data
     }
 }
@@ -315,13 +309,12 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
             contentEncryption: request.contentEncryption,
             contentKeyByteCount: request.keyByteCount
         )
-        let derived = ConcatKDF.derive(
-            sharedSecret: agreement.sharedSecret,
+        let derived = ConcatKDF(
             algorithmID: parameters.algorithmID,
             partyUInfo: partyUInfo,
             partyVInfo: partyVInfo,
             keyByteCount: parameters.keyByteCount
-        )
+        ).deriveKey(from: agreement.sharedSecret)
 
         guard Algorithm.keyWrapByteCount != nil else {
             return KeyEncryptionResult(
@@ -334,7 +327,7 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
         do {
             return KeyEncryptionResult(
                 contentEncryptionKey: contentKey,
-                encryptedKey: try AESKeyWrapping.wrap(contentKey, with: derived),
+                encryptedKey: try AESKeyWrapping(wrappingKey: derived).wrap(contentKey),
                 headerParameters: headerParameters
             )
         } catch {
@@ -391,20 +384,19 @@ public struct ECDHESDecrypter<Algorithm: ECDHESAlgorithm, Key: ECDHRecipientPriv
             contentEncryption: request.contentEncryption,
             contentKeyByteCount: request.keyByteCount
         )
-        let derived = ConcatKDF.derive(
-            sharedSecret: sharedSecret,
+        let derived = ConcatKDF(
             algorithmID: parameters.algorithmID,
             partyUInfo: partyUInfo,
             partyVInfo: partyVInfo,
             keyByteCount: parameters.keyByteCount
-        )
+        ).deriveKey(from: sharedSecret)
         guard Algorithm.keyWrapByteCount != nil else {
             guard request.encryptedKey.isEmpty else {
                 throw .encryptedKeyNotEmpty(algorithm: Algorithm.identifier)
             }
             return derived
         }
-        return try AESKeyWrapping.unwrap(request.encryptedKey, with: derived)
+        return try AESKeyWrapping(wrappingKey: derived).unwrap(request.encryptedKey)
     }
 
     private static func describe(_ jwk: JWK) -> String {

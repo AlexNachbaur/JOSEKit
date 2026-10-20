@@ -15,7 +15,7 @@ private struct JSONStringFixture: Decodable {
 struct JSONStringEscaperTests {
     @Test("output is identical to JSON.stringify for every fixture string")
     func matchesCounterpart() throws {
-        let fixture = try Fixtures.load(JSONStringFixture.self, named: "json-strings")
+        let fixture = try JSONStringFixture(fixture: "json-strings")
         #expect(fixture.cases.count >= 50)
         for testCase in fixture.cases {
             // Not `String(bytes:encoding:)`, which drops a leading byte order mark.

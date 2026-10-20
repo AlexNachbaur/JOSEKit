@@ -1,5 +1,13 @@
 import Foundation
 
+// PKCS#1 (RFC 8017 Appendix A.1) encoding of RSA keys. Both RSA backends take keys in this form,
+// and it is how keys commonly arrive from other systems.
+//
+//     RSAPublicKey  ::= SEQUENCE { modulus INTEGER, publicExponent INTEGER }
+//     RSAPrivateKey ::= SEQUENCE { version INTEGER (0), modulus, publicExponent,
+//                                  privateExponent, prime1, prime2, exponent1, exponent2,
+//                                  coefficient }
+
 /// The values of an RSA private key, each as an unsigned big-endian integer with no leading zeros.
 struct RSAPrivateKeyComponents: Sendable {
     var modulus: Data
@@ -12,50 +20,16 @@ struct RSAPrivateKeyComponents: Sendable {
     var coefficient: Data
 }
 
-/// PKCS#1 (RFC 8017 Appendix A.1) encoding of RSA keys. Both RSA backends take keys in this
-/// form, and it is how keys commonly arrive from other systems.
-///
-///     RSAPublicKey  ::= SEQUENCE { modulus INTEGER, publicExponent INTEGER }
-///     RSAPrivateKey ::= SEQUENCE { version INTEGER (0), modulus, publicExponent,
-///                                  privateExponent, prime1, prime2, exponent1, exponent2,
-///                                  coefficient }
-struct RSAKeyDER {
-    private init() {}
-
-    private static let sequenceTag: UInt8 = 0x30
-    private static let integerTag: UInt8 = 0x02
-
-    static func publicKey(modulus: Data, exponent: Data) -> Data {
-        Data(sequence(integer(modulus) + integer(exponent)))
-    }
-
-    static func privateKey(_ components: RSAPrivateKeyComponents) -> Data {
-        var body = integer(Data([0x00]))
-        for value in [
-            components.modulus, components.publicExponent, components.privateExponent, components.prime1,
-            components.prime2, components.exponent1, components.exponent2, components.coefficient,
-        ] {
-            body += integer(value)
-        }
-        return Data(sequence(body))
-    }
-
-    static func parsePublicKey(_ der: Data) throws(JWKError) -> (modulus: Data, exponent: Data) {
-        var reader = try DERReader.wholeSequence(der, "key")
-        let modulus = try reader.readUnsignedInteger("modulus")
-        let exponent = try reader.readUnsignedInteger("publicExponent")
-        try reader.finish("the last value")
-        return (modulus, exponent)
-    }
-
-    static func parsePrivateKey(_ der: Data) throws(JWKError) -> RSAPrivateKeyComponents {
+extension RSAPrivateKeyComponents {
+    /// Reads a PKCS#1 `RSAPrivateKey`.
+    init(pkcs1DER der: Data) throws(JWKError) {
         var reader = try DERReader.wholeSequence(der, "key")
         let version = try reader.readUnsignedInteger("version")
         guard version == Data([0x00]) else {
             // Version 1 means more than two primes, which RFC 7518 expresses with "oth".
             throw .unsupportedRSAPrivateKey(reason: "PKCS#1 version \(version.map(String.init).joined()) (multi-prime)")
         }
-        let components = RSAPrivateKeyComponents(
+        self.init(
             modulus: try reader.readUnsignedInteger("modulus"),
             publicExponent: try reader.readUnsignedInteger("publicExponent"),
             privateExponent: try reader.readUnsignedInteger("privateExponent"),
@@ -66,39 +40,17 @@ struct RSAKeyDER {
             coefficient: try reader.readUnsignedInteger("coefficient")
         )
         try reader.finish("the last value")
-        return components
     }
 
-    // MARK: Writing
-
-    /// A DER INTEGER for an unsigned value: leading zeros dropped, and a `0x00` prepended when
-    /// the top bit is set, since DER INTEGERs are signed.
-    private static func integer(_ value: Data) -> [UInt8] {
-        var magnitude = [UInt8](value.drop(while: { $0 == 0 }))
-        if magnitude.isEmpty {
-            magnitude = [0]
+    /// The PKCS#1 `RSAPrivateKey`.
+    var pkcs1DER: Data {
+        var writer = DERWriter()
+        writer.writeUnsignedInteger(Data([0x00]))
+        for value in [
+            modulus, publicExponent, privateExponent, prime1, prime2, exponent1, exponent2, coefficient,
+        ] {
+            writer.writeUnsignedInteger(value)
         }
-        if magnitude[0] & 0x80 != 0 {
-            magnitude.insert(0x00, at: 0)
-        }
-        return [integerTag] + length(magnitude.count) + magnitude
+        return writer.sequence()
     }
-
-    private static func sequence(_ body: [UInt8]) -> [UInt8] {
-        [sequenceTag] + length(body.count) + body
-    }
-
-    private static func length(_ count: Int) -> [UInt8] {
-        if count < 0x80 {
-            return [UInt8(count)]
-        }
-        var octets: [UInt8] = []
-        var remaining = count
-        while remaining > 0 {
-            octets.insert(UInt8(remaining & 0xFF), at: 0)
-            remaining >>= 8
-        }
-        return [0x80 | UInt8(octets.count)] + octets
-    }
-
 }

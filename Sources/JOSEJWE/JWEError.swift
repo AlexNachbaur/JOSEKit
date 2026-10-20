@@ -62,6 +62,9 @@ public enum JWEError: Error, Sendable, Equatable {
     case keyWrongSize(algorithm: AlgorithmIdentifier, expected: Int, found: Int)
     /// The algorithm defines the encrypted key as empty, and this JWE has one.
     case encryptedKeyNotEmpty(algorithm: AlgorithmIdentifier)
+    /// A `dir` key's JWK restricts it to one content encryption algorithm, and the JWE uses
+    /// another.
+    case contentEncryptionNotPermitted(keyAlgorithm: AlgorithmIdentifier, contentEncryption: AlgorithmIdentifier)
     case wrongInitializationVectorSize(algorithm: AlgorithmIdentifier, expected: Int, found: Int)
     case wrongAuthenticationTagSize(algorithm: AlgorithmIdentifier, expected: Int, found: Int)
     /// The key could not be unwrapped or the content did not authenticate. Deliberately carries
@@ -150,6 +153,8 @@ extension JWEError: CustomStringConvertible {
             return "\(algorithm) needs a key of \(expected) bytes; the key supplied is \(found)"
         case .encryptedKeyNotEmpty(let algorithm):
             return "JWE has an encrypted key, which \(algorithm) does not use"
+        case .contentEncryptionNotPermitted(let keyAlgorithm, let contentEncryption):
+            return "the dir key is restricted to \(keyAlgorithm); the JWE uses \(contentEncryption)"
         case .wrongInitializationVectorSize(let algorithm, let expected, let found):
             return "JWE initialization vector is \(found) bytes; \(algorithm) requires \(expected)"
         case .wrongAuthenticationTagSize(let algorithm, let expected, let found):

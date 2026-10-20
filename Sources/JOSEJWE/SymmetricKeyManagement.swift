@@ -15,13 +15,49 @@ public struct Direct: KeyManagementAlgorithm {
     public static let identifier: AlgorithmIdentifier = "dir"
 }
 
-/// The shared key, checked against the size the content encryption algorithm needs. That size
-/// depends on `enc`, so it can only be checked once a JWE is being produced or read.
-private func directKey(_ key: SymmetricKeyMaterial, byteCount: Int) throws(JWEError) -> Data {
-    guard key.rawRepresentation.count == byteCount else {
-        throw .keyWrongSize(algorithm: Direct.identifier, expected: byteCount, found: key.rawRepresentation.count)
+/// The shared key, checked against the content encryption algorithm. Its size depends on `enc`,
+/// and so does any restriction from the key's JWK, so both can only be checked once a JWE is
+/// being produced or read.
+private func directKey(
+    _ key: SymmetricKeyMaterial,
+    restrictedTo restriction: AlgorithmIdentifier?,
+    for request: (contentEncryption: AlgorithmIdentifier, keyByteCount: Int)
+) throws(JWEError) -> Data {
+    if let restriction {
+        guard restriction == request.contentEncryption else {
+            throw .contentEncryptionNotPermitted(
+                keyAlgorithm: restriction,
+                contentEncryption: request.contentEncryption
+            )
+        }
+    }
+    guard key.rawRepresentation.count == request.keyByteCount else {
+        throw .keyWrongSize(
+            algorithm: Direct.identifier,
+            expected: request.keyByteCount,
+            found: key.rawRepresentation.count
+        )
     }
     return key.rawRepresentation
+}
+
+/// Checks a `dir` key's JWK restrictions and returns the content encryption algorithm its `alg`
+/// restricts it to, if any.
+///
+/// A `dir` key is the content encryption key, so its JWK may name either `dir` or the content
+/// encryption algorithm it is for. RFC 7520 §5.6 does the latter (`"alg": "A128GCM"`).
+private func directKeyRestriction(
+    _ metadata: JWKMetadata,
+    for operation: KeyOperation
+) throws(JWKError) -> AlgorithmIdentifier? {
+    var checked = metadata
+    var restriction: AlgorithmIdentifier?
+    if let algorithm = metadata.algorithm, algorithm != Direct.identifier {
+        restriction = algorithm
+        checked.algorithm = nil
+    }
+    try checked.requirePermission(for: operation, use: .encryption, algorithm: Direct.identifier)
+    return restriction
 }
 
 /// Encrypts with a shared key used directly as the content encryption key. The key must be
@@ -32,16 +68,20 @@ public struct DirectEncrypter: KeyEncrypter {
 
     public let keyID: KeyID?
     private let key: SymmetricKeyMaterial
+    private let restriction: AlgorithmIdentifier?
 
     public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) {
         self.key = key
         self.keyID = keyID
+        restriction = nil
     }
 
-    /// Builds an encrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    /// Builds an encrypter from a symmetric JWK, honouring its `use` and `key_ops`. Its `alg` may
+    /// be `dir` or a content encryption algorithm, which the key is then used with only.
     public init(jwk: SymmetricJWK) throws(JWKError) {
-        try jwk.metadata.requirePermission(for: .encrypt, use: .encryption, algorithm: Algorithm.identifier)
-        self.init(key: jwk.key, keyID: jwk.metadata.keyID)
+        restriction = try directKeyRestriction(jwk.metadata, for: .encrypt)
+        key = jwk.key
+        keyID = jwk.metadata.keyID
     }
 
     public func encryptKey(_ request: KeyEncryptionRequest) async throws(JWEError) -> KeyEncryptionResult {
@@ -49,7 +89,11 @@ public struct DirectEncrypter: KeyEncrypter {
             throw .algorithmRequiresSingleRecipient(algorithm: Algorithm.identifier)
         }
         return KeyEncryptionResult(
-            contentEncryptionKey: try directKey(key, byteCount: request.keyByteCount),
+            contentEncryptionKey: try directKey(
+                key,
+                restrictedTo: restriction,
+                for: (request.contentEncryption, request.keyByteCount)
+            ),
             encryptedKey: Data()
         )
     }
@@ -61,16 +105,20 @@ public struct DirectDecrypter: KeyDecrypter {
 
     public let keyID: KeyID?
     private let key: SymmetricKeyMaterial
+    private let restriction: AlgorithmIdentifier?
 
     public init(key: SymmetricKeyMaterial, keyID: KeyID? = nil) {
         self.key = key
         self.keyID = keyID
+        restriction = nil
     }
 
-    /// Builds a decrypter from a symmetric JWK, honouring its `use`, `key_ops` and `alg`.
+    /// Builds a decrypter from a symmetric JWK, honouring its `use` and `key_ops`. Its `alg` may
+    /// be `dir` or a content encryption algorithm, which the key is then used with only.
     public init(jwk: SymmetricJWK) throws(JWKError) {
-        try jwk.metadata.requirePermission(for: .decrypt, use: .encryption, algorithm: Algorithm.identifier)
-        self.init(key: jwk.key, keyID: jwk.metadata.keyID)
+        restriction = try directKeyRestriction(jwk.metadata, for: .decrypt)
+        key = jwk.key
+        keyID = jwk.metadata.keyID
     }
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
@@ -78,7 +126,11 @@ public struct DirectDecrypter: KeyDecrypter {
         guard request.encryptedKey.isEmpty else {
             throw .encryptedKeyNotEmpty(algorithm: Algorithm.identifier)
         }
-        return try directKey(key, byteCount: request.keyByteCount)
+        return try directKey(
+            key,
+            restrictedTo: restriction,
+            for: (request.contentEncryption, request.keyByteCount)
+        )
     }
 }
 

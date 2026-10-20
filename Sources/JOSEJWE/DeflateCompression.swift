@@ -1,73 +1,44 @@
-import Foundation
-
 #if canImport(CZlib)
     import CZlib
-#endif
+    import Foundation
 
-// The `DEF` compression of RFC 7516 §4.1.3 is raw DEFLATE (RFC 1951): no zlib header and no
-// checksum. zlib produces and reads that when given negative window bits.
-//
-// zlib is used on every platform that has it as a system library, Apple's included, where it
-// ships with the operating system. Apple's Compression framework also does raw DEFLATE, but it
-// silently discards input after the end of the stream, which zlib (and the browsers'
-// DecompressionStream that panva/jose uses) refuses; one implementation keeps every platform's
-// behaviour the same. Windows has no system zlib, so there `isAvailable` is false and JWEHeader
-// refuses `zip` before anything here is called.
+    /// Raw DEFLATE (RFC 1951), the `zip` value `DEF`: no zlib header and no checksum. zlib
+    /// produces and reads that when given negative window bits.
+    ///
+    /// zlib is used on every platform that has it as a system library, Apple's included, where it
+    /// ships with the operating system. Apple's Compression framework also does raw DEFLATE, but it
+    /// silently discards input after the end of the stream, which zlib (and the browsers'
+    /// DecompressionStream that panva/jose uses) refuses; one implementation keeps every platform's
+    /// behaviour the same. Windows has no system zlib, so this type does not exist there.
+    struct DeflateCompression: CompressionAlgorithm {
+        /// The output buffer each step writes into. Decompression stops within one buffer of the
+        /// limit, so this also bounds how far past the limit memory use can go.
+        let chunkSize = 64 * 1024
 
-/// Why compressed content could not be produced or read.
-enum DeflateError: Error, Equatable {
-    /// The output passed the limit; reading stopped there.
-    case tooLarge
-    /// The input is not a single, complete raw DEFLATE stream.
-    case malformed
-    /// The compressor itself failed, or zlib is not available.
-    case failed
-}
+        func compress(_ data: Data) throws(CompressionError) -> Data {
+            try process(data, encoding: true, limit: Int.max)
+        }
 
-/// Raw DEFLATE, the `zip` value `DEF`.
-struct Deflate {
-    private init() {}
+        func decompress(_ data: Data, limit: Int) throws(CompressionError) -> Data {
+            try process(data, encoding: false, limit: limit)
+        }
 
-    #if canImport(CZlib)
-        static let isAvailable = true
-    #else
-        static let isAvailable = false
-    #endif
-
-    /// The output buffer each step writes into. Decompression stops within one buffer of the
-    /// limit, so this also bounds how far past the limit memory use can go.
-    static let chunkSize = 64 * 1024
-
-    static func compress(_ data: Data) throws(DeflateError) -> Data {
-        try process(data, encoding: true, limit: Int.max)
-    }
-
-    /// Decompresses `data`, refusing it as soon as the output would exceed `limit` bytes.
-    static func decompress(_ data: Data, limit: Int) throws(DeflateError) -> Data {
-        try process(data, encoding: false, limit: limit)
-    }
-
-    private static func process(_ input: Data, encoding: Bool, limit: Int) throws(DeflateError) -> Data {
-        #if canImport(CZlib)
+        private func process(_ input: Data, encoding: Bool, limit: Int) throws(CompressionError) -> Data {
             guard input.count <= Int(UInt32.max) else {
                 throw .tooLarge
             }
             var bytes = [UInt8](input)
-            let result: Result<Data, DeflateError> = bytes.withUnsafeMutableBufferPointer { source in
+            let result: Result<Data, CompressionError> = bytes.withUnsafeMutableBufferPointer { source in
                 run(source, encoding: encoding, limit: limit)
             }
             return try result.get()
-        #else
-            throw .failed
-        #endif
-    }
+        }
 
-    #if canImport(CZlib)
-        private static func run(
+        private func run(
             _ source: UnsafeMutableBufferPointer<UInt8>,
             encoding: Bool,
             limit: Int
-        ) -> Result<Data, DeflateError> {
+        ) -> Result<Data, CompressionError> {
             let destination = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
             defer { destination.deallocate() }
 
@@ -127,9 +98,12 @@ struct Deflate {
                     continue
                 default:
                     // Z_BUF_ERROR here means the input ended before the stream did.
-                    return .failure(encoding ? .failed : .malformed)
+                    if encoding {
+                        return .failure(.failed)
+                    }
+                    return .failure(.malformed)
                 }
             }
         }
-    #endif
-}
+    }
+#endif

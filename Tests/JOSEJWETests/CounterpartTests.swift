@@ -267,11 +267,11 @@ struct CounterpartTests {
         )
         #expect(try await outcome("dir with a non-empty encrypted key") == .encryptedKeyNotEmpty(algorithm: "dir"))
         // Where zip is supported, adding it to an existing token is just another altered header.
-        if JWECompression.deflate.isAvailable {
-            #expect(try await outcome("zip DEF") == .decryptionFailed)
-        } else {
+        #if os(Windows)
             #expect(try await outcome("zip DEF") == .unsupportedCompression(algorithm: "DEF"))
-        }
+        #else
+            #expect(try await outcome("zip DEF") == .decryptionFailed)
+        #endif
         #expect(
             try await outcome("crit names an unknown extension") == .unsupportedCriticalParameter(name: "urn:example:x")
         )

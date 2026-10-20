@@ -41,9 +41,11 @@ token cannot expand without bound. A limit of 0 refuses compressed JWEs before a
 is done. Compressing secrets together with text an attacker chooses can reveal the secrets
 through the ciphertext's length, so leave compression off unless the plaintext is all yours.
 
-Windows has no system zlib, so `JWECompression.deflate.isAvailable` is `false` there. Both reading
-and writing a JWE with `zip` fail with `unsupportedCompression(algorithm: "DEF")`. On Linux,
-building needs zlib's headers (`zlib1g-dev` on Debian and Ubuntu, `zlib-devel` on Fedora and RHEL).
+`JWECompression` has a case only for each compression this platform supports. Windows has no
+system zlib, so `JWECompression.deflate` does not exist there, and code that asks for compression
+fails to build rather than at runtime. A received JWE with `"zip": "DEF"` is refused there with
+`unsupportedCompression(algorithm: "DEF")`. On Linux, building needs zlib's headers (`zlib1g-dev`
+on Debian and Ubuntu, `zlib-devel` on Fedora and RHEL).
 
 ## Encrypting
 

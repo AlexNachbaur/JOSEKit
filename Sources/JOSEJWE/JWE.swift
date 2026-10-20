@@ -143,11 +143,11 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             compression: JWECompression?,
             limit: Int
         ) throws(JWEError) -> Data {
-            guard compression != nil else {
+            guard let compression else {
                 return content
             }
             do {
-                return try Deflate.decompress(content, limit: limit)
+                return try compression.decompress(content, limit: limit)
             } catch {
                 switch error {
                 case .tooLarge:
@@ -376,9 +376,9 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         )
         // `zip` is in the protected header, so it is authenticated along with the content.
         var content = plaintext
-        if header.compression == .deflate {
+        if let compression = header.compression {
             do {
-                content = try Deflate.compress(plaintext)
+                content = try compression.compress(plaintext)
             } catch {
                 throw .contentEncryptionFailed(description: "compression failed")
             }

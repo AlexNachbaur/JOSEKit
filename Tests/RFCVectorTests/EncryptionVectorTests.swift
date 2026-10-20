@@ -27,7 +27,11 @@ struct EncryptionVectorTests {
     /// The examples this platform can read: §5.9 is compressed, and `zip` is not available on
     /// Windows.
     static var readable: [String] {
-        singleRecipient.filter { JWECompression.deflate.isAvailable || !$0.contains("compressed") }
+        #if os(Windows)
+            return singleRecipient.filter { !$0.contains("compressed") }
+        #else
+            return singleRecipient
+        #endif
     }
 
     /// Every serialization the example gives, parsed.
@@ -189,30 +193,36 @@ struct EncryptionVectorTests {
         }
     }
 
-    // MARK: Compression
+}
 
-    /// RFC 7520 §5.9's compressed plaintext comes from another implementation's DEFLATE, so
-    /// decompressing it checks that this package reads raw DEFLATE (RFC 1951), not zlib.
-    @Test(
-        "RFC 7520 §5.9: the compressed plaintext is raw DEFLATE, and decompresses to the plaintext",
-        .enabled(if: JWECompression.deflate.isAvailable)
-    )
-    func compressedContent() async throws {
-        let vector = try Vector("jwe/5_9.compressed_content.json")
-        let plaintext = Data(try vector.string("input", "plaintext").utf8)
-        let compressed = try vector.bytes("generated", "plaintext_c")
-        #expect(try Deflate.decompress(compressed, limit: plaintext.count) == plaintext)
-        #expect(throws: DeflateError.tooLarge) { try Deflate.decompress(compressed, limit: plaintext.count - 1) }
+#if !os(Windows)
+    extension EncryptionVectorTests {
+        // MARK: Compression
 
-        let jwe = try SimpleJWE.Encrypted(compact: try vector.string("output", "compact"))
-        #expect(jwe.header.compression == .deflate)
-        let keys = DecryptionKeys([try VectorKeys.decrypter(algorithm: "A128KW", key: try vector.value("input", "key"))]
-        )
-        await #expect(throws: JWEError.decompressedSizeExceedsLimit(maximum: 100)) {
-            try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100)
-        }
-        await #expect(throws: JWEError.compressionNotAllowed) {
-            try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 0)
+        /// RFC 7520 §5.9's compressed plaintext comes from another implementation's DEFLATE, so
+        /// decompressing it checks that this package reads raw DEFLATE (RFC 1951), not zlib.
+        @Test("RFC 7520 §5.9: the compressed plaintext is raw DEFLATE, and decompresses to the plaintext")
+        func compressedContent() async throws {
+            let vector = try Vector("jwe/5_9.compressed_content.json")
+            let plaintext = Data(try vector.string("input", "plaintext").utf8)
+            let compressed = try vector.bytes("generated", "plaintext_c")
+            let deflate = DeflateCompression()
+            #expect(try deflate.decompress(compressed, limit: plaintext.count) == plaintext)
+            #expect(throws: CompressionError.tooLarge) {
+                try deflate.decompress(compressed, limit: plaintext.count - 1)
+            }
+
+            let jwe = try SimpleJWE.Encrypted(compact: try vector.string("output", "compact"))
+            #expect(jwe.header.compression == .deflate)
+            let keys = DecryptionKeys([
+                try VectorKeys.decrypter(algorithm: "A128KW", key: try vector.value("input", "key"))
+            ])
+            await #expect(throws: JWEError.decompressedSizeExceedsLimit(maximum: 100)) {
+                try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100)
+            }
+            await #expect(throws: JWEError.compressionNotAllowed) {
+                try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 0)
+            }
         }
     }
-}
+#endif

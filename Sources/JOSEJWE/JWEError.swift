@@ -31,9 +31,8 @@ public enum JWEError: Error, Sendable, Equatable {
     case headerParameterNotProtected(name: String)
     case invalidCritical(reason: String)
     case unsupportedCriticalParameter(name: String)
-    /// The JWE's `zip` names a compression this package does not implement. `DEF` is the only
-    /// one RFC 7516 defines, and it is not available on Windows (see
-    /// ``JWECompression/isAvailable``).
+    /// The JWE's `zip` names a compression this package does not implement on this platform.
+    /// `DEF` is the only one RFC 7516 defines, and it is not available on Windows.
     case unsupportedCompression(algorithm: String)
     case invalidCustomParameters(description: String)
     /// The `jwk` header parameter is not a valid public JWK.
@@ -137,7 +136,7 @@ extension JWEError: CustomStringConvertible {
         case .unsupportedCriticalParameter(let name):
             return "JWE marks header parameter \"\(name)\" as critical, and it is not understood"
         case .unsupportedCompression(let algorithm):
-            return "JWE \"zip\" is \(algorithm); only DEF is supported"
+            return "JWE \"zip\" is \(algorithm), which is not supported on this platform"
         case .compressionNotAllowed:
             return "JWE is compressed, and this decryption accepts no compressed content"
         case .decompressedSizeExceedsLimit(let maximum):

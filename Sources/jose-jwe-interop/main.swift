@@ -322,21 +322,24 @@ for item in challenge.decrypt {
     }
 }
 
-let zipKey = try SymmetricJWK(json: Data(challenge.compression.jwk.utf8))
-response.compressed = try await SimpleJWE.encrypt(
-    try bytes(fromHex: challenge.compression.plaintext),
-    to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
-    using: A256GCM.self,
-    header: JWEHeaderParameters(compression: .deflate)
-).compactSerialization()
-let zipKeys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: zipKey))])
-for item in challenge.compression.tokens {
-    do {
-        let decrypted = try await SimpleJWE.Encrypted(compact: item.token).decrypt(with: zipKeys)
-        response.compressedOutcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
-    } catch {
-        response.compressedOutcomes.append(Response.Outcome(accepted: false, plaintext: nil))
+// `zip` does not exist on Windows (no system zlib); the interop check runs on Linux and macOS.
+#if !os(Windows)
+    let zipKey = try SymmetricJWK(json: Data(challenge.compression.jwk.utf8))
+    response.compressed = try await SimpleJWE.encrypt(
+        try bytes(fromHex: challenge.compression.plaintext),
+        to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
+        using: A256GCM.self,
+        header: JWEHeaderParameters(compression: .deflate)
+    ).compactSerialization()
+    let zipKeys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: zipKey))])
+    for item in challenge.compression.tokens {
+        do {
+            let decrypted = try await SimpleJWE.Encrypted(compact: item.token).decrypt(with: zipKeys)
+            response.compressedOutcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
+        } catch {
+            response.compressedOutcomes.append(Response.Outcome(accepted: false, plaintext: nil))
+        }
     }
-}
+#endif
 
 FileHandle.standardOutput.write(try JSONEncoder().encode(response))

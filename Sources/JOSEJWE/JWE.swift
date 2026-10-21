@@ -100,7 +100,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         ///     cryptography is done.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard,
+            contentEncryptions: [any ContentEncryptionAlgorithm] = ContentEncryption.allCases,
             maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(JWEError) -> Decrypted {
             var failures: [JWEError] = []
@@ -161,7 +161,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         private func decrypt(
             _ recipient: Recipient,
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type]
+            contentEncryptions: [any ContentEncryptionAlgorithm]
         ) async throws(JWEError) -> Data {
             let header = recipient.header
             guard let encryption = contentEncryptions.first(where: { $0.identifier == header.contentEncryption })
@@ -252,7 +252,7 @@ extension JWE.Encrypted {
     public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
         encrypting plaintext: Data,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
     ) async throws(JWEError) {
@@ -273,7 +273,7 @@ extension JWE.Encrypted {
     public init<Encryption: ContentEncryptionAlgorithm>(
         encrypting plaintext: Data,
         to recipients: [AnyKeyEncrypter],
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
     ) async throws(JWEError) {
@@ -284,7 +284,7 @@ extension JWE.Encrypted {
             throw .sharedKeyIDWithMultipleRecipients
         }
         var protected = try header.values()
-        protected["enc"] = .string(Encryption.identifier.rawValue)
+        protected["enc"] = .string(contentEncryption.identifier.rawValue)
 
         var contentKey: Data?
         var results: [(AnyKeyEncrypter, KeyEncryptionResult)] = []
@@ -292,8 +292,8 @@ extension JWE.Encrypted {
             // A later `dir` or `ECDH-ES` recipient is handed the key already chosen and refuses it.
             let result = try await recipient.encryptKey(
                 KeyEncryptionRequest(
-                    contentEncryption: Encryption.identifier,
-                    keyByteCount: Encryption.keyByteCount,
+                    contentEncryption: contentEncryption.identifier,
+                    keyByteCount: contentEncryption.keyByteCount,
                     contentEncryptionKey: contentKey
                 )
             )
@@ -311,7 +311,7 @@ extension JWE.Encrypted {
             contentKey = result.contentEncryptionKey
             results.append((recipient, result))
         }
-        guard let contentKey, contentKey.count == Encryption.keyByteCount else {
+        guard let contentKey, contentKey.count == contentEncryption.keyByteCount else {
             throw .contentEncryptionFailed(description: "the key encrypter did not supply a key of the right size")
         }
 
@@ -366,7 +366,7 @@ extension JWE.Encrypted {
         }
 
         let initializationVector = SymmetricKeyMaterial(
-            randomByteCount: Encryption.initializationVectorByteCount
+            randomByteCount: contentEncryption.initializationVectorByteCount
         ).rawRepresentation
         var sealed = try Self(
             protectedEncoded: protectedEncoded,
@@ -386,7 +386,7 @@ extension JWE.Encrypted {
                 throw .contentEncryptionFailed(description: "compression failed")
             }
         }
-        let (ciphertext, tag) = try Encryption.encrypt(
+        let (ciphertext, tag) = try contentEncryption.encrypt(
             content,
             key: contentKey,
             initializationVector: initializationVector,
@@ -410,7 +410,7 @@ extension JWE.Encrypted where Custom == EmptyHeaderParameters {
     public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
         encrypting plaintext: Data,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type
+        using contentEncryption: Encryption
     ) async throws(JWEError) {
         try await self.init(
             encrypting: plaintext,

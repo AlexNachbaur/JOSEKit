@@ -225,7 +225,7 @@ func seal(
         return try await SimpleJWE.Encrypted(
             encrypting: plaintext,
             to: recipients,
-            using: A128GCM.self,
+            using: .a128gcm,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -233,7 +233,7 @@ func seal(
         return try await SimpleJWE.Encrypted(
             encrypting: plaintext,
             to: recipients,
-            using: A192GCM.self,
+            using: .a192gcm,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -241,7 +241,7 @@ func seal(
         return try await SimpleJWE.Encrypted(
             encrypting: plaintext,
             to: recipients,
-            using: A256GCM.self,
+            using: .a256gcm,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -249,7 +249,7 @@ func seal(
         return try await SimpleJWE.Encrypted(
             encrypting: plaintext,
             to: recipients,
-            using: A128CBCHS256.self,
+            using: .a128cbcHS256,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -257,7 +257,7 @@ func seal(
         return try await SimpleJWE.Encrypted(
             encrypting: plaintext,
             to: recipients,
-            using: A192CBCHS384.self,
+            using: .a192cbcHS384,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -265,7 +265,7 @@ func seal(
         return try await SimpleJWE.Encrypted(
             encrypting: plaintext,
             to: recipients,
-            using: A256CBCHS512.self,
+            using: .a256cbcHS512,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -328,7 +328,7 @@ for item in challenge.decrypt {
     response.compressed = try await SimpleJWE.Encrypted(
         encrypting: try bytes(fromHex: challenge.compression.plaintext),
         to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
-        using: A256GCM.self,
+        using: .a256gcm,
         header: JWEHeaderParameters(compression: .deflate)
     ).compactSerialization()
     let zipKeys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: zipKey))])

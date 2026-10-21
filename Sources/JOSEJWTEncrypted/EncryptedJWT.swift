@@ -95,7 +95,7 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
         ///   claims set accepted after decompression; 0 or less refuses compressed tokens.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard,
+            contentEncryptions: [any ContentEncryptionAlgorithm] = ContentEncryption.allCases,
             maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(EncryptedJWTError) -> Decrypted {
             let decrypted: JWE<Header>.Decrypted
@@ -152,7 +152,7 @@ extension EncryptedJWT.Encrypted {
     public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
         encrypting claims: JWTClaims<Custom>,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         header: JWEHeaderParameters<Header>
     ) async throws(EncryptedJWTError) {
         let payload: Data
@@ -196,7 +196,7 @@ extension EncryptedJWT.Encrypted where Header == EmptyHeaderParameters {
     public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
         encrypting claims: JWTClaims<Custom>,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         type: MediaType? = "JWT"
     ) async throws(EncryptedJWTError) {
         try await self.init(
@@ -255,7 +255,7 @@ public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: S
         ///   inner token accepted after decompression; 0 or less refuses compressed tokens.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard,
+            contentEncryptions: [any ContentEncryptionAlgorithm] = ContentEncryption.allCases,
             maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(EncryptedJWTError) -> Decrypted {
             let decrypted: SimpleJWE.Decrypted
@@ -349,7 +349,7 @@ extension NestedJWT.Encrypted {
         signedBy signer: S,
         header: JWSHeaderParameters<Header>,
         encryptedTo recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         type: MediaType? = nil
     ) async throws(EncryptedJWTError) {
         let inner: JWT<Custom, Header>.Signed
@@ -390,7 +390,7 @@ extension NestedJWT.Encrypted where Header == EmptyHeaderParameters {
         signing claims: JWTClaims<Custom>,
         signedBy signer: S,
         encryptedTo recipient: Recipient,
-        using contentEncryption: Encryption.Type
+        using contentEncryption: Encryption
     ) async throws(EncryptedJWTError) {
         try await self.init(
             signing: claims,

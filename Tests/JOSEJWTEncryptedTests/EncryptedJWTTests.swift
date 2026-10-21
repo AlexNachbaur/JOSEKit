@@ -251,7 +251,7 @@ struct EncryptedJWTTests {
         let token = try await EncryptedJWT<AppClaims, EmptyHeaderParameters>.Encrypted(
             encrypting: claims,
             to: key,
-            using: A256GCM.self
+            using: .a256gcm
         ).compactSerialization()
         #expect(token.split(separator: ".").count == 5)
 
@@ -272,7 +272,7 @@ struct EncryptedJWTTests {
         let untyped = try await SimpleEncryptedJWT.Encrypted(
             encrypting: JWTClaims(),
             to: key,
-            using: A256GCM.self,
+            using: .a256gcm,
             type: nil
         ).compactSerialization()
         #expect(try SimpleEncryptedJWT.Encrypted(compact: untyped).header.type == nil)
@@ -286,7 +286,7 @@ struct EncryptedJWTTests {
         let typed = try await SimpleEncryptedJWT.Encrypted(
             encrypting: typedClaims,
             to: key,
-            using: A256GCM.self,
+            using: .a256gcm,
             type: "at+jwt"
         ).compactSerialization()
         let typedDecrypted = try await SimpleEncryptedJWT.Encrypted(compact: typed).decrypt(with: keys)
@@ -311,7 +311,7 @@ struct EncryptedJWTTests {
             let token = try await SimpleEncryptedJWT.Encrypted(
                 encrypting: claims,
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(type: "JWT", compression: .deflate)
             ).compactSerialization()
             let encrypted = try SimpleEncryptedJWT.Encrypted(compact: token)
@@ -327,7 +327,7 @@ struct EncryptedJWTTests {
             let nested = try await SimpleJWE.Encrypted(
                 encrypting: Data(try await SimpleJWT.Signed(signing: claims, with: signer).compactSerialization().utf8),
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(contentType: "JWT", compression: .deflate)
             ).compactSerialization()
             let outer = try SimpleNestedJWT.Encrypted(compact: nested)
@@ -346,7 +346,7 @@ struct EncryptedJWTTests {
         let token = try await SimpleEncryptedJWT.Encrypted(
             encrypting: JWTClaims(),
             to: key,
-            using: A256GCM.self,
+            using: .a256gcm,
             header: JWEHeaderParameters(contentType: "JWT")
         ).compactSerialization()
         #expect(try SimpleEncryptedJWT.Encrypted(compact: token).header.contentType == nil)
@@ -356,7 +356,7 @@ struct EncryptedJWTTests {
             signing: JWTClaims(),
             signedBy: signer,
             encryptedTo: key,
-            using: A256GCM.self
+            using: .a256gcm
         ).compactSerialization()
         do {
             _ = try SimpleEncryptedJWT.Encrypted(compact: nested)
@@ -394,7 +394,7 @@ struct EncryptedJWTTests {
             signedBy: signer,
             header: JWSHeaderParameters(type: "JWT"),
             encryptedTo: recipient,
-            using: A256CBCHS512.self,
+            using: .a256cbcHS512,
             type: "JWT"
         ).compactSerialization()
         // The outer header is readable before decryption, as for any encrypted token.
@@ -428,7 +428,7 @@ struct EncryptedJWTTests {
             ),
             signedBy: signer,
             encryptedTo: recipient,
-            using: A256GCM.self
+            using: .a256gcm
         ).compactSerialization()
         let verified = try await SimpleNestedJWT.Encrypted(compact: expired).decrypt(with: decryption)
             .verify(with: verification)
@@ -458,7 +458,7 @@ struct EncryptedJWTTests {
             let token = try await JWE<Replicated>.Encrypted(
                 encrypting: Data(inner.utf8),
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(contentType: "JWT", custom: replicated)
             ).compactSerialization()
             return try await SimpleNestedJWT.Encrypted(compact: token).decrypt(with: decryption)
@@ -491,7 +491,7 @@ struct EncryptedJWTTests {
             let token = try await SimpleJWE.Encrypted(
                 encrypting: content,
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(contentType: "JWT")
             ).compactSerialization()
             let encrypted = try SimpleNestedJWT.Encrypted(compact: token)

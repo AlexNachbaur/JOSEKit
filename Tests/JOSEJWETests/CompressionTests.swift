@@ -127,10 +127,10 @@ struct CompressionTests {
             let compressed = try await SimpleJWE.Encrypted(
                 encrypting: Self.plaintext,
                 to: encrypter,
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(compression: .deflate)
             )
-            let plain = try await SimpleJWE.Encrypted(encrypting: Self.plaintext, to: encrypter, using: A256GCM.self)
+            let plain = try await SimpleJWE.Encrypted(encrypting: Self.plaintext, to: encrypter, using: .a256gcm)
             #expect(compressed.ciphertext.count < plain.ciphertext.count / 4)
             #expect(compressed.header.compression == .deflate)
             #expect(compressed.header.rawParameters["zip"] == "DEF")
@@ -146,7 +146,7 @@ struct CompressionTests {
             let multiple = try await SimpleJWE.Encrypted(
                 encrypting: Self.plaintext,
                 to: [AnyKeyEncrypter(encrypter), AnyKeyEncrypter(second)],
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(compression: .deflate)
             )
             let general = try SimpleJWE.Encrypted(json: try multiple.generalJSONSerialization())
@@ -160,7 +160,7 @@ struct CompressionTests {
             let sealed = try await SimpleJWE.Encrypted(
                 encrypting: Self.plaintext,
                 to: encrypter,
-                using: A256GCM.self,
+                using: .a256gcm,
                 header: JWEHeaderParameters(compression: .deflate)
             )
             #expect(
@@ -180,7 +180,7 @@ struct CompressionTests {
             let uncompressed = try await SimpleJWE.Encrypted(
                 encrypting: Self.plaintext,
                 to: encrypter,
-                using: A256GCM.self
+                using: .a256gcm
             )
             #expect(
                 try await uncompressed.decrypt(with: keys, maximumDecompressedByteCount: 0).plaintext == Self.plaintext
@@ -193,7 +193,7 @@ struct CompressionTests {
             let key = SymmetricKeyMaterial(randomByteCount: 32)
             let protected = String(base64URLEncoding: Data(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#.utf8))
             let iv = SymmetricKeyMaterial(randomByteCount: 12).rawRepresentation
-            let (ciphertext, tag) = try A256GCM.encrypt(
+            let (ciphertext, tag) = try A256GCM().encrypt(
                 Data([0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
                 key: key.rawRepresentation,
                 initializationVector: iv,

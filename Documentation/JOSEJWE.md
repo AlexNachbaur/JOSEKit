@@ -13,6 +13,10 @@ Key management (`alg`): `dir`, `A128KW`/`A192KW`/`A256KW`, `A128GCMKW`/`A192GCMK
 `RSA-OAEP-256`, `RSA1_5`, `PBES2-HS256+A128KW`/`HS384+A192KW`/`HS512+A256KW`.
 
 Content encryption (`enc`): `A128GCM`/`A192GCM`/`A256GCM`, `A128CBC-HS256`/`A192CBC-HS384`/`A256CBC-HS512`.
+They are the cases of `ContentEncryption`, each delegating to its type (`A256GCM` and so on).
+Pass one as `using: .a256gcm`. Decryption accepts `ContentEncryption.allCases` unless given a
+shorter list. An algorithm this package does not ship is a type conforming to
+`ContentEncryptionAlgorithm`, passed as an instance in the same places.
 
 `RSA1_5` is there for systems that still send it. Its decryption leaks whether the padding was
 valid unless every failure looks the same, so any failure to recover the key continues with a
@@ -28,7 +32,7 @@ Compression (`zip`): `DEF`, raw DEFLATE, using the system zlib. Not available on
 let sealed = try await SimpleJWE.Encrypted(
     encrypting: plaintext,
     to: recipient,
-    using: A256GCM.self,
+    using: .a256gcm,
     header: JWEHeaderParameters(compression: .deflate)
 )
 let decrypted = try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100_000)
@@ -51,19 +55,19 @@ on Debian and Ubuntu, `zlib-devel` on Fedora and RHEL).
 
 ```swift
 let recipient = try RSAEncrypter<RSAOAEP256>(jwk: theirPublicKey)   // honours use, key_ops, alg
-let sealed = try await SimpleJWE.Encrypted(encrypting: plaintext, to: recipient, using: A256GCM.self)
+let sealed = try await SimpleJWE.Encrypted(encrypting: plaintext, to: recipient, using: .a256gcm)
 try sealed.compactSerialization()
 ```
 
 `SimpleJWE` is `JWE<EmptyHeaderParameters>`. `alg` comes from the recipient's type and `enc`
-from the content encryption type. Several recipients, each able to decrypt on their own, go in
+from the content encryption. Several recipients, each able to decrypt on their own, go in
 the general serialization; each recipient's key ID goes in its own header:
 
 ```swift
 let sealed = try await SimpleJWE.Encrypted(
     encrypting: plaintext,
     to: [AnyKeyEncrypter(rsaRecipient), AnyKeyEncrypter(ecdhRecipient)],
-    using: A256GCM.self,
+    using: .a256gcm,
     header: JWEHeaderParameters()
 )
 ```

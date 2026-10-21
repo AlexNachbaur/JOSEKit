@@ -61,7 +61,7 @@ refused unless `requiresExpiration: false`. A negative leeway counts as zero.
 
 ```swift
 let token = try await EncryptedJWT<MyClaims, EmptyHeaderParameters>
-    .Encrypted(encrypting: claims, to: recipient, using: A256GCM.self)
+    .Encrypted(encrypting: claims, to: recipient, using: .a256gcm)
     .compactSerialization()
 let validated = try await EncryptedJWT<MyClaims, EmptyHeaderParameters>.Encrypted(compact: token)
     .decrypt(with: keys)
@@ -72,7 +72,7 @@ A token encrypted to a public key proves nothing about who wrote it. For an issu
 
 ```swift
 let token = try await NestedJWT<MyClaims, EmptyHeaderParameters>
-    .Encrypted(signing: claims, signedBy: signer, encryptedTo: recipient, using: A256GCM.self)
+    .Encrypted(signing: claims, signedBy: signer, encryptedTo: recipient, using: .a256gcm)
     .compactSerialization()
 let encrypted = try NestedJWT<MyClaims, EmptyHeaderParameters>.Encrypted(compact: token)
 encrypted.header                         // the outer header, readable before decryption

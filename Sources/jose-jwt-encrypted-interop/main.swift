@@ -85,7 +85,7 @@ let signerJWK = String(decoding: try JWK(.p256(signingKey.publicKey)).jsonRepres
 /// Produces both token kinds through the public API, for one concrete recipient type and the
 /// named content encryption.
 func produce<R: KeyEncrypter>(_ recipient: R, algorithm: String, encryption: String) async throws -> Response.Produced {
-    func make<E: ContentEncryptionAlgorithm>(_ contentEncryption: E.Type) async throws -> Response.Produced {
+    func make(_ contentEncryption: some ContentEncryptionAlgorithm) async throws -> Response.Produced {
         Response.Produced(
             algorithm: algorithm,
             encrypted: try await SimpleEncryptedJWT.Encrypted(
@@ -104,11 +104,11 @@ func produce<R: KeyEncrypter>(_ recipient: R, algorithm: String, encryption: Str
     }
     switch encryption {
     case "A256GCM":
-        return try await make(A256GCM.self)
+        return try await make(.a256gcm)
     case "A128CBC-HS256":
-        return try await make(A128CBCHS256.self)
+        return try await make(.a128cbcHS256)
     case "A256CBC-HS512":
-        return try await make(A256CBCHS512.self)
+        return try await make(.a256cbcHS512)
     default:
         throw InteropError(description: "unsupported content encryption \(encryption)")
     }

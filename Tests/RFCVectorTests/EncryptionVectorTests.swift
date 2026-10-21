@@ -113,11 +113,9 @@ struct EncryptionVectorTests {
     /// tag must come out exactly.
     @Test("content encryption reproduces each example's ciphertext and tag")
     func reproducesContentEncryption() throws {
-        let encryptions: [String: any ContentEncryptionAlgorithm.Type] = [
-            "A128GCM": A128GCM.self, "A192GCM": A192GCM.self, "A256GCM": A256GCM.self,
-            "A128CBC-HS256": A128CBCHS256.self, "A192CBC-HS384": A192CBCHS384.self,
-            "A256CBC-HS512": A256CBCHS512.self,
-        ]
+        let encryptions = Dictionary(
+            uniqueKeysWithValues: ContentEncryption.allCases.map { ($0.identifier.rawValue, $0) }
+        )
         let reproducible =
             Self.singleRecipient.filter { $0.hasPrefix("jwe/") } + [
                 "jwe/5_3.key_wrap_using_pbes2-aes-keywrap_with-aes-cbc-hmac-sha2.json"

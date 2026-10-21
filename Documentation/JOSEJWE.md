@@ -21,7 +21,7 @@ shorter list. An algorithm this package does not ship is a type conforming to
 `RSA1_5` is there for systems that still send it. Its decryption leaks whether the padding was
 valid unless every failure looks the same, so any failure to recover the key continues with a
 random key and ends in the same `.decryptionFailed` as any other failure (RFC 7516 §11.5). It is
-used only when you build an `RSAEncrypter<RSA15>` or `RSADecrypter<RSA15>`, or list `RSA15` in
+used only when you build an `RSAEncrypter<RSA15>` or `RSADecrypter<RSA15>`, or list `.rsa15` in
 `DecryptionKeys(jwks:allowing:)`. Prefer `RSA-OAEP-256`.
 
 Compression (`zip`): `DEF`, raw DEFLATE, using the system zlib. Not available on Windows.
@@ -92,8 +92,12 @@ All but PBES2 can be built from a JWK with `init(jwk:)`, which honours its `use`
 `alg`. Private JWKs for the asymmetric algorithms can also be turned into a set of keys at once:
 
 ```swift
-let keys = DecryptionKeys(jwks: myPrivateKeys, allowing: [ECDHESA256KW.self, RSAOAEP256.self])
+let keys = DecryptionKeys(jwks: myPrivateKeys, allowing: [.ecdhESA256KW, .rsaOAEP256])
 ```
+
+The algorithms that can be listed are the cases of `KeyManagement`, each delegating to its type
+(`ECDHESA256KW` and so on). An algorithm added outside this package conforms to
+`JWKDecryptableAlgorithm` and is listed as an instance.
 
 ## Decrypting
 

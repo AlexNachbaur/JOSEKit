@@ -1160,6 +1160,33 @@ struct JWETests {
         )
     }
 
+    @Test("each KeyManagement case delegates to its type, and each shorthand makes that type")
+    func keyManagementCases() throws {
+        let ecJWK = PrivateJWK(.p256(try ECPrivateKey<P256Curve>()))
+        let rsaJWK = PrivateJWK(.rsa(try RSAPrivateKey()))
+        let types: [KeyManagement: (any JWKDecryptableAlgorithm, PrivateJWK)] = [
+            .ecdhES: (ECDHES(), ecJWK), .ecdhESA128KW: (ECDHESA128KW(), ecJWK),
+            .ecdhESA192KW: (ECDHESA192KW(), ecJWK), .ecdhESA256KW: (ECDHESA256KW(), ecJWK),
+            .rsaOAEP: (RSAOAEP(), rsaJWK), .rsaOAEP256: (RSAOAEP256(), rsaJWK), .rsa15: (RSA15(), rsaJWK),
+        ]
+        #expect(Set(types.keys) == Set(KeyManagement.allCases))
+        for (management, (type, jwk)) in types {
+            #expect(management.identifier == type.identifier)
+            #expect(try management.decrypter(for: jwk).algorithm == type.identifier)
+            #expect(try type.decrypter(for: jwk).algorithm == type.identifier)
+        }
+        func identifier(_ algorithm: some JWKDecryptableAlgorithm) -> AlgorithmIdentifier {
+            algorithm.identifier
+        }
+        #expect(identifier(.ecdhES) == "ECDH-ES")
+        #expect(identifier(.ecdhESA128KW) == "ECDH-ES+A128KW")
+        #expect(identifier(.ecdhESA192KW) == "ECDH-ES+A192KW")
+        #expect(identifier(.ecdhESA256KW) == "ECDH-ES+A256KW")
+        #expect(identifier(.rsaOAEP) == "RSA-OAEP")
+        #expect(identifier(.rsaOAEP256) == "RSA-OAEP-256")
+        #expect(identifier(.rsa15) == "RSA1_5")
+    }
+
     @Test("decrypters can be built from private JWKs, for the listed algorithms only")
     func decryptersFromJWKs() async throws {
         let ec = try ECPrivateKey<P256Curve>()
@@ -1169,20 +1196,20 @@ struct JWETests {
         let signingJWK = PrivateJWK(.p256(try ECPrivateKey<P256Curve>()), metadata: JWKMetadata(use: .signature))
         let keys = DecryptionKeys(
             jwks: [ecJWK, rsaJWK, signingJWK],
-            allowing: [ECDHESA256KW.self, RSAOAEP256.self]
+            allowing: [.ecdhESA256KW, .rsaOAEP256]
         )
         // Each key suits one algorithm; the signing key suits none.
         #expect(keys.decrypters.map(\.keyID) == ["ec", "rsa"])
         #expect(keys.algorithms == ["ECDH-ES+A256KW", "RSA-OAEP-256"])
         // RSA1_5 is offered only when it is listed, and never for a key whose alg names another.
         #expect(
-            DecryptionKeys(jwks: [rsaJWK], allowing: [RSAOAEP256.self, RSA15.self]).algorithms == [
+            DecryptionKeys(jwks: [rsaJWK], allowing: [KeyManagement.rsaOAEP256, .rsa15]).algorithms == [
                 "RSA-OAEP-256", "RSA1_5",
             ]
         )
         let oaepOnly = PrivateJWK(.rsa(rsa), metadata: JWKMetadata(algorithm: "RSA-OAEP-256"))
         #expect(
-            DecryptionKeys(jwks: [oaepOnly], allowing: [RSAOAEP256.self, RSA15.self]).algorithms == ["RSA-OAEP-256"]
+            DecryptionKeys(jwks: [oaepOnly], allowing: [RSAOAEP256(), RSA15()]).algorithms == ["RSA-OAEP-256"]
         )
 
         let toEC = try await SimpleJWE.Encrypted(
@@ -1205,10 +1232,10 @@ struct JWETests {
             try RSADecrypter<RSAOAEP>(jwk: ecJWK)
         }
         #expect(throws: JWKError.keyTypeMismatch(expected: "EC or OKP X25519", found: "RSA")) {
-            try ECDHES.decrypter(for: PrivateJWK(.rsa(rsa)))
+            try ECDHES().decrypter(for: PrivateJWK(.rsa(rsa)))
         }
         #expect(throws: JWKError.useNotPermitted(use: "sig", required: "enc")) {
-            try ECDHES.decrypter(for: signingJWK)
+            try ECDHES().decrypter(for: signingJWK)
         }
 
         // The result builder takes a whole set of keys as well as single decrypters.

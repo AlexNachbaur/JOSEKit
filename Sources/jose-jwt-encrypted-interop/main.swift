@@ -62,7 +62,7 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "A256KW":
         return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: try SymmetricJWK(json: json)))
     case "ECDH-ES":
-        return try ECDHES.decrypter(for: try PrivateJWK(json: json))
+        return try ECDHES().decrypter(for: try PrivateJWK(json: json))
     case "RSA-OAEP-256":
         return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
     default:

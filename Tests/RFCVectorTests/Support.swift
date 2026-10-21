@@ -165,13 +165,13 @@ extension AnyKeyDecrypter {
         case "RSA-OAEP-256":
             self.init(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
         case "ECDH-ES":
-            self = try ECDHES.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhES.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A128KW":
-            self = try ECDHESA128KW.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhESA128KW.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A192KW":
-            self = try ECDHESA192KW.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhESA192KW.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A256KW":
-            self = try ECDHESA256KW.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhESA256KW.decrypter(for: try PrivateJWK(json: json))
         default:
             throw VectorError(description: "no decrypter for \(algorithm)")
         }

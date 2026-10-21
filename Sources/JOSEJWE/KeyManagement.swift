@@ -109,10 +109,94 @@ public struct KeyDecryptionRequest: Sendable {
 
 /// A key management algorithm whose decrypter can be built from a private JWK, so that it can
 /// be listed in ``DecryptionKeys/init(jwks:allowing:)``.
-public protocol JWKDecryptableAlgorithm: KeyManagementAlgorithm {
+///
+/// The built-in ones are the cases of ``KeyManagement``. An algorithm type conforms by being
+/// instantiable, as the built-in types are: `ECDHESA256KW()`.
+public protocol JWKDecryptableAlgorithm: Sendable {
+    /// The algorithm's `alg`.
+    var identifier: AlgorithmIdentifier { get }
+
     /// A decrypter for this algorithm, if the key's type and its `use`, `key_ops` and `alg`
     /// allow it.
-    static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter
+    func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter
+}
+
+extension JWKDecryptableAlgorithm where Self: KeyManagementAlgorithm {
+    public var identifier: AlgorithmIdentifier {
+        Self.identifier
+    }
+}
+
+/// The key management algorithms whose decrypters this package can build from a private JWK.
+/// Each case delegates to the type that implements it, such as ``ECDHESA256KW``.
+///
+/// `rsa15` (`RSA1_5`) is here so that it can be listed deliberately; nothing selects it by
+/// default.
+public enum KeyManagement: JWKDecryptableAlgorithm, CaseIterable, Hashable {
+    case ecdhES
+    case ecdhESA128KW
+    case ecdhESA192KW
+    case ecdhESA256KW
+    case rsaOAEP
+    case rsaOAEP256
+    case rsa15
+
+    /// The type that implements this algorithm.
+    public var algorithm: any JWKDecryptableAlgorithm {
+        switch self {
+        case .ecdhES:
+            return ECDHES()
+        case .ecdhESA128KW:
+            return ECDHESA128KW()
+        case .ecdhESA192KW:
+            return ECDHESA192KW()
+        case .ecdhESA256KW:
+            return ECDHESA256KW()
+        case .rsaOAEP:
+            return RSAOAEP()
+        case .rsaOAEP256:
+            return RSAOAEP256()
+        case .rsa15:
+            return RSA15()
+        }
+    }
+
+    public var identifier: AlgorithmIdentifier {
+        algorithm.identifier
+    }
+
+    public func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+        try algorithm.decrypter(for: jwk)
+    }
+}
+
+// So that `allowing: [.ecdhESA256KW, .rsaOAEP256]` reads naturally (SE-0299).
+extension JWKDecryptableAlgorithm where Self == ECDHES {
+    public static var ecdhES: ECDHES { ECDHES() }
+}
+
+extension JWKDecryptableAlgorithm where Self == ECDHESA128KW {
+    public static var ecdhESA128KW: ECDHESA128KW { ECDHESA128KW() }
+}
+
+extension JWKDecryptableAlgorithm where Self == ECDHESA192KW {
+    public static var ecdhESA192KW: ECDHESA192KW { ECDHESA192KW() }
+}
+
+extension JWKDecryptableAlgorithm where Self == ECDHESA256KW {
+    public static var ecdhESA256KW: ECDHESA256KW { ECDHESA256KW() }
+}
+
+extension JWKDecryptableAlgorithm where Self == RSAOAEP {
+    public static var rsaOAEP: RSAOAEP { RSAOAEP() }
+}
+
+extension JWKDecryptableAlgorithm where Self == RSAOAEP256 {
+    public static var rsaOAEP256: RSAOAEP256 { RSAOAEP256() }
+}
+
+extension JWKDecryptableAlgorithm where Self == RSA15 {
+    public static var rsa15: RSA15 { RSA15() }
 }
 
 /// Something that can recover a content encryption key with one specific algorithm.
@@ -194,7 +278,7 @@ public struct DecryptionKeys: Sendable {
     /// Each key yields a decrypter for each listed algorithm it is suitable for: right key type,
     /// and permitted by the key's `use`, `key_ops` and `alg`. Keys suitable for none are skipped.
     /// Symmetric keys are built with their decrypter's `init(jwk:)`.
-    public init(jwks: [PrivateJWK], allowing algorithms: [any JWKDecryptableAlgorithm.Type]) {
+    public init(jwks: [PrivateJWK], allowing algorithms: [any JWKDecryptableAlgorithm]) {
         var decrypters: [AnyKeyDecrypter] = []
         for jwk in jwks {
             for algorithm in algorithms {

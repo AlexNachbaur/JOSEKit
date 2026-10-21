@@ -22,21 +22,29 @@ public protocol ECDHESAlgorithm: KeyManagementAlgorithm {
 public struct ECDHES: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES"
     public static let keyWrapByteCount: Int? = nil
+
+    public init() {}
 }
 
 public struct ECDHESA128KW: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES+A128KW"
     public static let keyWrapByteCount: Int? = 16
+
+    public init() {}
 }
 
 public struct ECDHESA192KW: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES+A192KW"
     public static let keyWrapByteCount: Int? = 24
+
+    public init() {}
 }
 
 public struct ECDHESA256KW: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES+A256KW"
     public static let keyWrapByteCount: Int? = 32
+
+    public init() {}
 }
 
 /// A public key a JWE can be encrypted to with ECDH-ES.
@@ -215,8 +223,8 @@ private func requireAgreementPermission(
 
 extension ECDHESAlgorithm {
     /// A decrypter for a private EC or X25519 JWK, honouring its `use`, `key_ops` and `alg`.
-    public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
-        try requireAgreementPermission(jwk.metadata, algorithm: identifier)
+    public func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+        try requireAgreementPermission(jwk.metadata, algorithm: Self.identifier)
         let keyID = jwk.metadata.keyID
         switch jwk.key {
         case .p256(let key):
@@ -429,12 +437,16 @@ public protocol RSAKeyEncryptionAlgorithm: KeyManagementAlgorithm {
 public struct RSAOAEP: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA-OAEP"
     public static let padding = RSAEncryptionPadding.oaep(.sha1)
+
+    public init() {}
 }
 
 /// RSAES-OAEP with SHA-256 and MGF1 with SHA-256.
 public struct RSAOAEP256: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA-OAEP-256"
     public static let padding = RSAEncryptionPadding.oaep(.sha256)
+
+    public init() {}
 }
 
 /// RSAES-PKCS1-v1_5, `RSA1_5` (RFC 7518 §4.2).
@@ -448,11 +460,13 @@ public struct RSAOAEP256: RSAKeyEncryptionAlgorithm {
 public struct RSA15: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA1_5"
     public static let padding = RSAEncryptionPadding.pkcs1v15
+
+    public init() {}
 }
 
 extension RSAKeyEncryptionAlgorithm {
     /// A decrypter for a private RSA JWK, honouring its `use`, `key_ops` and `alg`.
-    public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+    public func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
         AnyKeyDecrypter(try RSADecrypter<Self>(jwk: jwk))
     }
 }

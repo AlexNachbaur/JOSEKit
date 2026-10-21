@@ -200,14 +200,14 @@ extension JWKMembers {
     mutating func setECPublicKey<Curve: EllipticCurve>(_ key: ECPublicKey<Curve>) {
         values["kty"] = "EC"
         values["crv"] = .string(Curve.name)
-        values["x"] = .string(Base64URL.encode(key.x))
-        values["y"] = .string(Base64URL.encode(key.y))
+        values["x"] = .string(String(base64URLEncoding: key.x))
+        values["y"] = .string(String(base64URLEncoding: key.y))
     }
 
     mutating func setOctetKeyPair(curve: String, x: Data) {
         values["kty"] = "OKP"
         values["crv"] = .string(curve)
-        values["x"] = .string(Base64URL.encode(x))
+        values["x"] = .string(String(base64URLEncoding: x))
     }
 }
 
@@ -219,8 +219,8 @@ extension JWK {
 extension JWKMembers {
     mutating func setRSAPublicKey(_ key: RSAPublicKey) {
         values["kty"] = "RSA"
-        values["n"] = .string(Base64URL.encode(key.modulus))
-        values["e"] = .string(Base64URL.encode(key.exponent))
+        values["n"] = .string(String(base64URLEncoding: key.modulus))
+        values["e"] = .string(String(base64URLEncoding: key.exponent))
     }
 }
 

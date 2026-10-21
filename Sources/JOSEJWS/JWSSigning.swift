@@ -66,7 +66,7 @@ extension JWS {
                 }
             }
             let entry = entries[0]
-            return entry.protectedEncoded + "." + payloadText + "." + Base64URL.encode(entry.signature)
+            return entry.protectedEncoded + "." + payloadText + "." + String(base64URLEncoding: entry.signature)
         }
 
         /// The flattened JWS JSON Serialization, which holds exactly one signature.
@@ -99,7 +99,7 @@ extension JWS {
         private static func signatureObject(_ entry: SignatureEntry) -> [String: JSONValue] {
             [
                 "protected": .string(entry.protectedEncoded),
-                "signature": .string(Base64URL.encode(entry.signature)),
+                "signature": .string(String(base64URLEncoding: entry.signature)),
             ]
         }
 
@@ -146,7 +146,7 @@ extension JWS {
             signerKeyID: signer.keyID,
             isPayloadBase64URLEncoded: isPayloadBase64URLEncoded
         )
-        let protectedEncoded = Base64URL.encode(protectedJSON)
+        let protectedEncoded = String(base64URLEncoding: protectedJSON)
         // Parsing our own header back keeps one definition of what a header means, and refuses to
         // sign anything this package would not itself accept.
         let parsed = try JWSHeader<Custom>.parse(protected: protectedJSON, unprotected: nil)

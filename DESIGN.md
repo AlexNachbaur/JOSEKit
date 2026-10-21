@@ -245,14 +245,16 @@ Distinguishing them is a padding/unwrap oracle (RFC 7516 §11.5). This conflicts
 ## 3. Package contents
 
 ### jose-core
-- `Base64URL`: unpadded output; strict input per the engineering rules (rejects 4n+1, interior
-  `=`, wrong padding length, non-alphabet bytes, and non-zero trailing bits — D10).
+- base64url (`String(base64URLEncoding:)`, `Data(base64URLEncoded:)`, D24): unpadded output;
+  strict input per the engineering rules (rejects 4n+1, interior `=`, wrong padding length,
+  non-alphabet bytes, and non-zero trailing bits — D10).
 - Strict JSON object reader that **rejects duplicate member names** (RFC 7515 §4 permits reject or
   last-wins; `JSONDecoder` silently picks one, and which one differs between implementations —
   a known header-smuggling vector). See D6.
 - `JSONValue` enum for ad-hoc header parameters and claims.
 - JSON string escaper used by thumbprint canonicalisation.
-- `ECDSASignatureConverter`: DER ↔ P1363, both strip and left-pad paths, for P-256/384/521.
+- `ECDSASignatureConverter(coordinateByteCount:)`: DER ↔ P1363, both strip and left-pad paths,
+  for P-256/384/521.
 - `AlgorithmIdentifier`, `KeyID`, `MediaType` (typed wrappers, not bare `String`).
 
 ### jose-jwk

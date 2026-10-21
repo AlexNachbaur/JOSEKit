@@ -31,6 +31,10 @@ private struct ECDSAFixture: Decodable {
 
 @Suite("ECDSASignatureConverter")
 struct ECDSASignatureConverterTests {
+    private func converter(_ coordinateByteCount: Int) throws(ECDSASignatureError) -> ECDSASignatureConverter {
+        try ECDSASignatureConverter(coordinateByteCount: coordinateByteCount)
+    }
+
     @Test("DER to raw matches OpenSSL-verified pairs, covering both the strip and the pad path")
     func derToRawMatchesCounterpart() throws {
         let fixture = try ECDSAFixture(fixture: "ecdsa-signatures")
@@ -39,11 +43,9 @@ struct ECDSASignatureConverterTests {
             // Without these the loop could pass while never meeting a sign byte or a short component.
             #expect(curve.vectors.contains(where: { $0.hasSignByte }), "\(curve.curve) has no sign-byte vector")
             #expect(curve.vectors.contains(where: { $0.hasShortComponent }), "\(curve.curve) has no short vector")
+            let converter = try converter(curve.coordinateByteCount)
             for vector in curve.vectors {
-                let raw = try ECDSASignatureConverter.rawSignature(
-                    fromDER: try Data(hex: vector.der),
-                    coordinateByteCount: curve.coordinateByteCount
-                )
+                let raw = try converter.rawSignature(fromDER: try Data(hex: vector.der))
                 #expect(raw.hex == vector.raw, "\(curve.curve) DER \(vector.der)")
             }
         }
@@ -53,11 +55,9 @@ struct ECDSASignatureConverterTests {
     func rawToDERMatchesCounterpart() throws {
         let fixture = try ECDSAFixture(fixture: "ecdsa-signatures")
         for curve in fixture.curves {
+            let converter = try converter(curve.coordinateByteCount)
             for vector in curve.vectors {
-                let der = try ECDSASignatureConverter.derSignature(
-                    fromRaw: try Data(hex: vector.raw),
-                    coordinateByteCount: curve.coordinateByteCount
-                )
+                let der = try converter.derSignature(fromRaw: try Data(hex: vector.raw))
                 #expect(der.hex == vector.der, "\(curve.curve) raw \(vector.raw)")
             }
         }
@@ -67,19 +67,14 @@ struct ECDSASignatureConverterTests {
     func malformedDERAgreesWithCounterpart() throws {
         let fixture = try ECDSAFixture(fixture: "ecdsa-signatures")
         for curve in fixture.curves {
+            let converter = try converter(curve.coordinateByteCount)
             // Positive control: the unmodified signature converts.
-            _ = try ECDSASignatureConverter.rawSignature(
-                fromDER: try Data(hex: curve.malformedBase),
-                coordinateByteCount: curve.coordinateByteCount
-            )
+            _ = try converter.rawSignature(fromDER: try Data(hex: curve.malformedBase))
             #expect(curve.malformed.count >= 12)
             for malformed in curve.malformed {
                 #expect(!malformed.opensslAccepts, "fixture changed: OpenSSL now accepts '\(malformed.name)'")
                 #expect(throws: ECDSASignatureError.self, "\(curve.curve): \(malformed.name)") {
-                    try ECDSASignatureConverter.rawSignature(
-                        fromDER: try Data(hex: malformed.der),
-                        coordinateByteCount: curve.coordinateByteCount
-                    )
+                    try converter.rawSignature(fromDER: try Data(hex: malformed.der))
                 }
             }
         }
@@ -90,55 +85,57 @@ struct ECDSASignatureConverterTests {
 
     @Test("a short component is left-padded to the coordinate size")
     func leftPads() throws {
-        let raw = try ECDSASignatureConverter.rawSignature(fromDER: Self.minimalDER, coordinateByteCount: 32)
+        let p256 = try converter(32)
+        let raw = try p256.rawSignature(fromDER: Self.minimalDER)
         #expect(raw.count == 64)
         var expected = Data(repeating: 0, count: 64)
         expected[31] = 0x01
         expected[63] = 0x02
         #expect(raw == expected)
-        #expect(try ECDSASignatureConverter.derSignature(fromRaw: raw, coordinateByteCount: 32) == Self.minimalDER)
+        #expect(try p256.derSignature(fromRaw: raw) == Self.minimalDER)
     }
 
     @Test("a sign byte is stripped going to raw and restored going to DER")
     func stripsSignByte() throws {
+        let p256 = try converter(32)
         let high = Data([0x80] + [UInt8](repeating: 0x11, count: 31))
         let der = Data([0x30, 0x46, 0x02, 0x21, 0x00]) + high + Data([0x02, 0x21, 0x00]) + high
-        let raw = try ECDSASignatureConverter.rawSignature(fromDER: der, coordinateByteCount: 32)
+        let raw = try p256.rawSignature(fromDER: der)
         #expect(raw == high + high)
-        #expect(try ECDSASignatureConverter.derSignature(fromRaw: raw, coordinateByteCount: 32) == der)
+        #expect(try p256.derSignature(fromRaw: raw) == der)
     }
 
     @Test("zero is encoded as a one-byte INTEGER and decoded back")
     func zeroComponent() throws {
+        let p256 = try converter(32)
         let raw = Data(repeating: 0, count: 64)
-        let der = try ECDSASignatureConverter.derSignature(fromRaw: raw, coordinateByteCount: 32)
+        let der = try p256.derSignature(fromRaw: raw)
         #expect(der == Data([0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00]))
-        #expect(try ECDSASignatureConverter.rawSignature(fromDER: der, coordinateByteCount: 32) == raw)
+        #expect(try p256.rawSignature(fromDER: der) == raw)
     }
 
     @Test("a SEQUENCE of 128 bytes or more uses the long length form")
     func longFormLength() throws {
+        let p521 = try converter(66)
         let raw = Data(repeating: 0x7F, count: 132)
-        let der = try ECDSASignatureConverter.derSignature(fromRaw: raw, coordinateByteCount: 66)
+        let der = try p521.derSignature(fromRaw: raw)
         #expect(der.prefix(3) == Data([0x30, 0x81, 0x88]))
-        #expect(try ECDSASignatureConverter.rawSignature(fromDER: der, coordinateByteCount: 66) == raw)
+        #expect(try p521.rawSignature(fromDER: der) == raw)
     }
 
     @Test("works on Data slices whose start index is not zero")
     func slices() throws {
+        let p256 = try converter(32)
         let padded = Data([0xAA, 0xBB]) + Self.minimalDER
-        let raw = try ECDSASignatureConverter.rawSignature(fromDER: padded.dropFirst(2), coordinateByteCount: 32)
+        let raw = try p256.rawSignature(fromDER: padded.dropFirst(2))
         let paddedRaw = Data([0xAA]) + raw
-        #expect(
-            try ECDSASignatureConverter.derSignature(fromRaw: paddedRaw.dropFirst(), coordinateByteCount: 32)
-                == Self.minimalDER
-        )
+        #expect(try p256.derSignature(fromRaw: paddedRaw.dropFirst()) == Self.minimalDER)
     }
 
     @Test("each malformed DER input reports its specific cause")
     func specificDERErrors() {
         func convert(_ bytes: [UInt8], coordinateByteCount: Int = 32) throws(ECDSASignatureError) -> Data {
-            try ECDSASignatureConverter.rawSignature(fromDER: Data(bytes), coordinateByteCount: coordinateByteCount)
+            try converter(coordinateByteCount).rawSignature(fromDER: Data(bytes))
         }
 
         #expect(throws: ECDSASignatureError.derTruncated(offset: 0)) { try convert([]) }
@@ -200,34 +197,34 @@ struct ECDSASignatureConverterTests {
     }
 
     @Test("raw input must be exactly two coordinates, and the coordinate size must be supported")
-    func rawErrors() {
+    func rawErrors() throws {
+        let p256 = try converter(32)
         #expect(throws: ECDSASignatureError.rawSignatureWrongLength(expected: 64, found: 63)) {
-            try ECDSASignatureConverter.derSignature(fromRaw: Data(count: 63), coordinateByteCount: 32)
+            try p256.derSignature(fromRaw: Data(count: 63))
         }
         #expect(throws: ECDSASignatureError.rawSignatureWrongLength(expected: 64, found: 65)) {
-            try ECDSASignatureConverter.derSignature(fromRaw: Data(count: 65), coordinateByteCount: 32)
+            try p256.derSignature(fromRaw: Data(count: 65))
         }
         #expect(throws: ECDSASignatureError.unsupportedCoordinateByteCount(0)) {
-            try ECDSASignatureConverter.derSignature(fromRaw: Data(), coordinateByteCount: 0)
+            try converter(0)
         }
         #expect(throws: ECDSASignatureError.unsupportedCoordinateByteCount(125)) {
-            try ECDSASignatureConverter.derSignature(fromRaw: Data(count: 250), coordinateByteCount: 125)
+            try converter(125)
         }
-        #expect(throws: ECDSASignatureError.unsupportedCoordinateByteCount(0)) {
-            try ECDSASignatureConverter.rawSignature(fromDER: Self.minimalDER, coordinateByteCount: 0)
+        #expect(throws: Never.self) {
+            try converter(1)
         }
-        #expect(throws: ECDSASignatureError.unsupportedCoordinateByteCount(125)) {
-            try ECDSASignatureConverter.rawSignature(fromDER: Self.minimalDER, coordinateByteCount: 125)
-        }
+        #expect(try converter(ECDSASignatureConverter.maximumCoordinateByteCount).coordinateByteCount == 124)
     }
 
     @Test("the largest supported coordinate size round-trips with every byte's top bit set")
     func maximumCoordinateSize() throws {
         let size = ECDSASignatureConverter.maximumCoordinateByteCount
+        let largest = try converter(size)
         let raw = Data(repeating: 0xFF, count: size * 2)
-        let der = try ECDSASignatureConverter.derSignature(fromRaw: raw, coordinateByteCount: size)
+        let der = try largest.derSignature(fromRaw: raw)
         #expect(der.count == 3 + 2 * (size + 3))
-        #expect(try ECDSASignatureConverter.rawSignature(fromDER: der, coordinateByteCount: size) == raw)
+        #expect(try largest.rawSignature(fromDER: der) == raw)
     }
 
     @Test("every error has a non-empty message")
@@ -259,6 +256,7 @@ struct ECDSASignatureConverterTests {
     #if canImport(CryptoKit)
         @Test("agrees with CryptoKit's own raw and DER representations across 500 P-256 signatures")
         func agreesWithCryptoKitP256() throws {
+            let p256 = try converter(32)
             let key = P256.Signing.PrivateKey()
             var sawSignByte = false
             var sawShortComponent = false
@@ -266,8 +264,8 @@ struct ECDSASignatureConverterTests {
                 let signature = try key.signature(for: Data("message \(index)".utf8))
                 let der = signature.derRepresentation
                 let raw = signature.rawRepresentation
-                #expect(try ECDSASignatureConverter.rawSignature(fromDER: der, coordinateByteCount: 32) == raw)
-                #expect(try ECDSASignatureConverter.derSignature(fromRaw: raw, coordinateByteCount: 32) == der)
+                #expect(try p256.rawSignature(fromDER: der) == raw)
+                #expect(try p256.derSignature(fromRaw: raw) == der)
                 sawSignByte = sawSignByte || der.count > 70
                 sawShortComponent = sawShortComponent || raw[0] == 0 || raw[32] == 0
             }
@@ -286,38 +284,28 @@ struct ECDSASignatureConverterTests {
         func agreesWithCryptoKitLargerCurves() throws {
             let p384 = P384.Signing.PrivateKey()
             let p521 = P521.Signing.PrivateKey()
+            let converter384 = try converter(48)
+            let converter521 = try converter(66)
             for index in 0..<200 {
                 let message = Data("message \(index)".utf8)
 
                 let signature384 = try p384.signature(for: message)
                 #expect(
-                    try ECDSASignatureConverter.rawSignature(
-                        fromDER: signature384.derRepresentation,
-                        coordinateByteCount: 48
-                    )
+                    try converter384.rawSignature(fromDER: signature384.derRepresentation)
                         == signature384.rawRepresentation
                 )
                 #expect(
-                    try ECDSASignatureConverter.derSignature(
-                        fromRaw: signature384.rawRepresentation,
-                        coordinateByteCount: 48
-                    )
+                    try converter384.derSignature(fromRaw: signature384.rawRepresentation)
                         == signature384.derRepresentation
                 )
 
                 let signature521 = try p521.signature(for: message)
                 #expect(
-                    try ECDSASignatureConverter.rawSignature(
-                        fromDER: signature521.derRepresentation,
-                        coordinateByteCount: 66
-                    )
+                    try converter521.rawSignature(fromDER: signature521.derRepresentation)
                         == signature521.rawRepresentation
                 )
                 #expect(
-                    try ECDSASignatureConverter.derSignature(
-                        fromRaw: signature521.rawRepresentation,
-                        coordinateByteCount: 66
-                    )
+                    try converter521.derSignature(fromRaw: signature521.rawRepresentation)
                         == signature521.derRepresentation
                 )
             }

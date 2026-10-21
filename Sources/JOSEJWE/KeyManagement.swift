@@ -100,7 +100,7 @@ public struct KeyDecryptionRequest: Sendable {
             throw .headerParameterWrongType(name: name, expected: "a base64url string")
         }
         do {
-            return try Base64URL.decode(text)
+            return try Data(base64URLEncoded: text)
         } catch {
             throw .invalidBase64URL(part: "header parameter \"\(name)\"", error)
         }

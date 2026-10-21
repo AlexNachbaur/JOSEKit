@@ -98,7 +98,7 @@ public struct PBES2Encrypter<Algorithm: PBES2Algorithm>: KeyEncrypter {
                 contentEncryptionKey: contentKey,
                 encryptedKey: try AESKeyWrapping(wrappingKey: wrappingKey).wrap(contentKey),
                 headerParameters: [
-                    "p2s": .string(Base64URL.encode(saltInput)),
+                    "p2s": .string(String(base64URLEncoding: saltInput)),
                     "p2c": .integer(Int64(iterationCount)),
                 ]
             )

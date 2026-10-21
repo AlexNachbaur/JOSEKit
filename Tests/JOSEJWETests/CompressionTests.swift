@@ -20,7 +20,7 @@ struct CompressionTests {
 
     /// Parses a JWE whose protected header is `protected`, returning the error, if any.
     private func parse(_ protected: String, unprotected: String? = nil) -> JWEError? {
-        let encoded = Base64URL.encode(Data(protected.utf8))
+        let encoded = String(base64URLEncoding: Data(protected.utf8))
         var json = #"{"protected":"\#(encoded)","ciphertext":"AAAA","iv":"AAAA","tag":"AAAA""#
         if let unprotected {
             json += #","unprotected":\#(unprotected)"#
@@ -187,7 +187,7 @@ struct CompressionTests {
         func invalidCompressedContent() async throws {
             // Built by hand: zip says DEF, but the encrypted content is not DEFLATE at all.
             let key = SymmetricKeyMaterial(randomByteCount: 32)
-            let protected = Base64URL.encode(Data(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#.utf8))
+            let protected = String(base64URLEncoding: Data(#"{"alg":"dir","enc":"A256GCM","zip":"DEF"}"#.utf8))
             let iv = SymmetricKeyMaterial(randomByteCount: 12).rawRepresentation
             let (ciphertext, tag) = try A256GCM.encrypt(
                 Data([0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
@@ -195,8 +195,11 @@ struct CompressionTests {
                 initializationVector: iv,
                 additionalAuthenticatedData: Data(protected.utf8)
             )
-            let compact = [protected, "", Base64URL.encode(iv), Base64URL.encode(ciphertext), Base64URL.encode(tag)]
-                .joined(separator: ".")
+            let compact = [
+                protected, "", String(base64URLEncoding: iv), String(base64URLEncoding: ciphertext),
+                String(base64URLEncoding: tag),
+            ]
+            .joined(separator: ".")
             let jwe = try SimpleJWE.Encrypted(compact: compact)
             await #expect(throws: JWEError.invalidCompressedContent) {
                 try await jwe.decrypt(with: DecryptionKeys([AnyKeyDecrypter(DirectDecrypter(key: key))]))

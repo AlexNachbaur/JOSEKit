@@ -8,7 +8,7 @@ import Testing
 @Suite("JSONMemberUniqueness")
 struct JSONMemberUniquenessTests {
     private func validate(_ json: String) throws(JSONStructureError) {
-        try JSONMemberUniqueness.validate(Data(json.utf8))
+        try Data(json.utf8).requireUniqueJSONMembers()
     }
 
     @Test(
@@ -158,7 +158,7 @@ struct JSONMemberUniquenessTests {
 
         #expect(throws: JSONStructureError.invalidMemberName(offset: 1)) { try validate("{\"a\nb\":1}") }
         #expect(throws: JSONStructureError.invalidMemberName(offset: 1)) {
-            try JSONMemberUniqueness.validate(Data([0x7B, 0x22, 0xFF, 0x22, 0x3A, 0x31, 0x7D]))
+            try Data([0x7B, 0x22, 0xFF, 0x22, 0x3A, 0x31, 0x7D]).requireUniqueJSONMembers()
         }
     }
 
@@ -186,7 +186,7 @@ struct JSONMemberUniquenessTests {
     @Test("works on Data slices whose start index is not zero")
     func slices() throws {
         let data = Data("xx{\"a\":1}".utf8)
-        try JSONMemberUniqueness.validate(data.dropFirst(2))
+        try data.dropFirst(2).requireUniqueJSONMembers()
     }
 
     @Test("Foundation still takes the first duplicate, which is why this check exists")

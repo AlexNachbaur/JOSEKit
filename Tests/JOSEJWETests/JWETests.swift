@@ -148,17 +148,17 @@ struct JWETests {
         func outcome(encryptedKey: Data? = nil, tag: Data? = nil) async throws -> JWEError? {
             var altered = parts
             if let encryptedKey {
-                altered[1] = Base64URL.encode(encryptedKey)
+                altered[1] = String(base64URLEncoding: encryptedKey)
             }
             if let tag {
-                altered[4] = Base64URL.encode(tag)
+                altered[4] = String(base64URLEncoding: tag)
             }
             let jwe = try SimpleJWE.Encrypted(compact: altered.joined(separator: "."))
             return await thrown { () async throws(JWEError) in try await jwe.decrypt(with: keys) }
         }
 
         // Bad padding: one bit changed in the encrypted key.
-        var flipped = try Base64URL.decode(parts[1])
+        var flipped = try Data(base64URLEncoded: parts[1])
         flipped[flipped.count - 1] ^= 0x01
         #expect(try await outcome(encryptedKey: flipped) == .decryptionFailed)
         // Valid padding around a key of the wrong size for A128CBC-HS256 (16 bytes, not 32).
@@ -168,7 +168,7 @@ struct JWETests {
         let wrongKey = try RSAEncryptionKey(publicKey: rsa.publicKey).encrypt(Data(count: 32), padding: .pkcs1v15)
         #expect(try await outcome(encryptedKey: wrongKey) == .decryptionFailed)
         // The right key, and a tampered tag.
-        var tag = try Base64URL.decode(parts[4])
+        var tag = try Data(base64URLEncoded: parts[4])
         tag[0] ^= 0x01
         #expect(try await outcome(tag: tag) == .decryptionFailed)
         // A key that is not this recipient's.
@@ -188,7 +188,7 @@ struct JWETests {
             header: JWEHeaderParameters(type: "JWT")
         )
         let headerSegment = String(try sealed.compactSerialization().split(separator: ".")[0])
-        let json = String(decoding: try Base64URL.decode(headerSegment), as: UTF8.self)
+        let json = String(decoding: try Data(base64URLEncoded: headerSegment), as: UTF8.self)
         #expect(json == #"{"alg":"A256KW","enc":"A256GCM","kid":"k1","typ":"JWT"}"#)
 
         let explicit = try await SimpleJWE.encrypt(
@@ -236,9 +236,9 @@ struct JWETests {
         )
 
         var parts = try sealed.compactSerialization().split(separator: ".").map(String.init)
-        var tag = try Base64URL.decode(parts[4])
+        var tag = try Data(base64URLEncoded: parts[4])
         tag[0] ^= 0x01
-        parts[4] = Base64URL.encode(tag)
+        parts[4] = String(base64URLEncoding: tag)
         let tampered = try SimpleJWE.Encrypted(compact: parts.joined(separator: "."))
         #expect(
             await thrown { () async throws(JWEError) in try await tampered.decrypt(with: right) } == .decryptionFailed
@@ -638,7 +638,7 @@ struct JWETests {
                 return error
             }
         }
-        let header = Base64URL.encode(Data(#"{"alg":"dir","enc":"A256GCM"}"#.utf8))
+        let header = String(base64URLEncoding: Data(#"{"alg":"dir","enc":"A256GCM"}"#.utf8))
         #expect(parse(#"{"protected":"\#(header)","iv":"AAAA","ciphertext":"AAAA","tag":"AAAA"}"#) == nil)
         #expect(parse("[]") == .invalidJSONStructure(.rootNotObject))
         #expect(
@@ -741,7 +741,7 @@ struct JWETests {
         #expect(parameters.x509CertificateSHA256Thumbprint == "sha256")
 
         func parse(_ members: String) -> JWEError? {
-            let protected = Base64URL.encode(Data(#"{"alg":"dir","enc":"A256GCM",\#(members)}"#.utf8))
+            let protected = String(base64URLEncoding: Data(#"{"alg":"dir","enc":"A256GCM",\#(members)}"#.utf8))
             do {
                 _ = try SimpleJWE.Encrypted(json: Data(#"{"protected":"\#(protected)","ciphertext":"AAAA"}"#.utf8))
                 return nil
@@ -805,7 +805,7 @@ struct JWETests {
         var parts = try sealed.compactSerialization().split(separator: ".", omittingEmptySubsequences: false).map(
             String.init
         )
-        parts[0] = Base64URL.encode(Data(header.utf8))
+        parts[0] = String(base64URLEncoding: Data(header.utf8))
         return try SimpleJWE.Encrypted(compact: parts.joined(separator: "."))
     }
 
@@ -881,7 +881,7 @@ struct JWETests {
             String.init
         )
         #expect(parts[1].isEmpty)
-        parts[1] = Base64URL.encode(Data(count: 40))
+        parts[1] = String(base64URLEncoding: Data(count: 40))
         let withKey = try SimpleJWE.Encrypted(compact: parts.joined(separator: "."))
         #expect(
             await thrown { () async throws(JWEError) in try await withKey.decrypt(with: keys) }
@@ -915,7 +915,7 @@ struct JWETests {
             to: ECDHESEncrypter<ECDHES>(recipient: recipient.publicKey),
             using: A256GCM.self
         )
-        let zeroPoint = Base64URL.encode(Data(count: 32))
+        let zeroPoint = String(base64URLEncoding: Data(count: 32))
         let token = try ecdhToken(
             header: #"{"alg":"ECDH-ES","enc":"A256GCM","epk":{"kty":"OKP","crv":"X25519","x":"\#(zeroPoint)"}}"#,
             from: sealed
@@ -935,12 +935,12 @@ struct JWETests {
             partyVInfo: Data("Bob".utf8)
         )
         let sealed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
-        #expect(sealed.header.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
-        #expect(sealed.header.rawParameters["apv"] == .string(Base64URL.encode(Data("Bob".utf8))))
+        #expect(sealed.header.rawParameters["apu"] == .string(String(base64URLEncoding: Data("Alice".utf8))))
+        #expect(sealed.header.rawParameters["apv"] == .string(String(base64URLEncoding: Data("Bob".utf8))))
         #expect(try await sealed.decrypt(with: keys).plaintext == Self.plaintext)
 
         var raw = sealed.header.rawParameters
-        raw["apu"] = .string(Base64URL.encode(Data("Mallory".utf8)))
+        raw["apu"] = .string(String(base64URLEncoding: Data("Mallory".utf8)))
         let header = String(decoding: try JSONEncoder().encode(raw), as: UTF8.self)
         let altered = try ecdhToken(header: header, from: sealed)
         #expect(
@@ -1159,7 +1159,7 @@ struct JWETests {
             Issue.record("p2s missing")
             return
         }
-        #expect(try Base64URL.decode(salt).count == 16)
+        #expect(try Data(base64URLEncoded: salt).count == 16)
         let decrypter = PBES2Decrypter<PBES2HS256A128KW>(password: password, keyID: "pw")
         #expect(
             try await sealed.decrypt(with: DecryptionKeys([AnyKeyDecrypter(decrypter)])).plaintext == Self.plaintext
@@ -1214,7 +1214,7 @@ struct JWETests {
             )
             return await thrown { () async throws(JWEError) in try await key.decryptKey(request) }
         }
-        let salt = JSONValue.string(Base64URL.encode(Data(count: 16)))
+        let salt = JSONValue.string(String(base64URLEncoding: Data(count: 16)))
         #expect(await outcome(["p2s": salt, "p2c": 1000]) == .decryptionFailed)
         #expect(await outcome(["p2s": salt, "p2c": 1001]) == .invalidIterationCount(found: 1001, maximum: 1000))
         #expect(await outcome(["p2s": salt, "p2c": 0]) == .invalidIterationCount(found: 0, maximum: 1000))
@@ -1229,7 +1229,7 @@ struct JWETests {
         #expect(await outcome(["p2s": salt]) == .missingHeaderParameter(name: "p2c", algorithm: "PBES2-HS256+A128KW"))
         #expect(await outcome(["p2c": 1000]) == .missingHeaderParameter(name: "p2s", algorithm: "PBES2-HS256+A128KW"))
         #expect(
-            await outcome(["p2s": .string(Base64URL.encode(Data(count: 7))), "p2c": 1000])
+            await outcome(["p2s": .string(String(base64URLEncoding: Data(count: 7))), "p2c": 1000])
                 == .saltTooShort(algorithm: "PBES2-HS256+A128KW", minimum: 8, found: 7)
         )
 
@@ -1258,8 +1258,8 @@ struct JWETests {
             )
             return await thrown { () async throws(JWEError) in try await key.decryptKey(request) }
         }
-        let iv = JSONValue.string(Base64URL.encode(Data(count: 12)))
-        let tag = JSONValue.string(Base64URL.encode(Data(count: 16)))
+        let iv = JSONValue.string(String(base64URLEncoding: Data(count: 12)))
+        let tag = JSONValue.string(String(base64URLEncoding: Data(count: 16)))
         #expect(await outcome(["iv": iv, "tag": tag]) == .decryptionFailed)
         #expect(await outcome(["tag": tag]) == .missingHeaderParameter(name: "iv", algorithm: "A256GCMKW"))
         #expect(await outcome(["iv": iv]) == .missingHeaderParameter(name: "tag", algorithm: "A256GCMKW"))
@@ -1268,11 +1268,11 @@ struct JWETests {
                 == .headerParameterWrongType(name: "iv", expected: "a base64url string")
         )
         #expect(
-            await outcome(["iv": .string(Base64URL.encode(Data(count: 8))), "tag": tag])
+            await outcome(["iv": .string(String(base64URLEncoding: Data(count: 8))), "tag": tag])
                 == .wrongInitializationVectorSize(algorithm: "A256GCMKW", expected: 12, found: 8)
         )
         #expect(
-            await outcome(["iv": iv, "tag": .string(Base64URL.encode(Data(count: 8)))])
+            await outcome(["iv": iv, "tag": .string(String(base64URLEncoding: Data(count: 8)))])
                 == .wrongAuthenticationTagSize(algorithm: "A256GCMKW", expected: 16, found: 8)
         )
     }

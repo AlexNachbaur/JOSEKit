@@ -46,7 +46,7 @@ struct Base64URLTests {
         #expect(fixture.encode.count > 50)
         for vector in fixture.encode {
             let bytes = try Data(hex: vector.hex)
-            #expect(Base64URL.encode(bytes) == vector.base64url, "encoding \(vector.hex)")
+            #expect(String(base64URLEncoding: bytes) == vector.base64url, "encoding \(vector.hex)")
         }
     }
 
@@ -54,7 +54,7 @@ struct Base64URLTests {
     func decodeMatchesCounterpart() throws {
         let fixture = try Base64URLFixture(fixture: "base64url")
         for vector in fixture.encode {
-            let decoded = try Base64URL.decode(vector.base64url)
+            let decoded = try Data(base64URLEncoded: vector.base64url)
             let expected = try Data(hex: vector.hex)
             #expect(decoded == expected, "decoding \(vector.base64url)")
         }
@@ -67,20 +67,20 @@ struct Base64URLTests {
         var rejected = 0
         var stricter = 0
         for vector in fixture.decode {
-            let label = "input \(JSONStringEscaper.quoted(vector.input))"
+            let label = "input \(String(jsonQuoting:vector.input))"
             if let expectedError = Self.stricterThanJose[vector.input] {
                 #expect(vector.jose.accepted, "\(label) is listed as a deviation but jose rejects it too")
                 #expect(throws: expectedError, "\(label)") {
-                    try Base64URL.decode(vector.input)
+                    try Data(base64URLEncoded: vector.input)
                 }
                 stricter += 1
             } else if vector.jose.accepted {
                 let expected = try Data(hex: try #require(vector.jose.hex))
-                #expect(try Base64URL.decode(vector.input) == expected, "\(label)")
+                #expect(try Data(base64URLEncoded: vector.input) == expected, "\(label)")
                 accepted += 1
             } else {
                 #expect(throws: Base64URLError.self, "\(label)") {
-                    try Base64URL.decode(vector.input)
+                    try Data(base64URLEncoded: vector.input)
                 }
                 rejected += 1
             }
@@ -93,49 +93,57 @@ struct Base64URLTests {
 
     @Test("output is never padded")
     func encodeIsUnpadded() {
-        #expect(Base64URL.encode([UInt8]()) == "")
-        #expect(Base64URL.encode([0x61]) == "YQ")
-        #expect(Base64URL.encode([0x61, 0x62]) == "YWI")
-        #expect(Base64URL.encode([0x61, 0x62, 0x63]) == "YWJj")
+        #expect(String(base64URLEncoding: [UInt8]()) == "")
+        #expect(String(base64URLEncoding: [0x61]) == "YQ")
+        #expect(String(base64URLEncoding: [0x61, 0x62]) == "YWI")
+        #expect(String(base64URLEncoding: [0x61, 0x62, 0x63]) == "YWJj")
     }
 
     @Test("accepts collections other than Data, including slices with a non-zero start index")
     func encodeSlices() {
         let data = Data([0x00, 0x61, 0x62, 0x63])
-        #expect(Base64URL.encode(data.dropFirst()) == "YWJj")
-        #expect(Base64URL.encode([UInt8]([0xFB, 0xFF])[...]) == "-_8")
+        #expect(String(base64URLEncoding: data.dropFirst()) == "YWJj")
+        #expect(String(base64URLEncoding: [UInt8]([0xFB, 0xFF])[...]) == "-_8")
     }
 
     @Test("each rejection reports its specific cause")
     func specificErrors() {
-        #expect(throws: Base64URLError.invalidLength(count: 1)) { try Base64URL.decode("Y") }
-        #expect(throws: Base64URLError.invalidLength(count: 5)) { try Base64URL.decode("YWJjZ") }
-        #expect(throws: Base64URLError.invalidLength(count: 5)) { try Base64URL.decode("YWJjZ===") }
+        #expect(throws: Base64URLError.invalidLength(count: 1)) { try Data(base64URLEncoded: "Y") }
+        #expect(throws: Base64URLError.invalidLength(count: 5)) { try Data(base64URLEncoded: "YWJjZ") }
+        #expect(throws: Base64URLError.invalidLength(count: 5)) { try Data(base64URLEncoded: "YWJjZ===") }
 
-        #expect(throws: Base64URLError.misplacedPadding(offset: 2)) { try Base64URL.decode("YQ=a") }
-        #expect(throws: Base64URLError.misplacedPadding(offset: 0)) { try Base64URL.decode("=YQ") }
-        #expect(throws: Base64URLError.misplacedPadding(offset: 2)) { try Base64URL.decode("YQ==YQ==") }
+        #expect(throws: Base64URLError.misplacedPadding(offset: 2)) { try Data(base64URLEncoded: "YQ=a") }
+        #expect(throws: Base64URLError.misplacedPadding(offset: 0)) { try Data(base64URLEncoded: "=YQ") }
+        #expect(throws: Base64URLError.misplacedPadding(offset: 2)) { try Data(base64URLEncoded: "YQ==YQ==") }
 
-        #expect(throws: Base64URLError.wrongPaddingLength(expected: 2, found: 3)) { try Base64URL.decode("YQ===") }
-        #expect(throws: Base64URLError.wrongPaddingLength(expected: 2, found: 1)) { try Base64URL.decode("YQ=") }
-        #expect(throws: Base64URLError.wrongPaddingLength(expected: 1, found: 2)) { try Base64URL.decode("YWI==") }
-        #expect(throws: Base64URLError.wrongPaddingLength(expected: 0, found: 1)) { try Base64URL.decode("YWJj=") }
-        #expect(throws: Base64URLError.wrongPaddingLength(expected: 0, found: 4)) { try Base64URL.decode("====") }
+        #expect(throws: Base64URLError.wrongPaddingLength(expected: 2, found: 3)) {
+            try Data(base64URLEncoded: "YQ===")
+        }
+        #expect(throws: Base64URLError.wrongPaddingLength(expected: 2, found: 1)) { try Data(base64URLEncoded: "YQ=") }
+        #expect(throws: Base64URLError.wrongPaddingLength(expected: 1, found: 2)) {
+            try Data(base64URLEncoded: "YWI==")
+        }
+        #expect(throws: Base64URLError.wrongPaddingLength(expected: 0, found: 1)) {
+            try Data(base64URLEncoded: "YWJj=")
+        }
+        #expect(throws: Base64URLError.wrongPaddingLength(expected: 0, found: 4)) { try Data(base64URLEncoded: "====") }
 
-        #expect(throws: Base64URLError.invalidCharacter(byte: 0x2B, offset: 2)) { try Base64URL.decode("YW+j") }
-        #expect(throws: Base64URLError.invalidCharacter(byte: 0x2F, offset: 2)) { try Base64URL.decode("YW/j") }
-        #expect(throws: Base64URLError.invalidCharacter(byte: 0x00, offset: 2)) { try Base64URL.decode("YQ\u{0}") }
-        #expect(throws: Base64URLError.invalidCharacter(byte: 0xC3, offset: 2)) { try Base64URL.decode("YWé") }
+        #expect(throws: Base64URLError.invalidCharacter(byte: 0x2B, offset: 2)) { try Data(base64URLEncoded: "YW+j") }
+        #expect(throws: Base64URLError.invalidCharacter(byte: 0x2F, offset: 2)) { try Data(base64URLEncoded: "YW/j") }
+        #expect(throws: Base64URLError.invalidCharacter(byte: 0x00, offset: 2)) {
+            try Data(base64URLEncoded: "YQ\u{0}")
+        }
+        #expect(throws: Base64URLError.invalidCharacter(byte: 0xC3, offset: 2)) { try Data(base64URLEncoded: "YWé") }
 
-        #expect(throws: Base64URLError.nonCanonicalTrailingBits(offset: 1)) { try Base64URL.decode("YR") }
-        #expect(throws: Base64URLError.nonCanonicalTrailingBits(offset: 2)) { try Base64URL.decode("YWJ") }
+        #expect(throws: Base64URLError.nonCanonicalTrailingBits(offset: 1)) { try Data(base64URLEncoded: "YR") }
+        #expect(throws: Base64URLError.nonCanonicalTrailingBits(offset: 2)) { try Data(base64URLEncoded: "YWJ") }
     }
 
     @Test("correct padding is accepted")
     func correctPadding() throws {
-        #expect(try Base64URL.decode("YQ==") == Data([0x61]))
-        #expect(try Base64URL.decode("YWI=") == Data([0x61, 0x62]))
-        #expect(try Base64URL.decode("") == Data())
+        #expect(try Data(base64URLEncoded: "YQ==") == Data([0x61]))
+        #expect(try Data(base64URLEncoded: "YWI=") == Data([0x61, 0x62]))
+        #expect(try Data(base64URLEncoded: "") == Data())
     }
 
     @Test("round-trips every length from 0 to 300 bytes")
@@ -143,9 +151,9 @@ struct Base64URLTests {
         var generator = SystemRandomNumberGenerator()
         for length in 0...300 {
             let bytes = Data((0..<length).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
-            let encoded = Base64URL.encode(bytes)
+            let encoded = String(base64URLEncoding: bytes)
             #expect(!encoded.contains("="))
-            #expect(try Base64URL.decode(encoded) == bytes)
+            #expect(try Data(base64URLEncoded: encoded) == bytes)
         }
     }
 

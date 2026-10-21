@@ -22,16 +22,16 @@ struct JWSTests {
     }
 
     private func encoded(_ json: String) -> String {
-        Base64URL.encode(Data(json.utf8))
+        String(base64URLEncoding: Data(json.utf8))
     }
 
     /// Signs arbitrary header text, so that tests can present headers this package would not write.
     private func token(headerJSON: String, payload: String = "payload", signer: ECDSASigner<P256Curve>) async throws
         -> String
     {
-        let input = encoded(headerJSON) + "." + Base64URL.encode(Data(payload.utf8))
+        let input = encoded(headerJSON) + "." + String(base64URLEncoding: Data(payload.utf8))
         let signature = try await signer.sign(Data(input.utf8))
-        return input + "." + Base64URL.encode(signature.rawRepresentation)
+        return input + "." + String(base64URLEncoding: signature.rawRepresentation)
     }
 
     @Test("sign and verify round-trips in all three serializations")
@@ -61,7 +61,7 @@ struct JWSTests {
         let keys = try Keys(keyID: "k1")
         let signed = try await SimpleJWS.sign(Data(), with: keys.signer, header: JWSHeaderParameters(type: "JWT"))
         let headerSegment = String(try signed.compactSerialization().split(separator: ".")[0])
-        let json = String(decoding: try Base64URL.decode(headerSegment), as: UTF8.self)
+        let json = String(decoding: try Data(base64URLEncoded: headerSegment), as: UTF8.self)
         #expect(json == #"{"alg":"ES256","kid":"k1","typ":"JWT"}"#)
     }
 
@@ -345,7 +345,7 @@ struct JWSTests {
         let encodedInstead = try await SimpleJWS.sign(payload, with: keys.signer)
         let swapped =
             try signed.compactSerialization(detached: true).split(separator: ".", omittingEmptySubsequences: false)
-        let forged = swapped[0] + "." + Base64URL.encode(payload) + "." + swapped[2]
+        let forged = swapped[0] + "." + String(base64URLEncoding: payload) + "." + swapped[2]
         _ = encodedInstead
         #expect(
             await thrownCase { () async throws(JWSError) in

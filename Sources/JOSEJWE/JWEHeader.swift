@@ -139,7 +139,7 @@ extension Data {
             throw .paddingNotAllowed(part: part)
         }
         do {
-            self = try Base64URL.decode(text)
+            self = try Data(base64URLEncoded: text)
         } catch {
             throw .invalidBase64URL(part: part, error)
         }
@@ -150,7 +150,7 @@ extension [String: JSONValue] {
     /// Reads a JWE protected header's JSON, rejecting duplicate member names.
     init(jweProtectedHeader json: Data) throws(JWEError) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidHeaderStructure(error)
         }

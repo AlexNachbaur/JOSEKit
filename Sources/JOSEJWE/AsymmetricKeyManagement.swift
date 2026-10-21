@@ -123,8 +123,8 @@ extension ECPublicKey {
         let members: [String: JSONValue] = [
             "kty": "EC",
             "crv": .string(Curve.name),
-            "x": .string(Base64URL.encode(x)),
-            "y": .string(Base64URL.encode(y)),
+            "x": .string(String(base64URLEncoding: x)),
+            "y": .string(String(base64URLEncoding: y)),
         ]
         let json: Data
         do {
@@ -298,10 +298,10 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
             throw .headerEncodingFailed(description: String(describing: error))
         }
         if !partyUInfo.isEmpty {
-            headerParameters["apu"] = .string(Base64URL.encode(partyUInfo))
+            headerParameters["apu"] = .string(String(base64URLEncoding: partyUInfo))
         }
         if !partyVInfo.isEmpty {
-            headerParameters["apv"] = .string(Base64URL.encode(partyVInfo))
+            headerParameters["apv"] = .string(String(base64URLEncoding: partyVInfo))
         }
 
         let parameters = derivationParameters(

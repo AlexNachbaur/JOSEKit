@@ -336,10 +336,10 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         } catch {
             throw .headerEncodingFailed(description: String(describing: error))
         }
-        let protectedEncoded = Base64URL.encode(protectedJSON)
+        let protectedEncoded = String(base64URLEncoding: protectedJSON)
         var additionalDataEncoded: String?
         if let additionalAuthenticatedData {
-            additionalDataEncoded = Base64URL.encode(additionalAuthenticatedData)
+            additionalDataEncoded = String(base64URLEncoding: additionalAuthenticatedData)
         }
 
         var parsedRecipients: [Result<JWE.Recipient, JWEError>] = []

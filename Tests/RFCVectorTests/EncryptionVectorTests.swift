@@ -186,7 +186,7 @@ struct EncryptionVectorTests {
         }
         var tag = try vector.bytes("encrypting_content", "tag")
         tag[0] ^= 0x01
-        flattened["tag"] = .string(Base64URL.encode(tag))
+        flattened["tag"] = .string(String(base64URLEncoding: tag))
         let tampered = try SimpleJWE.Encrypted(json: try JSONValue.object(flattened).json)
         await #expect(throws: JWEError.decryptionFailed, "\(file)") {
             try await tampered.decrypt(with: keys)

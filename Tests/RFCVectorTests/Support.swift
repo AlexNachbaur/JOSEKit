@@ -55,7 +55,7 @@ struct Vector {
         guard let found = lookup(path) else {
             throw VectorError(description: "\(name) has no \(path.joined(separator: "."))")
         }
-        return try Base64URL.decode(try found.text)
+        return try Data(base64URLEncoded: try found.text)
     }
 
     private func lookup(_ path: [String]) -> JSONValue? {

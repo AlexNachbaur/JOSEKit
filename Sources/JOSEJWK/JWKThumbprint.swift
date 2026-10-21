@@ -21,7 +21,7 @@ public struct JWKThumbprint: Sendable, Hashable {
 
     /// The thumbprint as it is normally exchanged and compared.
     public var base64URLEncoded: String {
-        Base64URL.encode(digest)
+        String(base64URLEncoding: digest)
     }
 
     /// The thumbprint as a URI (RFC 9278).
@@ -51,9 +51,9 @@ public struct JWKThumbprint: Sendable, Hashable {
 
 extension ECPublicKey {
     var canonicalJSON: String {
-        "{\"crv\":" + JSONStringEscaper.quoted(Curve.name)
-            + ",\"kty\":\"EC\",\"x\":" + JSONStringEscaper.quoted(Base64URL.encode(x))
-            + ",\"y\":" + JSONStringEscaper.quoted(Base64URL.encode(y))
+        "{\"crv\":" + String(jsonQuoting: Curve.name)
+            + ",\"kty\":\"EC\",\"x\":" + String(jsonQuoting: String(base64URLEncoding: x))
+            + ",\"y\":" + String(jsonQuoting: String(base64URLEncoding: y))
             + "}"
     }
 
@@ -64,8 +64,8 @@ extension ECPublicKey {
 
 extension Ed25519PublicKey {
     var canonicalJSON: String {
-        "{\"crv\":" + JSONStringEscaper.quoted(Self.curveName)
-            + ",\"kty\":\"OKP\",\"x\":" + JSONStringEscaper.quoted(Base64URL.encode(rawRepresentation))
+        "{\"crv\":" + String(jsonQuoting: Self.curveName)
+            + ",\"kty\":\"OKP\",\"x\":" + String(jsonQuoting: String(base64URLEncoding: rawRepresentation))
             + "}"
     }
 
@@ -76,8 +76,8 @@ extension Ed25519PublicKey {
 
 extension X25519PublicKey {
     var canonicalJSON: String {
-        "{\"crv\":" + JSONStringEscaper.quoted(Self.curveName)
-            + ",\"kty\":\"OKP\",\"x\":" + JSONStringEscaper.quoted(Base64URL.encode(rawRepresentation))
+        "{\"crv\":" + String(jsonQuoting: Self.curveName)
+            + ",\"kty\":\"OKP\",\"x\":" + String(jsonQuoting: String(base64URLEncoding: rawRepresentation))
             + "}"
     }
 
@@ -88,8 +88,8 @@ extension X25519PublicKey {
 
 extension RSAPublicKey {
     var canonicalJSON: String {
-        "{\"e\":" + JSONStringEscaper.quoted(Base64URL.encode(exponent))
-            + ",\"kty\":\"RSA\",\"n\":" + JSONStringEscaper.quoted(Base64URL.encode(modulus))
+        "{\"e\":" + String(jsonQuoting: String(base64URLEncoding: exponent))
+            + ",\"kty\":\"RSA\",\"n\":" + String(jsonQuoting: String(base64URLEncoding: modulus))
             + "}"
     }
 

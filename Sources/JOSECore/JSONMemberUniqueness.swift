@@ -25,7 +25,7 @@ extension JSONStructureError: CustomStringConvertible {
         case .rootNotObject:
             return "JSON document is not an object"
         case .duplicateMember(let name, let offset):
-            return "JSON object has a duplicate member \(JSONStringEscaper.quoted(name)) at offset \(offset)"
+            return "JSON object has a duplicate member \(String(jsonQuoting:name)) at offset \(offset)"
         case .unexpectedByte(let byte, let offset):
             return "JSON document has unexpected byte 0x\(String(byte, radix: 16)) at offset \(offset)"
         case .unexpectedEnd:
@@ -40,27 +40,24 @@ extension JSONStructureError: CustomStringConvertible {
     }
 }
 
-/// Rejects JSON objects that repeat a member name, at any depth.
-///
-/// RFC 7515 §4 allows a duplicate header parameter to be handled in exactly two ways: reject the
-/// token, or take the last occurrence. Foundation's JSON decoding takes the *first* (measured on
-/// macOS), while JavaScript's `JSON.parse` takes the last, so without this check two
-/// implementations can read different values out of the same signed bytes.
-///
-/// This is a structural scan, not a JSON validator. It establishes that member names are unique
-/// and that brackets nest; it does not check number or literal syntax. Run it before handing the
-/// same bytes to `JSONDecoder`, which does the rest.
-///
-/// Names are compared after resolving escapes (`"alg"` is `"alg"`) and using `String`
-/// equality, which treats canonically equivalent Unicode as equal. That is stricter than a
-/// byte comparison, deliberately: `JSONDecoder` keys its containers by `String`, so two names
-/// that differ only in normalisation would collide there too.
-public struct JSONMemberUniqueness: Sendable {
-    private init() {}
-
-    /// Throws unless `json` is an object in which no object, at any depth, repeats a member name.
-    public static func validate(_ json: Data) throws(JSONStructureError) {
-        var scanner = MemberScanner(bytes: [UInt8](json))
+extension Data {
+    /// Throws unless this is a JSON object in which no object, at any depth, repeats a member name.
+    ///
+    /// RFC 7515 §4 allows a duplicate header parameter to be handled in exactly two ways: reject
+    /// the token, or take the last occurrence. Foundation's JSON decoding takes the *first*
+    /// (measured on macOS), while JavaScript's `JSON.parse` takes the last, so without this check
+    /// two implementations can read different values out of the same signed bytes.
+    ///
+    /// This is a structural scan, not a JSON validator. It establishes that member names are
+    /// unique and that brackets nest; it does not check number or literal syntax. Run it before
+    /// handing the same bytes to `JSONDecoder`, which does the rest.
+    ///
+    /// Names are compared after resolving escapes (`"alg"` is `"alg"`) and using `String`
+    /// equality, which treats canonically equivalent Unicode as equal. That is stricter than a
+    /// byte comparison, deliberately: `JSONDecoder` keys its containers by `String`, so two names
+    /// that differ only in normalisation would collide there too.
+    public func requireUniqueJSONMembers() throws(JSONStructureError) {
+        var scanner = MemberScanner(bytes: [UInt8](self))
         try scanner.scan()
     }
 }

@@ -81,7 +81,7 @@ struct SignatureVectorTests {
         }
         var signature = try vector.bytes("signing", "sig")
         signature[0] ^= 0x01
-        flattened["signature"] = .string(Base64URL.encode(signature))
+        flattened["signature"] = .string(String(base64URLEncoding: signature))
         let tampered = try SimpleJWS.Unverified(json: try JSONValue.object(flattened).json)
         let detached = try detachedPayload(vector, serialization: .object(flattened))
         await #expect(throws: JWSError.self, "\(file)") {

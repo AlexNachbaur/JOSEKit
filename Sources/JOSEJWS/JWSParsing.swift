@@ -27,7 +27,7 @@ extension JWS.Unverified {
     /// Parses the JWS JSON Serialization, in either its flattened or its general form.
     public init(json: Data) throws(JWSError) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidJSONStructure(error)
         }

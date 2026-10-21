@@ -46,19 +46,15 @@ extension Signature where Algorithm: ECDSASignatureAlgorithm {
     /// Converts a DER-encoded ECDSA signature, as produced by Security.framework and most
     /// hardware keys, to the JOSE encoding.
     public init(derRepresentation: Data) throws(ECDSASignatureError) {
-        rawRepresentation = try ECDSASignatureConverter.rawSignature(
-            fromDER: derRepresentation,
-            coordinateByteCount: Algorithm.coordinateByteCount
-        )
+        rawRepresentation = try ECDSASignatureConverter(coordinateByteCount: Algorithm.coordinateByteCount)
+            .rawSignature(fromDER: derRepresentation)
     }
 
     /// The signature as ASN.1 DER.
     public var derRepresentation: Data {
         get throws(ECDSASignatureError) {
-            try ECDSASignatureConverter.derSignature(
-                fromRaw: rawRepresentation,
-                coordinateByteCount: Algorithm.coordinateByteCount
-            )
+            try ECDSASignatureConverter(coordinateByteCount: Algorithm.coordinateByteCount)
+                .derSignature(fromRaw: rawRepresentation)
         }
     }
 }

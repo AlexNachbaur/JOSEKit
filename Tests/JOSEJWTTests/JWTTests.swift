@@ -58,12 +58,12 @@ struct JWTTests {
 
     private func payloadJSON(of token: String) throws -> String {
         let segment = String(token.split(separator: ".")[1])
-        return String(decoding: try Base64URL.decode(segment), as: UTF8.self)
+        return String(decoding: try Data(base64URLEncoded: segment), as: UTF8.self)
     }
 
     private func headerJSON(of token: String) throws -> String {
         let segment = String(token.split(separator: ".")[0])
-        return String(decoding: try Base64URL.decode(segment), as: UTF8.self)
+        return String(decoding: try Data(base64URLEncoded: segment), as: UTF8.self)
     }
 
     // MARK: Building and signing
@@ -430,12 +430,12 @@ struct JWTTests {
             await failure(token, other.verification) == .jws(.signatureInvalid(algorithm: "ES256", keyID: "k1"))
         )
         let parts = token.split(separator: ".").map(String.init)
-        let forgedClaims = Base64URL.encode(Data(#"{"iss":"mallory"}"#.utf8))
+        let forgedClaims = String(base64URLEncoding: Data(#"{"iss":"mallory"}"#.utf8))
         #expect(
             await failure("\(parts[0]).\(forgedClaims).\(parts[2])", keys.verification)
                 == .jws(.signatureInvalid(algorithm: "ES256", keyID: "k1"))
         )
-        let noneHeader = Base64URL.encode(Data(#"{"alg":"none"}"#.utf8))
+        let noneHeader = String(base64URLEncoding: Data(#"{"alg":"none"}"#.utf8))
         #expect(
             await failure("\(noneHeader).\(parts[1]).", keys.verification)
                 == .jws(.noVerifierForAlgorithm(algorithm: "none", offered: ["ES256"]))

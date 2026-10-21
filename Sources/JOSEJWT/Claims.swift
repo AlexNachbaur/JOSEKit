@@ -225,7 +225,7 @@ extension JWTClaims {
     /// member as received.
     package static func parse(_ json: Data) throws(JWTError) -> (claims: JWTClaims<Custom>, raw: [String: JSONValue]) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidClaimsStructure(error)
         }

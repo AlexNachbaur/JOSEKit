@@ -282,7 +282,9 @@ public struct AESGCMKeyWrapEncrypter<Algorithm: AESGCMKeyWrapAlgorithm>: KeyEncr
         return KeyEncryptionResult(
             contentEncryptionKey: contentKey,
             encryptedKey: encryptedKey,
-            headerParameters: ["iv": .string(Base64URL.encode(iv)), "tag": .string(Base64URL.encode(tag))]
+            headerParameters: [
+                "iv": .string(String(base64URLEncoding: iv)), "tag": .string(String(base64URLEncoding: tag)),
+            ]
         )
     }
 }

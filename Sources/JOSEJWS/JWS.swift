@@ -40,7 +40,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         guard isBase64URLEncoded else {
             return payload
         }
-        return Data(Base64URL.encode(payload).utf8)
+        return Data(String(base64URLEncoding: payload).utf8)
     }
 
     /// A parsed JWS whose signature has not been checked.
@@ -244,7 +244,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
             }
             return text
         }
-        return Base64URL.encode(payload)
+        return String(base64URLEncoding: payload)
     }
 
     static func decodeBase64URL(_ text: String, part: String) throws(JWSError) -> Data {
@@ -253,7 +253,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
             throw .paddingNotAllowed(part: part)
         }
         do {
-            return try Base64URL.decode(text)
+            return try Data(base64URLEncoded: text)
         } catch {
             throw .invalidBase64URL(part: part, error)
         }

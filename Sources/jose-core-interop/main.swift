@@ -65,26 +65,22 @@ let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standa
 
 var response = Response()
 for item in challenge.bytesToEncode {
-    response.encoded.append(Base64URL.encode(try bytes(fromHex: item)))
+    response.encoded.append(String(base64URLEncoding: try bytes(fromHex: item)))
 }
 for item in challenge.stringsToDecode {
-    response.decoded.append(hex(try Base64URL.decode(item)))
+    response.decoded.append(hex(try Data(base64URLEncoded: item)))
 }
 for item in challenge.stringsToQuote {
-    response.quoted.append(JSONStringEscaper.quoted(item))
+    response.quoted.append(String(jsonQuoting: item))
 }
 for item in challenge.derSignatures {
-    let raw = try ECDSASignatureConverter.rawSignature(
-        fromDER: try bytes(fromHex: item.signature),
-        coordinateByteCount: item.coordinateByteCount
-    )
+    let raw = try ECDSASignatureConverter(coordinateByteCount: item.coordinateByteCount)
+        .rawSignature(fromDER: try bytes(fromHex: item.signature))
     response.rawFromDER.append(hex(raw))
 }
 for item in challenge.rawSignatures {
-    let der = try ECDSASignatureConverter.derSignature(
-        fromRaw: try bytes(fromHex: item.signature),
-        coordinateByteCount: item.coordinateByteCount
-    )
+    let der = try ECDSASignatureConverter(coordinateByteCount: item.coordinateByteCount)
+        .derSignature(fromRaw: try bytes(fromHex: item.signature))
     response.derFromRaw.append(hex(der))
 }
 

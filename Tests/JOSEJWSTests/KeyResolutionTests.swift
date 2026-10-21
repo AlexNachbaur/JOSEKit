@@ -285,12 +285,16 @@ struct KeyResolutionTests {
         resolver.certificateChainValidator = StubValidator(result: publicJWK)
 
         var withThumbprints = header
-        withThumbprints.x509CertificateSHA1Thumbprint = Base64URL.encode(CertificateDigest.sha1.digest(of: leafDER))
-        withThumbprints.x509CertificateSHA256Thumbprint = Base64URL.encode(CertificateDigest.sha256.digest(of: leafDER))
+        withThumbprints.x509CertificateSHA1Thumbprint = String(
+            base64URLEncoding: CertificateDigest.sha1.digest(of: leafDER)
+        )
+        withThumbprints.x509CertificateSHA256Thumbprint = String(
+            base64URLEncoding: CertificateDigest.sha256.digest(of: leafDER)
+        )
         #expect(await resolvedCount(resolver, try await token(header: withThumbprints)) == 1)
 
         var wrongSHA1 = withThumbprints
-        wrongSHA1.x509CertificateSHA1Thumbprint = Base64URL.encode(Data(count: 20))
+        wrongSHA1.x509CertificateSHA1Thumbprint = String(base64URLEncoding: Data(count: 20))
         guard
             case .failure(.certificateThumbprintMismatch("x5t")) = await resolution(
                 resolver,
@@ -301,7 +305,7 @@ struct KeyResolutionTests {
             return
         }
         var wrongSHA256 = withThumbprints
-        wrongSHA256.x509CertificateSHA256Thumbprint = Base64URL.encode(Data(count: 32))
+        wrongSHA256.x509CertificateSHA256Thumbprint = String(base64URLEncoding: Data(count: 32))
         guard
             case .failure(.certificateThumbprintMismatch("x5t#S256")) = await resolution(
                 resolver,

@@ -130,7 +130,7 @@ extension JWSHeader {
         var protectedValues: [String: JSONValue] = [:]
         if let protectedJSON {
             do {
-                try JSONMemberUniqueness.validate(protectedJSON)
+                try protectedJSON.requireUniqueJSONMembers()
             } catch {
                 throw .invalidHeaderStructure(error)
             }

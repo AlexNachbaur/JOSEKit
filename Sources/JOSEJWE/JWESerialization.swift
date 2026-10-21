@@ -41,7 +41,7 @@ extension JWE.Encrypted {
     /// Parses the JWE JSON Serialization, in either its flattened or its general form.
     public init(json: Data) throws(JWEError) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidJSONStructure(error)
         }
@@ -174,18 +174,18 @@ extension JWE.Encrypted {
         }
         return [
             protectedEncoded,
-            Base64URL.encode(usable[0].encryptedKey),
-            Base64URL.encode(initializationVector),
-            Base64URL.encode(ciphertext),
-            Base64URL.encode(tag),
+            String(base64URLEncoding: usable[0].encryptedKey),
+            String(base64URLEncoding: initializationVector),
+            String(base64URLEncoding: ciphertext),
+            String(base64URLEncoding: tag),
         ].joined(separator: ".")
     }
 
     private func commonMembers() -> [String: JSONValue] {
         var document: [String: JSONValue] = [
-            "iv": .string(Base64URL.encode(initializationVector)),
-            "ciphertext": .string(Base64URL.encode(ciphertext)),
-            "tag": .string(Base64URL.encode(tag)),
+            "iv": .string(String(base64URLEncoding: initializationVector)),
+            "ciphertext": .string(String(base64URLEncoding: ciphertext)),
+            "tag": .string(String(base64URLEncoding: tag)),
         ]
         if !protectedEncoded.isEmpty {
             document["protected"] = .string(protectedEncoded)
@@ -205,7 +205,7 @@ extension JWE.Encrypted {
             members["header"] = .object(recipient.unprotected)
         }
         if !recipient.encryptedKey.isEmpty {
-            members["encrypted_key"] = .string(Base64URL.encode(recipient.encryptedKey))
+            members["encrypted_key"] = .string(String(base64URLEncoding: recipient.encryptedKey))
         }
         return members
     }

@@ -89,7 +89,7 @@ struct CounterpartTests {
         for item in fixture.withPartyInfo {
             let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: item.algorithm, jwk: item.jwk)])
             let jwe = try SimpleJWE.Encrypted(compact: item.token)
-            #expect(jwe.header.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
+            #expect(jwe.header.rawParameters["apu"] == .string(String(base64URLEncoding: Data("Alice".utf8))))
             #expect(try await jwe.decrypt(with: keys).plaintext.hex == item.plaintext, "\(item.algorithm)")
         }
     }
@@ -108,7 +108,7 @@ struct CounterpartTests {
 
         // The additional data is authenticated: changing it must make decryption fail.
         var document = try JSONDecoder().decode([String: JSONValue].self, from: Data(item.json.utf8))
-        document["aad"] = .string(Base64URL.encode(Data("different".utf8)))
+        document["aad"] = .string(String(base64URLEncoding: Data("different".utf8)))
         let altered = try SimpleJWE.Encrypted(json: try JSONEncoder().encode(document))
         #expect(
             await thrown { () async throws(JWEError) in try await altered.decrypt(with: keys) } == .decryptionFailed

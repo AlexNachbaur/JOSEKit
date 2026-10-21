@@ -203,7 +203,7 @@ public struct HeaderKeyResolver: Sendable {
             (.sha256, header.parameters.x509CertificateSHA256Thumbprint),
         ]
         for case (let digest, let thumbprint?) in thumbprints {
-            guard thumbprint == Base64URL.encode(digest.digest(of: certificates[0])) else {
+            guard thumbprint == String(base64URLEncoding: digest.digest(of: certificates[0])) else {
                 throw .certificateThumbprintMismatch(parameter: digest.parameter)
             }
         }

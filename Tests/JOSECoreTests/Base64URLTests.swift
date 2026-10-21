@@ -67,7 +67,7 @@ struct Base64URLTests {
         var rejected = 0
         var stricter = 0
         for vector in fixture.decode {
-            let label = "input \(String(jsonQuoting:vector.input))"
+            let label = "input \(String(jsonQuoting: vector.input))"
             if let expectedError = Self.stricterThanJose[vector.input] {
                 #expect(vector.jose.accepted, "\(label) is listed as a deviation but jose rejects it too")
                 #expect(throws: expectedError, "\(label)") {

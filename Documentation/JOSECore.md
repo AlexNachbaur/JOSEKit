@@ -21,8 +21,10 @@ Windows and Android.
 | `UnderlyingError` | A comparable record of an error from below (a keychain call, a network fetch), so that every error type in the packages can be `Equatable`. |
 | `HeaderParameters` | The protocol a custom JWS or JWE header type conforms to. |
 
-Algorithm marker types for ES256/384/512, Ed25519 and EdDSA, HS256/384/512, RS256/384/512 and
-PS256/384/512 live here; their implementations are in `JOSEJWK`.
+The algorithm types for ES256/384/512, Ed25519 and EdDSA, HS256/384/512, RS256/384/512 and
+PS256/384/512 live here; their implementations are in `JOSEJWK`. As types they bind signers,
+verifiers and signatures to one algorithm at compile time. As values (`ES256()`) they can be
+listed where several algorithms are accepted.
 
 ## Adding an algorithm
 
@@ -36,6 +38,9 @@ struct MyAlgorithm: SignatureAlgorithm {
     static let signatureByteCount: Int? = 64
 }
 ```
+
+To list it in `VerificationKeys(jwks:allowing:)`, also conform it to `JWKVerifiableAlgorithm`
+(in `JOSEJWS`) and pass `MyAlgorithm()`.
 
 ## Testing
 

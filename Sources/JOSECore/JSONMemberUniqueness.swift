@@ -25,7 +25,7 @@ extension JSONStructureError: CustomStringConvertible {
         case .rootNotObject:
             return "JSON document is not an object"
         case .duplicateMember(let name, let offset):
-            return "JSON object has a duplicate member \(String(jsonQuoting:name)) at offset \(offset)"
+            return "JSON object has a duplicate member \(String(jsonQuoting: name)) at offset \(offset)"
         case .unexpectedByte(let byte, let offset):
             return "JSON document has unexpected byte 0x\(String(byte, radix: 16)) at offset \(offset)"
         case .unexpectedEnd:

@@ -16,7 +16,7 @@ extension JWS.Unverified {
         guard !protectedEncoded.isEmpty else {
             throw .missingProtectedHeader
         }
-        let entry = try JWS.parseEntry(
+        let entry = try JWS.SignatureEntry(
             protectedEncoded: protectedEncoded,
             unprotected: nil,
             signatureEncoded: String(segments[2])
@@ -68,7 +68,7 @@ extension JWS.Unverified {
         var entries: [Result<JWS.SignatureEntry, JWSError>] = []
         for object in signatureObjects {
             do {
-                entries.append(.success(try Self.entry(from: object)))
+                entries.append(.success(try JWS.SignatureEntry(jsonObject: object)))
             } catch {
                 // With a single signature there is nothing else to fall back on, so report the
                 // problem now, with its specific cause.
@@ -80,8 +80,11 @@ extension JWS.Unverified {
         }
         try self.init(entries: entries, payloadText: payloadText)
     }
+}
 
-    private static func entry(from object: [String: JSONValue]) throws(JWSError) -> JWS.SignatureEntry {
+extension JWS.SignatureEntry {
+    /// Reads one signature object of the JSON serializations.
+    init(jsonObject object: [String: JSONValue]) throws(JWSError) {
         var protectedEncoded: String?
         if let protected = object["protected"] {
             guard case .string(let text) = protected else {
@@ -99,26 +102,25 @@ extension JWS.Unverified {
         guard case .string(let signatureEncoded) = object["signature"] else {
             throw .invalidJSONSerialization(reason: "\"signature\" must be present and a string")
         }
-        return try JWS.parseEntry(
+        try self.init(
             protectedEncoded: protectedEncoded ?? "",
             unprotected: unprotected,
             signatureEncoded: signatureEncoded
         )
     }
-}
 
-extension JWS {
-    static func parseEntry(
+    /// Reads one signature from its encoded parts.
+    init(
         protectedEncoded: String,
         unprotected: [String: JSONValue]?,
         signatureEncoded: String
-    ) throws(JWSError) -> SignatureEntry {
+    ) throws(JWSError) {
         var protectedJSON: Data?
         if !protectedEncoded.isEmpty {
-            protectedJSON = try decodeBase64URL(protectedEncoded, part: "protected header")
+            protectedJSON = try Data(jwsPart: protectedEncoded, named: "protected header")
         }
         let header = try JWSHeader<Custom>.parse(protected: protectedJSON, unprotected: unprotected)
-        let signature = try decodeBase64URL(signatureEncoded, part: "signature")
-        return SignatureEntry(protectedEncoded: protectedEncoded, header: header, signature: signature)
+        let signature = try Data(jwsPart: signatureEncoded, named: "signature")
+        self.init(protectedEncoded: protectedEncoded, header: header, signature: signature)
     }
 }

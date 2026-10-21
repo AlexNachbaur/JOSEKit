@@ -88,13 +88,17 @@ func produce<R: KeyEncrypter>(_ recipient: R, algorithm: String, encryption: Str
     func make<E: ContentEncryptionAlgorithm>(_ contentEncryption: E.Type) async throws -> Response.Produced {
         Response.Produced(
             algorithm: algorithm,
-            encrypted: try await SimpleEncryptedJWT.encrypt(claims, to: recipient, using: contentEncryption),
-            nested: try await SimpleNestedJWT.signThenEncrypt(
-                claims,
+            encrypted: try await SimpleEncryptedJWT.Encrypted(
+                encrypting: claims,
+                to: recipient,
+                using: contentEncryption
+            ).compactSerialization(),
+            nested: try await SimpleNestedJWT.Encrypted(
+                signing: claims,
                 signedBy: signer,
                 encryptedTo: recipient,
                 using: contentEncryption
-            ),
+            ).compactSerialization(),
             signerJwk: signerJWK
         )
     }

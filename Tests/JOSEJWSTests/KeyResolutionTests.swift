@@ -167,7 +167,7 @@ struct KeyResolutionTests {
     }
 
     private func token(header: JWSHeaderParameters<EmptyHeaderParameters>) async throws -> SimpleJWS.Unverified {
-        let signed = try await SimpleJWS.sign(Data("payload".utf8), with: signer, header: header)
+        let signed = try await SimpleJWS.Signed(signing: Data("payload".utf8), with: signer, header: header)
         return try SimpleJWS.Unverified(compact: try signed.compactSerialization())
     }
 
@@ -365,7 +365,8 @@ struct KeyResolutionTests {
         // The embedded key is still subject to the algorithm list and to the signature check.
         let other = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>(), keyID: "k1")
         let forged = try SimpleJWS.Unverified(
-            compact: try await SimpleJWS.sign(Data("x".utf8), with: other, header: header).compactSerialization()
+            compact: try await SimpleJWS.Signed(signing: Data("x".utf8), with: other, header: header)
+                .compactSerialization()
         )
         await #expect(throws: JWSError.self) { try await forged.verify(resolving: resolver) }
     }
@@ -374,8 +375,8 @@ struct KeyResolutionTests {
     func perSignatureResolution() async throws {
         let otherKey = try ECPrivateKey<P256Curve>()
         let otherSigner = try ECDSASigner(privateKey: otherKey, keyID: "k2")
-        let signed = try await SimpleJWS.sign(
-            Data("payload".utf8),
+        let signed = try await SimpleJWS.Signed(
+            signing: Data("payload".utf8),
             with: signer,
             header: JWSHeaderParameters(jwk: publicJWK)
         )
@@ -389,8 +390,8 @@ struct KeyResolutionTests {
         #expect(verified.verifiedHeaders.map(\.keyID) == ["k1", "k2"])
 
         // A signature whose own header names the wrong key fails on its own; the other still verifies.
-        let swapped = try await SimpleJWS.sign(
-            Data("payload".utf8),
+        let swapped = try await SimpleJWS.Signed(
+            signing: Data("payload".utf8),
             with: signer,
             header: JWSHeaderParameters(jwk: publicJWK)
         )
@@ -645,7 +646,7 @@ private final class Clock: @unchecked Sendable {
             header.x509CertificateSHA256Thumbprint = fixture.ecLeaf.sha256
             header.x509CertificateSHA1Thumbprint = fixture.ecLeaf.sha1
             let jws = try SimpleJWS.Unverified(
-                compact: try await SimpleJWS.sign(Data("signed".utf8), with: signer, header: header)
+                compact: try await SimpleJWS.Signed(signing: Data("signed".utf8), with: signer, header: header)
                     .compactSerialization()
             )
 
@@ -664,7 +665,7 @@ private final class Clock: @unchecked Sendable {
             // The certificate is trusted, but the token was not signed by its key.
             let impostor = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>())
             let forged = try SimpleJWS.Unverified(
-                compact: try await SimpleJWS.sign(Data("signed".utf8), with: impostor, header: header)
+                compact: try await SimpleJWS.Signed(signing: Data("signed".utf8), with: impostor, header: header)
                     .compactSerialization()
             )
             await #expect(throws: JWSError.self) { try await forged.verify(resolving: trusted) }

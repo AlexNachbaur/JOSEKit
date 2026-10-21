@@ -124,13 +124,13 @@ struct CompressionTests {
         @Test("a compressed JWE round-trips, with zip in the protected header and a smaller ciphertext")
         func compressedRoundTrip() async throws {
             let (encrypter, keys) = try keyPair()
-            let compressed = try await SimpleJWE.encrypt(
-                Self.plaintext,
+            let compressed = try await SimpleJWE.Encrypted(
+                encrypting: Self.plaintext,
                 to: encrypter,
                 using: A256GCM.self,
                 header: JWEHeaderParameters(compression: .deflate)
             )
-            let plain = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+            let plain = try await SimpleJWE.Encrypted(encrypting: Self.plaintext, to: encrypter, using: A256GCM.self)
             #expect(compressed.ciphertext.count < plain.ciphertext.count / 4)
             #expect(compressed.header.compression == .deflate)
             #expect(compressed.header.rawParameters["zip"] == "DEF")
@@ -143,8 +143,8 @@ struct CompressionTests {
 
             // zip stays in the protected header with several recipients too.
             let (second, secondKeys) = try keyPair()
-            let multiple = try await SimpleJWE.encrypt(
-                Self.plaintext,
+            let multiple = try await SimpleJWE.Encrypted(
+                encrypting: Self.plaintext,
                 to: [AnyKeyEncrypter(encrypter), AnyKeyEncrypter(second)],
                 using: A256GCM.self,
                 header: JWEHeaderParameters(compression: .deflate)
@@ -157,8 +157,8 @@ struct CompressionTests {
         @Test("decryption enforces the decompressed size limit, and 0 refuses compression before any cryptography")
         func decompressionLimits() async throws {
             let (encrypter, keys) = try keyPair()
-            let sealed = try await SimpleJWE.encrypt(
-                Self.plaintext,
+            let sealed = try await SimpleJWE.Encrypted(
+                encrypting: Self.plaintext,
                 to: encrypter,
                 using: A256GCM.self,
                 header: JWEHeaderParameters(compression: .deflate)
@@ -177,7 +177,11 @@ struct CompressionTests {
                 try await sealed.decrypt(with: strangers, maximumDecompressedByteCount: 0)
             }
             // An uncompressed JWE ignores the limit.
-            let uncompressed = try await SimpleJWE.encrypt(Self.plaintext, to: encrypter, using: A256GCM.self)
+            let uncompressed = try await SimpleJWE.Encrypted(
+                encrypting: Self.plaintext,
+                to: encrypter,
+                using: A256GCM.self
+            )
             #expect(
                 try await uncompressed.decrypt(with: keys, maximumDecompressedByteCount: 0).plaintext == Self.plaintext
             )

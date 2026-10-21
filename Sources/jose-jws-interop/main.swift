@@ -106,11 +106,15 @@ let secondSigner = try ECDSASigner(privateKey: secondKey, keyID: "second")
 let secondJWK = text(try JWK(.p256(secondKey.publicKey)).jsonRepresentation())
 
 func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produced {
-    let signed = try await SimpleJWS.sign(payload, with: signer, header: JWSHeaderParameters(type: "example+jws"))
+    let signed = try await SimpleJWS.Signed(
+        signing: payload,
+        with: signer,
+        header: JWSHeaderParameters(type: "example+jws")
+    )
     let both = try await signed.adding(signatureWith: secondSigner, header: JWSHeaderParameters())
-    let unencoded = try await SimpleJWS.sign(unencodedPayload, with: signer, payloadEncoding: .unencoded)
-    let custom = try await JWS<LevelHeader>.sign(
-        payload,
+    let unencoded = try await SimpleJWS.Signed(signing: unencodedPayload, with: signer, payloadEncoding: .unencoded)
+    let custom = try await JWS<LevelHeader>.Signed(
+        signing: payload,
         with: signer,
         header: JWSHeaderParameters(custom: LevelHeader(level: 7, must: "understood"))
     )

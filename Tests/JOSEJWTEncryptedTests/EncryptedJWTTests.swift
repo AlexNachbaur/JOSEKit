@@ -248,11 +248,11 @@ struct EncryptedJWTTests {
             custom: AppClaims(scope: "s", level: 1)
         )
         claims.additionalClaims["extra"] = true
-        let token = try await EncryptedJWT<AppClaims, EmptyHeaderParameters>.encrypt(
-            claims,
+        let token = try await EncryptedJWT<AppClaims, EmptyHeaderParameters>.Encrypted(
+            encrypting: claims,
             to: key,
             using: A256GCM.self
-        )
+        ).compactSerialization()
         #expect(token.split(separator: ".").count == 5)
 
         let encrypted = try EncryptedJWT<AppClaims, EmptyHeaderParameters>.Encrypted(compact: token)
@@ -269,7 +269,12 @@ struct EncryptedJWTTests {
         #expect(throws: JWTValidationError.typeMismatch(expected: "at+jwt", found: "JWT")) {
             try decrypted.validate(policy(type: .exactly("at+jwt")))
         }
-        let untyped = try await SimpleEncryptedJWT.encrypt(JWTClaims(), to: key, using: A256GCM.self, type: nil)
+        let untyped = try await SimpleEncryptedJWT.Encrypted(
+            encrypting: JWTClaims(),
+            to: key,
+            using: A256GCM.self,
+            type: nil
+        ).compactSerialization()
         #expect(try SimpleEncryptedJWT.Encrypted(compact: untyped).header.type == nil)
 
         // A token typed as something other than JWT validates against that type, and not against JWT.
@@ -278,7 +283,12 @@ struct EncryptedJWTTests {
             audience: Audience("https://api.example"),
             expiration: NumericDate(Self.now.addingTimeInterval(60))
         )
-        let typed = try await SimpleEncryptedJWT.encrypt(typedClaims, to: key, using: A256GCM.self, type: "at+jwt")
+        let typed = try await SimpleEncryptedJWT.Encrypted(
+            encrypting: typedClaims,
+            to: key,
+            using: A256GCM.self,
+            type: "at+jwt"
+        ).compactSerialization()
         let typedDecrypted = try await SimpleEncryptedJWT.Encrypted(compact: typed).decrypt(with: keys)
         _ = try typedDecrypted.validate(policy(type: .exactly("application/at+jwt")))
         #expect(throws: JWTValidationError.typeMismatch(expected: "JWT", found: "at+jwt")) {
@@ -298,12 +308,12 @@ struct EncryptedJWTTests {
                 expiration: NumericDate(Self.now.addingTimeInterval(60))
             )
             claims.additionalClaims["padding"] = .string(String(repeating: "x", count: 2_000))
-            let token = try await SimpleEncryptedJWT.encrypt(
-                claims,
+            let token = try await SimpleEncryptedJWT.Encrypted(
+                encrypting: claims,
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
                 using: A256GCM.self,
                 header: JWEHeaderParameters(type: "JWT", compression: .deflate)
-            )
+            ).compactSerialization()
             let encrypted = try SimpleEncryptedJWT.Encrypted(compact: token)
             #expect(encrypted.header.compression == .deflate)
             let validated = try await encrypted.decrypt(with: keys).validate(policy())
@@ -314,8 +324,8 @@ struct EncryptedJWTTests {
 
             // A nested JWT passes its limit through in the same way.
             let signer = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>())
-            let nested = try await SimpleJWE.encrypt(
-                Data(try await SimpleJWT.sign(claims, with: signer).utf8),
+            let nested = try await SimpleJWE.Encrypted(
+                encrypting: Data(try await SimpleJWT.Signed(signing: claims, with: signer).compactSerialization().utf8),
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
                 using: A256GCM.self,
                 header: JWEHeaderParameters(contentType: "JWT", compression: .deflate)
@@ -333,21 +343,21 @@ struct EncryptedJWTTests {
         let secret = SymmetricKeyMaterial(randomByteCount: 32)
         let key = try AESKeyWrapEncrypter<A256KW>(key: secret)
         // A caller asking for cty JWT on a plain encrypted JWT gets it dropped, not a misleading token.
-        let token = try await SimpleEncryptedJWT.encrypt(
-            JWTClaims(),
+        let token = try await SimpleEncryptedJWT.Encrypted(
+            encrypting: JWTClaims(),
             to: key,
             using: A256GCM.self,
             header: JWEHeaderParameters(contentType: "JWT")
-        )
+        ).compactSerialization()
         #expect(try SimpleEncryptedJWT.Encrypted(compact: token).header.contentType == nil)
 
         let signer = try ECDSASigner(privateKey: try ECPrivateKey<P256Curve>())
-        let nested = try await SimpleNestedJWT.signThenEncrypt(
-            JWTClaims(),
+        let nested = try await SimpleNestedJWT.Encrypted(
+            signing: JWTClaims(),
             signedBy: signer,
             encryptedTo: key,
             using: A256GCM.self
-        )
+        ).compactSerialization()
         do {
             _ = try SimpleEncryptedJWT.Encrypted(compact: nested)
             Issue.record("a nested JWT was accepted as a plain encrypted JWT")
@@ -379,14 +389,14 @@ struct EncryptedJWTTests {
             expiration: NumericDate(Self.now.addingTimeInterval(60)),
             custom: AppClaims(scope: "admin", level: 9)
         )
-        let token = try await NestedJWT<AppClaims, EmptyHeaderParameters>.signThenEncrypt(
-            claims,
+        let token = try await NestedJWT<AppClaims, EmptyHeaderParameters>.Encrypted(
+            signing: claims,
             signedBy: signer,
             header: JWSHeaderParameters(type: "JWT"),
             encryptedTo: recipient,
             using: A256CBCHS512.self,
             type: "JWT"
-        )
+        ).compactSerialization()
         // The outer header is readable before decryption, as for any encrypted token.
         let outer = try NestedJWT<AppClaims, EmptyHeaderParameters>.Encrypted(compact: token)
         #expect(outer.header.contentType == "JWT")
@@ -410,8 +420,8 @@ struct EncryptedJWTTests {
             try await decrypted.verify(with: stranger)
         }
         // And an expired inner token decrypts and verifies but does not validate.
-        let expired = try await SimpleNestedJWT.signThenEncrypt(
-            JWTClaims(
+        let expired = try await SimpleNestedJWT.Encrypted(
+            signing: JWTClaims(
                 issuer: "https://issuer.example",
                 audience: Audience("https://api.example"),
                 expiration: NumericDate(Self.now)
@@ -419,7 +429,7 @@ struct EncryptedJWTTests {
             signedBy: signer,
             encryptedTo: recipient,
             using: A256GCM.self
-        )
+        ).compactSerialization()
         let verified = try await SimpleNestedJWT.Encrypted(compact: expired).decrypt(with: decryption)
             .verify(with: verification)
         #expect(throws: JWTValidationError.self) { try verified.validate(policy()) }
@@ -437,16 +447,16 @@ struct EncryptedJWTTests {
         let secret = SymmetricKeyMaterial(randomByteCount: 32)
         let decryption = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: secret))])
         // The inner token carries its key, for the resolver path below.
-        let inner = try await SimpleJWT.sign(
-            JWTClaims(issuer: "https://issuer.example"),
+        let inner = try await SimpleJWT.Signed(
+            signing: JWTClaims(issuer: "https://issuer.example"),
             with: signer,
             header: JWSHeaderParameters(jwk: JWK(.p256(signingKey.publicKey)))
-        )
+        ).compactSerialization()
         let resolver = HeaderKeyResolver(algorithms: [ES256.self], allowsEmbeddedKey: true)
 
         func nested(_ replicated: Replicated) async throws -> SimpleNestedJWT.Decrypted {
-            let token = try await JWE<Replicated>.encrypt(
-                Data(inner.utf8),
+            let token = try await JWE<Replicated>.Encrypted(
+                encrypting: Data(inner.utf8),
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
                 using: A256GCM.self,
                 header: JWEHeaderParameters(contentType: "JWT", custom: replicated)
@@ -478,8 +488,8 @@ struct EncryptedJWTTests {
         let secret = SymmetricKeyMaterial(randomByteCount: 32)
         let keys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(key: secret))])
         func outcome(_ content: Data, _ keys: DecryptionKeys) async throws -> EncryptedJWTError? {
-            let token = try await SimpleJWE.encrypt(
-                content,
+            let token = try await SimpleJWE.Encrypted(
+                encrypting: content,
                 to: try AESKeyWrapEncrypter<A256KW>(key: secret),
                 using: A256GCM.self,
                 header: JWEHeaderParameters(contentType: "JWT")

@@ -25,8 +25,8 @@ Compression (`zip`): `DEF`, raw DEFLATE, using the system zlib. Not available on
 ## Compression
 
 ```swift
-let sealed = try await SimpleJWE.encrypt(
-    plaintext,
+let sealed = try await SimpleJWE.Encrypted(
+    encrypting: plaintext,
     to: recipient,
     using: A256GCM.self,
     header: JWEHeaderParameters(compression: .deflate)
@@ -51,7 +51,7 @@ on Debian and Ubuntu, `zlib-devel` on Fedora and RHEL).
 
 ```swift
 let recipient = try RSAEncrypter<RSAOAEP256>(jwk: theirPublicKey)   // honours use, key_ops, alg
-let sealed = try await SimpleJWE.encrypt(plaintext, to: recipient, using: A256GCM.self)
+let sealed = try await SimpleJWE.Encrypted(encrypting: plaintext, to: recipient, using: A256GCM.self)
 try sealed.compactSerialization()
 ```
 
@@ -60,8 +60,8 @@ from the content encryption type. Several recipients, each able to decrypt on th
 the general serialization; each recipient's key ID goes in its own header:
 
 ```swift
-let sealed = try await SimpleJWE.encrypt(
-    plaintext,
+let sealed = try await SimpleJWE.Encrypted(
+    encrypting: plaintext,
     to: [AnyKeyEncrypter(rsaRecipient), AnyKeyEncrypter(ecdhRecipient)],
     using: A256GCM.self,
     header: JWEHeaderParameters()

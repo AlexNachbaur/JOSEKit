@@ -55,11 +55,11 @@ import JOSEJWK
 import JOSEJWS
 import JOSEJWT
 
-let token = try await SimpleJWT.sign(with: signer, type: "at+jwt") {
+let token = try await SimpleJWT.Signed(signingWith: signer, type: "at+jwt") {
     Issuer("https://issuer.example")
     Audience("https://api.example")
     ExpiresIn(.seconds(300))
-}
+}.compactSerialization()
 
 let provider = CachingJWKSetProvider(URLSessionJWKSetProvider())
 let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [ES256.self])

@@ -6,7 +6,8 @@ import JOSEJWS
 /// JSON Web Token (RFC 7519), signed. Parameterised by the application's claims type and header
 /// type; see ``SignedJWT`` for the common case of registered header parameters only.
 ///
-/// A token moves through three types. ``Unverified`` is what parsing gives you. ``Verified``
+/// Signing gives you a ``Signed``. A received token moves through three types. ``Unverified`` is
+/// what parsing gives you. ``Verified``
 /// means the signature is good and says nothing about the claims. ``Validated`` means the claims
 /// also satisfied a ``JWTValidationPolicy``. Code that acts on a token should take a
 /// `Validated`, which cannot be made any other way.
@@ -95,17 +96,32 @@ public struct JWT<Custom: Codable & Sendable, Header: HeaderParameters>: Sendabl
         public let rawClaims: [String: JSONValue]
     }
 
-    /// Signs `claims` and returns the JWT.
+    /// A JWT produced by signing.
+    public struct Signed: Sendable {
+        /// The header, as signed.
+        public let header: JWSHeader<Header>
+        private let compact: String
+
+        /// The JWT in the JWS Compact Serialization, the only one a JWT uses (RFC 7519 §7.1).
+        public func compactSerialization() -> String {
+            compact
+        }
+    }
+}
+
+extension JWT.Signed {
+    /// Signs `claims`.
     ///
     /// The header's `alg` is taken from the signer's type and cannot be supplied separately.
-    public static func sign<S: Signer>(
-        _ claims: JWTClaims<Custom>,
+    public init<S: Signer>(
+        signing claims: JWTClaims<Custom>,
         with signer: S,
         header: JWSHeaderParameters<Header>
-    ) async throws(JWTError) -> String {
+    ) async throws(JWTError) {
         let payload = try claims.jsonRepresentation()
         do {
-            return try await JWS<Header>.sign(payload, with: signer, header: header).compactSerialization()
+            let signed = try await JWS<Header>.Signed(signing: payload, with: signer, header: header)
+            self.init(header: signed.header, compact: try signed.compactSerialization())
         } catch {
             throw .jws(error)
         }
@@ -118,37 +134,37 @@ public typealias SignedJWT<Custom: Codable & Sendable> = JWT<Custom, EmptyHeader
 /// A JWT with registered claims and registered header parameters only.
 public typealias SimpleJWT = JWT<EmptyClaims, EmptyHeaderParameters>
 
-extension JWT where Header == EmptyHeaderParameters {
-    /// Signs `claims` and returns the JWT.
+extension JWT.Signed where Header == EmptyHeaderParameters {
+    /// Signs `claims`.
     ///
     /// - Parameter type: The header's `typ`. Defaults to `JWT`; use a specific type such as
     ///   `at+jwt` for tokens with a defined purpose (RFC 8725 §3.11).
-    public static func sign<S: Signer>(
-        _ claims: JWTClaims<Custom>,
+    public init<S: Signer>(
+        signing claims: JWTClaims<Custom>,
         with signer: S,
         type: MediaType? = "JWT"
-    ) async throws(JWTError) -> String {
-        try await sign(claims, with: signer, header: JWSHeaderParameters(type: type))
+    ) async throws(JWTError) {
+        try await self.init(signing: claims, with: signer, header: JWSHeaderParameters(type: type))
     }
 
     /// Builds the claims from a block and signs them.
-    public static func sign<S: Signer>(
-        with signer: S,
+    public init<S: Signer>(
+        signingWith signer: S,
         type: MediaType? = "JWT",
         custom: Custom,
         @JWTClaimsBuilder _ build: () -> [any JWTClaimComponent]
-    ) async throws(JWTError) -> String {
-        try await sign(try JWTClaims(custom: custom, build), with: signer, type: type)
+    ) async throws(JWTError) {
+        try await self.init(signing: try JWTClaims(custom: custom, build), with: signer, type: type)
     }
 }
 
-extension JWT where Header == EmptyHeaderParameters, Custom == EmptyClaims {
+extension JWT.Signed where Header == EmptyHeaderParameters, Custom == EmptyClaims {
     /// Builds the claims from a block and signs them.
-    public static func sign<S: Signer>(
-        with signer: S,
+    public init<S: Signer>(
+        signingWith signer: S,
         type: MediaType? = "JWT",
         @JWTClaimsBuilder _ build: () -> [any JWTClaimComponent]
-    ) async throws(JWTError) -> String {
-        try await sign(try JWTClaims(build), with: signer, type: type)
+    ) async throws(JWTError) {
+        try await self.init(signing: try JWTClaims(build), with: signer, type: type)
     }
 }

@@ -48,7 +48,7 @@ keys with that ID or with none.
 ## Signing
 
 ```swift
-let signed = try await SimpleJWS.sign(payload, with: signer, header: JWSHeaderParameters(type: "JWT"))
+let signed = try await SimpleJWS.Signed(signing: payload, with: signer, header: JWSHeaderParameters(type: "JWT"))
 try signed.compactSerialization()
 try signed.flattenedJSONSerialization(detached: true)
 try await signed.adding(signatureWith: other, header: JWSHeaderParameters()).generalJSONSerialization()

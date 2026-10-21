@@ -240,21 +240,24 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         public let additionalAuthenticatedData: Data?
     }
 
-    // MARK: Encryption
+}
 
+// MARK: - Encryption
+
+extension JWE.Encrypted {
     /// Encrypts `plaintext` to one recipient.
     ///
     /// `alg` comes from the recipient's type and `enc` from `contentEncryption`; neither can be
     /// supplied separately. Every header parameter is placed in the protected header.
-    public static func encrypt<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
-        _ plaintext: Data,
+    public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
+        encrypting plaintext: Data,
         to recipient: Recipient,
         using contentEncryption: Encryption.Type,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
-    ) async throws(JWEError) -> Encrypted {
-        try await encrypt(
-            plaintext,
+    ) async throws(JWEError) {
+        try await self.init(
+            encrypting: plaintext,
             to: [AnyKeyEncrypter(recipient)],
             using: contentEncryption,
             header: header,
@@ -267,13 +270,13 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
     /// With more than one recipient, `enc` and the caller's parameters are in the protected
     /// header and each recipient's `alg`, `kid` and key parameters are in that recipient's own
     /// header, which only the JSON serialization can carry. `header` may not then set `kid`.
-    public static func encrypt<Encryption: ContentEncryptionAlgorithm>(
-        _ plaintext: Data,
+    public init<Encryption: ContentEncryptionAlgorithm>(
+        encrypting plaintext: Data,
         to recipients: [AnyKeyEncrypter],
         using contentEncryption: Encryption.Type,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
-    ) async throws(JWEError) -> Encrypted {
+    ) async throws(JWEError) {
         guard !recipients.isEmpty else {
             throw .noRecipients
         }
@@ -365,7 +368,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         let initializationVector = SymmetricKeyMaterial(
             randomByteCount: Encryption.initializationVectorByteCount
         ).rawRepresentation
-        var sealed = try Encrypted(
+        var sealed = try Self(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: [:],
             recipients: parsedRecipients,
@@ -389,7 +392,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             initializationVector: initializationVector,
             additionalAuthenticatedData: sealed.authenticatedData
         )
-        sealed = try Encrypted(
+        sealed = try Self(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: [:],
             recipients: parsedRecipients,
@@ -398,18 +401,23 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             tag: tag,
             additionalDataEncoded: additionalDataEncoded
         )
-        return sealed
+        self = sealed
     }
 }
 
-extension JWE where Custom == EmptyHeaderParameters {
+extension JWE.Encrypted where Custom == EmptyHeaderParameters {
     /// Encrypts `plaintext` to one recipient, with a header of registered parameters only.
-    public static func encrypt<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
-        _ plaintext: Data,
+    public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
+        encrypting plaintext: Data,
         to recipient: Recipient,
         using contentEncryption: Encryption.Type
-    ) async throws(JWEError) -> Encrypted {
-        try await encrypt(plaintext, to: recipient, using: contentEncryption, header: JWEHeaderParameters())
+    ) async throws(JWEError) {
+        try await self.init(
+            encrypting: plaintext,
+            to: recipient,
+            using: contentEncryption,
+            header: JWEHeaderParameters()
+        )
     }
 }
 

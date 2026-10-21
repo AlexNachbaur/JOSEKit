@@ -188,7 +188,7 @@ public struct JWTClaims<Custom: Codable & Sendable>: Sendable {
 A plain initialiser is the primary API. The result builder is optional sugar over it:
 
 ```swift
-let jwt = try await JWT.sign(with: signer, type: "at+jwt") {
+let jwt = try await JWT.Signed(signingWith: signer, type: "at+jwt") {
     Issuer("https://issuer.example")
     Subject(userID)
     Audience("https://api.example")

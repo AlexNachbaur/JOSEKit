@@ -222,48 +222,48 @@ func seal(
     let header = JWEHeaderParameters(type: "example+jwe")
     switch encryption {
     case "A128GCM":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
             using: A128GCM.self,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A192GCM":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
             using: A192GCM.self,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A256GCM":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
             using: A256GCM.self,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A128CBC-HS256":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
             using: A128CBCHS256.self,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A192CBC-HS384":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
             using: A192CBCHS384.self,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A256CBC-HS512":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
             using: A256CBCHS512.self,
             header: header,
@@ -325,8 +325,8 @@ for item in challenge.decrypt {
 // `zip` does not exist on Windows (no system zlib); the interop check runs on Linux and macOS.
 #if !os(Windows)
     let zipKey = try SymmetricJWK(json: Data(challenge.compression.jwk.utf8))
-    response.compressed = try await SimpleJWE.encrypt(
-        try bytes(fromHex: challenge.compression.plaintext),
+    response.compressed = try await SimpleJWE.Encrypted(
+        encrypting: try bytes(fromHex: challenge.compression.plaintext),
         to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
         using: A256GCM.self,
         header: JWEHeaderParameters(compression: .deflate)

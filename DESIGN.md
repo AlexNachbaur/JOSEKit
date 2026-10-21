@@ -142,7 +142,7 @@ which verifiers the caller supplies — there is no separate `algorithms: [...]`
 let keys = VerificationKeys {
     ES256.verifier(publicKey)             // typed: ECPublicKey<P256>
     EdDSA.verifier(edKey)
-    try jwks.verifiers(allowing: ES256.self, ES384.self)
+    try jwks.verifiers(allowing: .es256, .es384)
 }
 ```
 

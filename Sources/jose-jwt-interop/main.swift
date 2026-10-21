@@ -123,15 +123,10 @@ response.produced.append(
 
 func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
     let json = Data(jwk.utf8)
+    if let named = JWSAlgorithm.allCases.first(where: { $0.identifier.rawValue == algorithm }) {
+        return try named.verifier(for: try JWK(json: json))
+    }
     switch algorithm {
-    case "ES256":
-        return try ES256.verifier(for: try JWK(json: json))
-    case "Ed25519":
-        return try JOSECore.Ed25519.verifier(for: try JWK(json: json))
-    case "RS256":
-        return try RS256.verifier(for: try JWK(json: json))
-    case "PS256":
-        return try PS256.verifier(for: try JWK(json: json))
     case "HS256":
         return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
     default:

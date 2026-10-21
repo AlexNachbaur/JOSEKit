@@ -202,7 +202,7 @@ struct KeyResolutionTests {
         header.jwkSetURL = jwksURL.absoluteString
         let jws = try await token(header: header)
 
-        var resolver = HeaderKeyResolver(algorithms: [ES256.self])
+        var resolver = HeaderKeyResolver(algorithms: [.es256])
         // No provider: jku is ignored, and nothing else is available.
         guard case .failure(.noUsableKeySource(let present)) = await resolution(resolver, jws) else {
             Issue.record("expected noUsableKeySource")
@@ -250,7 +250,7 @@ struct KeyResolutionTests {
         }
 
         // The algorithm list restricts what the fetched keys may be used for.
-        let edOnly = HeaderKeyResolver(algorithms: [EdDSA.self], jwkSetProvider: provider, allowedJWKSetURLs: [jwksURL])
+        let edOnly = HeaderKeyResolver(algorithms: [.edDSA], jwkSetProvider: provider, allowedJWKSetURLs: [jwksURL])
         guard case .failure(.noUsableKeySource) = await resolution(edOnly, jws) else {
             Issue.record("a P-256 key was offered for EdDSA")
             return
@@ -266,7 +266,7 @@ struct KeyResolutionTests {
         header.x509CertificateChain = [leafDER.base64EncodedString()]
         let jws = try await token(header: header)
 
-        var resolver = HeaderKeyResolver(algorithms: [ES256.self])
+        var resolver = HeaderKeyResolver(algorithms: [.es256])
         guard case .failure(.noUsableKeySource(let present)) = await resolution(resolver, jws) else {
             Issue.record("expected noUsableKeySource")
             return
@@ -352,7 +352,7 @@ struct KeyResolutionTests {
         var header = JWSHeaderParameters<EmptyHeaderParameters>()
         header.jwk = publicJWK
         let jws = try await token(header: header)
-        var resolver = HeaderKeyResolver(algorithms: [ES256.self])
+        var resolver = HeaderKeyResolver(algorithms: [.es256])
         guard case .failure(.noUsableKeySource(let present)) = await resolution(resolver, jws) else {
             Issue.record("an embedded key was used without permission")
             return
@@ -385,7 +385,7 @@ struct KeyResolutionTests {
             header: JWSHeaderParameters(jwk: JWK(.p256(otherKey.publicKey), metadata: JWKMetadata(keyID: "k2")))
         )
         let jws = try SimpleJWS.Unverified(json: try signed.generalJSONSerialization())
-        let resolver = HeaderKeyResolver(algorithms: [ES256.self], allowsEmbeddedKey: true)
+        let resolver = HeaderKeyResolver(algorithms: [.es256], allowsEmbeddedKey: true)
         let verified = try await jws.verify(resolving: resolver)
         #expect(verified.verifiedHeaders.map(\.keyID) == ["k1", "k2"])
 
@@ -405,7 +405,7 @@ struct KeyResolutionTests {
     @Test("a header without any key source, and a JWT, report resolution failure as a JWS error")
     func noSource() async throws {
         let jws = try await token(header: JWSHeaderParameters())
-        let resolver = HeaderKeyResolver(algorithms: [ES256.self], allowsEmbeddedKey: true)
+        let resolver = HeaderKeyResolver(algorithms: [.es256], allowsEmbeddedKey: true)
         do {
             _ = try await jws.verify(resolving: resolver)
             Issue.record("verified with no key")
@@ -510,14 +510,14 @@ struct KeyResolutionTests {
     @Test("verification keys can be built from a JWK Set URL known out of band")
     func keysFromConfiguredURL() async throws {
         let provider = MemoryJWKSetProvider([jwksURL: JWKSet(keys: [publicJWK])])
-        let keys = try await VerificationKeys(jwksAt: jwksURL, provider: provider, allowing: [ES256.self, EdDSA.self])
+        let keys = try await VerificationKeys(jwksAt: jwksURL, provider: provider, allowing: [.es256, .edDSA])
         #expect(keys.algorithms == ["ES256"])
         let jws = try await token(header: JWSHeaderParameters(keyID: "k1"))
         #expect(try await jws.verify(with: keys).payload == Data("payload".utf8))
 
         let missing = URL(string: "https://issuer.example/missing")!
         do {
-            _ = try await VerificationKeys(jwksAt: missing, provider: provider, allowing: [ES256.self])
+            _ = try await VerificationKeys(jwksAt: missing, provider: provider, allowing: [.es256])
             Issue.record("a missing JWK Set produced keys")
         } catch {
             #expect(
@@ -651,13 +651,13 @@ private final class Clock: @unchecked Sendable {
             )
 
             let trusted = HeaderKeyResolver(
-                algorithms: [ES256.self],
+                algorithms: [.es256],
                 certificateChainValidator: try SecTrustCertificateChainValidator(anchors: [try der(fixture.root)])
             )
             #expect(try await jws.verify(resolving: trusted).payload == Data("signed".utf8))
 
             let untrusting = HeaderKeyResolver(
-                algorithms: [ES256.self],
+                algorithms: [.es256],
                 certificateChainValidator: try SecTrustCertificateChainValidator(anchors: [try der(fixture.otherRoot)])
             )
             await #expect(throws: JWSError.self) { try await jws.verify(resolving: untrusting) }

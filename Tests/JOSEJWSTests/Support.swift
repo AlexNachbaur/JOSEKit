@@ -125,29 +125,11 @@ extension AnyVerifier {
     /// A verifier for `algorithm` from a JWK produced by the counterpart.
     init(algorithm: String, jwk: String) throws {
         let json = Data(jwk.utf8)
+        if let named = JWSAlgorithm.allCases.first(where: { $0.identifier.rawValue == algorithm }) {
+            self = try named.verifier(for: try JWK(json: json))
+            return
+        }
         switch algorithm {
-        case "ES256":
-            self = try ES256.verifier(for: try JWK(json: json))
-        case "ES384":
-            self = try ES384.verifier(for: try JWK(json: json))
-        case "ES512":
-            self = try ES512.verifier(for: try JWK(json: json))
-        case "Ed25519":
-            self = try JOSECore.Ed25519.verifier(for: try JWK(json: json))
-        case "EdDSA":
-            self = try EdDSA.verifier(for: try JWK(json: json))
-        case "RS256":
-            self = try RS256.verifier(for: try JWK(json: json))
-        case "RS384":
-            self = try RS384.verifier(for: try JWK(json: json))
-        case "RS512":
-            self = try RS512.verifier(for: try JWK(json: json))
-        case "PS256":
-            self = try PS256.verifier(for: try JWK(json: json))
-        case "PS384":
-            self = try PS384.verifier(for: try JWK(json: json))
-        case "PS512":
-            self = try PS512.verifier(for: try JWK(json: json))
         case "HS256":
             self = AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
         case "HS384":

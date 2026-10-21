@@ -168,7 +168,7 @@ for item in challenge.verify {
     let keys = DecryptionKeys([try decrypter(algorithm: item.algorithm, jwk: item.jwk)])
     do {
         if let signerJwk = item.signerJwk {
-            let verification = VerificationKeys([try ES256.verifier(for: try JWK(json: Data(signerJwk.utf8)))])
+            let verification = VerificationKeys([try ES256().verifier(for: try JWK(json: Data(signerJwk.utf8)))])
             _ = try await SimpleNestedJWT.Encrypted(compact: item.token).decrypt(with: keys).verify(with: verification)
                 .validate(policy)
         } else {

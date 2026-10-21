@@ -62,7 +62,7 @@ let token = try await SimpleJWT.Signed(signingWith: signer, type: "at+jwt") {
 }.compactSerialization()
 
 let provider = CachingJWKSetProvider(URLSessionJWKSetProvider())
-let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [ES256.self])
+let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [.es256])
 let validated = try await SimpleJWT.Unverified(compact: token)
     .verify(with: keys)
     .validate(JWTValidationPolicy(

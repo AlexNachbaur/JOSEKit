@@ -208,7 +208,9 @@ struct EncryptedJWTTests {
     func counterpartNestedTokens() async throws {
         let fixture = try Fixture.load()
         let decryption = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
-        let verification = VerificationKeys([try ES256.verifier(for: try JWK(json: Data(fixture.nestedSignerJwk.utf8)))]
+        let verification = VerificationKeys([
+            try ES256().verifier(for: try JWK(json: Data(fixture.nestedSignerJwk.utf8)))
+        ]
         )
         let policy = policy(at: Date(timeIntervalSince1970: fixture.now))
         var accepted = 0
@@ -452,7 +454,7 @@ struct EncryptedJWTTests {
             with: signer,
             header: JWSHeaderParameters(jwk: JWK(.p256(signingKey.publicKey)))
         ).compactSerialization()
-        let resolver = HeaderKeyResolver(algorithms: [ES256.self], allowsEmbeddedKey: true)
+        let resolver = HeaderKeyResolver(algorithms: [.es256], allowsEmbeddedKey: true)
 
         func nested(_ replicated: Replicated) async throws -> SimpleNestedJWT.Decrypted {
             let token = try await JWE<Replicated>.Encrypted(

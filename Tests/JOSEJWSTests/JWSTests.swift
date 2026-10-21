@@ -739,6 +739,41 @@ struct JWSTests {
         #expect(keys.algorithms == ["ES256", "EdDSA", "Ed25519", "HS512"])
     }
 
+    @Test("each JWSAlgorithm case delegates to its type, and each shorthand makes that type")
+    func jwsAlgorithmCases() throws {
+        let p256 = JWK(.p256((try ECPrivateKey<P256Curve>()).publicKey))
+        let p384 = JWK(.p384((try ECPrivateKey<P384Curve>()).publicKey))
+        let p521 = JWK(.p521((try ECPrivateKey<P521Curve>()).publicKey))
+        let edwards = JWK(.ed25519((try Ed25519PrivateKey()).publicKey))
+        let rsa = JWK(.rsa((try RSAPrivateKey()).publicKey))
+        let types: [JWSAlgorithm: (any JWKVerifiableAlgorithm, JWK)] = [
+            .es256: (ES256(), p256), .es384: (ES384(), p384), .es512: (ES512(), p521),
+            .ed25519: (JOSECore.Ed25519(), edwards), .edDSA: (EdDSA(), edwards),
+            .rs256: (RS256(), rsa), .rs384: (RS384(), rsa), .rs512: (RS512(), rsa),
+            .ps256: (PS256(), rsa), .ps384: (PS384(), rsa), .ps512: (PS512(), rsa),
+        ]
+        #expect(Set(types.keys) == Set(JWSAlgorithm.allCases))
+        for (named, (type, jwk)) in types {
+            #expect(named.identifier == type.identifier)
+            #expect(try named.verifier(for: jwk).algorithm == type.identifier)
+            #expect(try type.verifier(for: jwk).algorithm == type.identifier)
+        }
+        func identifier(_ algorithm: some JWKVerifiableAlgorithm) -> AlgorithmIdentifier {
+            algorithm.identifier
+        }
+        #expect(identifier(.es256) == "ES256")
+        #expect(identifier(.es384) == "ES384")
+        #expect(identifier(.es512) == "ES512")
+        #expect(identifier(.ed25519) == "Ed25519")
+        #expect(identifier(.edDSA) == "EdDSA")
+        #expect(identifier(.rs256) == "RS256")
+        #expect(identifier(.rs384) == "RS384")
+        #expect(identifier(.rs512) == "RS512")
+        #expect(identifier(.ps256) == "PS256")
+        #expect(identifier(.ps384) == "PS384")
+        #expect(identifier(.ps512) == "PS512")
+    }
+
     @Test("verifiers built from a JWK Set cover only the allowed algorithms each key is suitable for")
     func keysFromJWKSet() throws {
         let p256 = JWK(.p256((try ECPrivateKey<P256Curve>()).publicKey), metadata: JWKMetadata(keyID: "p256"))
@@ -754,14 +789,14 @@ struct JWSTests {
         )
         let set = JWKSet(keys: [p256, p384, edwards, edwardsLegacyOnly, encryptionOnly])
 
-        let keys = VerificationKeys(jwks: set, allowing: [ES256.self, JOSECore.Ed25519.self, EdDSA.self])
+        let keys = VerificationKeys(jwks: set, allowing: [.es256, .ed25519, .edDSA])
         let summary = keys.verifiers.map { "\($0.algorithm):\($0.keyID?.rawValue ?? "-")" }
         #expect(summary == ["ES256:p256", "Ed25519:ed", "EdDSA:ed", "EdDSA:ed-legacy"])
 
         let rsa = JWK(.rsa(try RSAPrivateKey().publicKey), metadata: JWKMetadata(keyID: "rsa"))
         let rsaKeys = VerificationKeys(
             jwks: JWKSet(keys: [p256, rsa]),
-            allowing: [RS256.self, PS256.self, ES256.self]
+            allowing: [JWSAlgorithm.rs256, .ps256, .es256]
         )
         #expect(
             rsaKeys.verifiers.map { "\($0.algorithm):\($0.keyID?.rawValue ?? "-")" }
@@ -769,7 +804,7 @@ struct JWSTests {
         )
 
         #expect(VerificationKeys(jwks: set, allowing: []).verifiers.isEmpty)
-        #expect(VerificationKeys(jwks: set, allowing: [ES384.self, ES512.self]).algorithms == ["ES384"])
+        #expect(VerificationKeys(jwks: set, allowing: [ES384(), ES512()]).algorithms == ["ES384"])
     }
 
     @Test("a verifier that cannot carry out the check is reported as such, not as a bad signature")

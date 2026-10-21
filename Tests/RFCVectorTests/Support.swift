@@ -126,16 +126,10 @@ extension AnyVerifier {
         }
         // The cookbook's signing keys are private; verification needs only the public half.
         let publicKey = try PrivateJWK(json: json).publicJWK
-        let types: [String: any JWKVerifiableAlgorithm.Type] = [
-            "RS256": RS256.self, "RS384": RS384.self, "RS512": RS512.self,
-            "PS256": PS256.self, "PS384": PS384.self, "PS512": PS512.self,
-            "ES256": ES256.self, "ES384": ES384.self, "ES512": ES512.self,
-            "EdDSA": EdDSA.self, "Ed25519": JOSECore.Ed25519.self,
-        ]
-        guard let type = types[algorithm] else {
+        guard let named = JWSAlgorithm.allCases.first(where: { $0.identifier.rawValue == algorithm }) else {
             throw VectorError(description: "no verifier for \(algorithm)")
         }
-        self = try type.verifier(for: publicKey)
+        self = try named.verifier(for: publicKey)
     }
 }
 

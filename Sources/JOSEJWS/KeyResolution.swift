@@ -65,7 +65,7 @@ extension VerificationKeys {
     public init(
         jwksAt url: URL,
         provider: any JWKSetProvider,
-        allowing algorithms: [any JWKVerifiableAlgorithm.Type]
+        allowing algorithms: [any JWKVerifiableAlgorithm]
     ) async throws(KeyResolutionError) {
         let set: JWKSet
         do {
@@ -106,10 +106,10 @@ public struct HeaderKeyResolver: Sendable {
     public var certificateChainValidator: (any CertificateChainValidator)?
     public var allowsEmbeddedKey: Bool
     /// The algorithms a resolved key may be used with.
-    public let algorithms: [any JWKVerifiableAlgorithm.Type]
+    public let algorithms: [any JWKVerifiableAlgorithm]
 
     public init(
-        algorithms: [any JWKVerifiableAlgorithm.Type],
+        algorithms: [any JWKVerifiableAlgorithm],
         jwkSetProvider: (any JWKSetProvider)? = nil,
         allowedJWKSetURLs: Set<URL> = [],
         certificateChainValidator: (any CertificateChainValidator)? = nil,

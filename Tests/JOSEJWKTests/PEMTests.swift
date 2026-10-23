@@ -1,5 +1,6 @@
 import Foundation
 import JOSECore
+import TestSupport
 import Testing
 
 @testable import JOSEJWK
@@ -27,7 +28,7 @@ struct PEMFixture: Decodable {
     let refused: [Refused]
 
     static func load() throws -> PEMFixture {
-        try PEMFixture(fixture: "pem")
+        try PEMFixture(fixture: "pem", in: .module)
     }
 
     func key(_ label: String) throws -> Key {

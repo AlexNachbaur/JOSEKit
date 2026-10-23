@@ -1,5 +1,6 @@
 import Foundation
 import JOSECore
+import TestSupport
 
 @testable import JOSEJWK
 

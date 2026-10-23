@@ -4,6 +4,7 @@ import JOSEJWE
 import JOSEJWK
 import JOSEJWS
 import JOSEJWT
+import TestSupport
 import Testing
 
 @testable import JOSEJWTEncrypted
@@ -42,18 +43,6 @@ private struct Fixture: Decodable {
     let validation: [ValidationCase]
     let nestedSignerJwk: String
     let nested: [NestedCase]
-
-    static func load() throws -> Fixture {
-        guard let url = Bundle.module.url(forResource: "encrypted", withExtension: "json", subdirectory: "Fixtures")
-        else {
-            throw FixtureError(description: "encrypted.json is missing from the test bundle")
-        }
-        return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
-    }
-}
-
-struct FixtureError: Error, CustomStringConvertible {
-    let description: String
 }
 
 private struct AppClaims: Codable, Sendable, Equatable {
@@ -102,7 +91,7 @@ struct EncryptedJWTTests {
 
     @Test("encrypted JWTs from jose decrypt and validate, with the claims jose reads")
     func counterpartEncryptedTokens() async throws {
-        let fixture = try Fixture.load()
+        let fixture = try Fixture(fixture: "encrypted", in: .module)
         #expect(fixture.encrypted.map(\.algorithm) == ["dir", "A256KW", "ECDH-ES", "RSA-OAEP-256"])
         for item in fixture.encrypted {
             let keys = DecryptionKeys([try decrypter(algorithm: item.algorithm, jwk: item.jwk)])
@@ -122,7 +111,7 @@ struct EncryptedJWTTests {
 
     @Test("verdicts on encrypted JWTs match jose's, apart from the documented stricter case")
     func counterpartVerdicts() async throws {
-        let fixture = try Fixture.load()
+        let fixture = try Fixture(fixture: "encrypted", in: .module)
         let right = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
         let wrong = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationWrongJwk)])
         var accepted = 0
@@ -175,7 +164,7 @@ struct EncryptedJWTTests {
 
     @Test("a replicated claim in the header that differs from the claims set is refused by name")
     func replicatedClaims() async throws {
-        let fixture = try Fixture.load()
+        let fixture = try Fixture(fixture: "encrypted", in: .module)
         let keys = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
         func outcome(_ name: String) async throws -> EncryptedJWTError? {
             let token = try #require(fixture.validation.first { $0.name == name }).token
@@ -206,7 +195,7 @@ struct EncryptedJWTTests {
 
     @Test("nested JWTs from jose decrypt to a signed JWT that must still verify and validate")
     func counterpartNestedTokens() async throws {
-        let fixture = try Fixture.load()
+        let fixture = try Fixture(fixture: "encrypted", in: .module)
         let decryption = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
         let verification = VerificationKeys([
             try ES256().verifier(for: try JWK(json: Data(fixture.nestedSignerJwk.utf8)))

@@ -1,6 +1,7 @@
 import Foundation
 import JOSECore
 import JOSEJWK
+import TestSupport
 import Testing
 
 @testable import JOSEJWS
@@ -25,7 +26,7 @@ private struct CertificateFixture: Decodable {
     let leafUnderOtherRoot: Leaf
 
     static func load() throws -> CertificateFixture {
-        try CertificateFixture(fixture: "certificates")
+        try CertificateFixture(fixture: "certificates", in: .module)
     }
 }
 

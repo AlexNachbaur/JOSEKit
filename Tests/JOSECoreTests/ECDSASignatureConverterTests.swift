@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 import Testing
 
 @testable import JOSECore
@@ -37,7 +38,7 @@ struct ECDSASignatureConverterTests {
 
     @Test("DER to raw matches OpenSSL-verified pairs, covering both the strip and the pad path")
     func derToRawMatchesCounterpart() throws {
-        let fixture = try ECDSAFixture(fixture: "ecdsa-signatures")
+        let fixture = try ECDSAFixture(fixture: "ecdsa-signatures", in: .module)
         #expect(fixture.curves.map(\.curve) == ["P-256", "P-384", "P-521"])
         for curve in fixture.curves {
             // Without these the loop could pass while never meeting a sign byte or a short component.
@@ -53,7 +54,7 @@ struct ECDSASignatureConverterTests {
 
     @Test("raw to DER reproduces OpenSSL's DER byte for byte")
     func rawToDERMatchesCounterpart() throws {
-        let fixture = try ECDSAFixture(fixture: "ecdsa-signatures")
+        let fixture = try ECDSAFixture(fixture: "ecdsa-signatures", in: .module)
         for curve in fixture.curves {
             let converter = try converter(curve.coordinateByteCount)
             for vector in curve.vectors {
@@ -65,7 +66,7 @@ struct ECDSASignatureConverterTests {
 
     @Test("malformed DER that OpenSSL refuses is refused, and the signature it was derived from is accepted")
     func malformedDERAgreesWithCounterpart() throws {
-        let fixture = try ECDSAFixture(fixture: "ecdsa-signatures")
+        let fixture = try ECDSAFixture(fixture: "ecdsa-signatures", in: .module)
         for curve in fixture.curves {
             let converter = try converter(curve.coordinateByteCount)
             // Positive control: the unmodified signature converts.

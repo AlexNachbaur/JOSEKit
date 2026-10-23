@@ -1,6 +1,7 @@
 import Foundation
 import JOSECore
 import JOSEJWK
+import TestSupport
 import Testing
 
 @testable import JOSEJWS
@@ -41,7 +42,7 @@ struct CounterpartTests {
 
     @Test("compact JWSs: accepts and rejects what jose does, apart from the documented stricter cases")
     func compactVerdictsAgree() async throws {
-        let fixture = try CompactFixture(fixture: "compact-verification")
+        let fixture = try CompactFixture(fixture: "compact-verification", in: .module)
         let keys = VerificationKeys([try AnyVerifier(algorithm: "ES256", jwk: fixture.jwk)])
         var accepted = 0
         var rejected = 0
@@ -86,7 +87,7 @@ struct CounterpartTests {
 
     @Test("the well-known forgeries fail for the reason they should")
     func forgeriesFailSpecifically() async throws {
-        let fixture = try CompactFixture(fixture: "compact-verification")
+        let fixture = try CompactFixture(fixture: "compact-verification", in: .module)
         let keys = VerificationKeys([try AnyVerifier(algorithm: "ES256", jwk: fixture.jwk)])
         func outcome(_ name: String) async throws -> String? {
             let token = try #require(fixture.cases.first { $0.name == name }).token
@@ -131,7 +132,7 @@ struct CounterpartTests {
 
     @Test("every serialization jose produces verifies, for every algorithm")
     func validTokens() async throws {
-        let fixture = try ValidFixture(fixture: "valid")
+        let fixture = try ValidFixture(fixture: "valid", in: .module)
         #expect(
             fixture.tokens.map(\.algorithm) == [
                 "ES256", "ES384", "ES512", "Ed25519", "EdDSA", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512",
@@ -200,7 +201,7 @@ struct CounterpartTests {
 
     @Test("a general-serialization JWS from jose verifies with any one of its signers' keys")
     func generalSerialization() async throws {
-        let general = try ValidFixture(fixture: "valid").general
+        let general = try ValidFixture(fixture: "valid", in: .module).general
         let payload = try Data(hex: general.payload)
         let jws = try SimpleJWS.Unverified(json: Data(general.json.utf8))
         #expect(jws.headers.count == general.signers.count)

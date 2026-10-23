@@ -130,39 +130,49 @@ let package = Package(
 
         // MARK: Tests
 
+        // Helpers the test targets share: fixture loading, hex, and keys from counterpart JWKs.
+        // Not a product; it is built only for the tests that depend on it.
+        .target(
+            name: "TestSupport",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            path: "Tests/TestSupport",
+            swiftSettings: swiftSettings
+        ),
         .testTarget(
             name: "JOSECoreTests",
-            dependencies: ["JOSECore"],
+            dependencies: ["JOSECore", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWKTests",
-            dependencies: ["JOSECore", "JOSEJWK", crypto],
+            dependencies: ["JOSECore", "JOSEJWK", "TestSupport", crypto],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWSTests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWETests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWTTests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWTEncryptedTests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted"],
+            dependencies: [
+                "JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted", "TestSupport",
+            ],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),

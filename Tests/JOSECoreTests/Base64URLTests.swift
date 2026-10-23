@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 import Testing
 
 @testable import JOSECore
@@ -42,7 +43,7 @@ struct Base64URLTests {
 
     @Test("encoding matches jose for every fixture input")
     func encodeMatchesCounterpart() throws {
-        let fixture = try Base64URLFixture(fixture: "base64url")
+        let fixture = try Base64URLFixture(fixture: "base64url", in: .module)
         #expect(fixture.encode.count > 50)
         for vector in fixture.encode {
             let bytes = try Data(hex: vector.hex)
@@ -52,7 +53,7 @@ struct Base64URLTests {
 
     @Test("decoding jose's encodings returns the original bytes")
     func decodeMatchesCounterpart() throws {
-        let fixture = try Base64URLFixture(fixture: "base64url")
+        let fixture = try Base64URLFixture(fixture: "base64url", in: .module)
         for vector in fixture.encode {
             let decoded = try Data(base64URLEncoded: vector.base64url)
             let expected = try Data(hex: vector.hex)
@@ -62,7 +63,7 @@ struct Base64URLTests {
 
     @Test("decode accepts and rejects the same inputs as jose, apart from the documented stricter cases")
     func decodeAgreesWithCounterpart() throws {
-        let fixture = try Base64URLFixture(fixture: "base64url")
+        let fixture = try Base64URLFixture(fixture: "base64url", in: .module)
         var accepted = 0
         var rejected = 0
         var stricter = 0

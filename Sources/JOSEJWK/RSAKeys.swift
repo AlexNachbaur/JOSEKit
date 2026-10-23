@@ -22,7 +22,10 @@ public struct RSAPublicKey: Sendable, Hashable {
     /// `RSAPublicKey` as defined by PKCS#1. This is not SubjectPublicKeyInfo: a "BEGIN PUBLIC
     /// KEY" PEM has an extra wrapper around these bytes.
     public var pkcs1DERRepresentation: Data {
-        RSAKeyDER.publicKey(modulus: modulus, exponent: exponent)
+        var writer = DERWriter()
+        writer.writeUnsignedInteger(modulus)
+        writer.writeUnsignedInteger(exponent)
+        return writer.sequence()
     }
 
     public init(modulus: Data, exponent: Data) throws(JWKError) {
@@ -61,7 +64,10 @@ public struct RSAPublicKey: Sendable, Hashable {
     }
 
     public init(pkcs1DERRepresentation: Data) throws(JWKError) {
-        let (modulus, exponent) = try RSAKeyDER.parsePublicKey(pkcs1DERRepresentation)
+        var reader = try DERReader.wholeSequence(pkcs1DERRepresentation, "key")
+        let modulus = try reader.readUnsignedInteger("modulus")
+        let exponent = try reader.readUnsignedInteger("publicExponent")
+        try reader.finish("the last value")
         try self.init(modulus: modulus, exponent: exponent)
     }
 
@@ -92,7 +98,7 @@ public struct RSAPrivateKey: Sendable {
     /// `RSAPrivateKey` as defined by PKCS#1 (a "BEGIN RSA PRIVATE KEY" PEM, decoded). This output
     /// contains the private key.
     public var pkcs1DERRepresentation: Data {
-        RSAKeyDER.privateKey(components)
+        components.pkcs1DER
     }
 
     /// Generates a new key.
@@ -107,7 +113,7 @@ public struct RSAPrivateKey: Sendable {
     }
 
     public init(pkcs1DERRepresentation: Data) throws(JWKError) {
-        try self.init(components: RSAKeyDER.parsePrivateKey(pkcs1DERRepresentation))
+        try self.init(components: RSAPrivateKeyComponents(pkcs1DER: pkcs1DERRepresentation))
     }
 
     init(components: RSAPrivateKeyComponents) throws(JWKError) {
@@ -261,9 +267,8 @@ public struct RSAVerifier<Algorithm: RSASignatureAlgorithm>: Verifier {
 
 // MARK: - Encryption
 
-/// Encrypts short messages (in JOSE, a content encryption key) to an RSA public key with
-/// RSAES-OAEP.
-public struct RSAOAEPEncryptionKey: Sendable {
+/// Encrypts short messages (in JOSE, a content encryption key) to an RSA public key.
+public struct RSAEncryptionKey: Sendable {
     public let publicKey: RSAPublicKey
     private let key: RSABackendPublicKey
 
@@ -272,13 +277,13 @@ public struct RSAOAEPEncryptionKey: Sendable {
         self.publicKey = publicKey
     }
 
-    public func encrypt(_ plaintext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
-        try key.encryptOAEP(plaintext, hash: hash)
+    public func encrypt(_ plaintext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
+        try key.encrypt(plaintext, padding: padding)
     }
 }
 
-/// Decrypts RSAES-OAEP ciphertexts with an RSA private key.
-public struct RSAOAEPDecryptionKey: Sendable {
+/// Decrypts RSA ciphertexts with an RSA private key.
+public struct RSADecryptionKey: Sendable {
     public let publicKey: RSAPublicKey
     private let key: RSABackendPrivateKey
 
@@ -288,8 +293,9 @@ public struct RSAOAEPDecryptionKey: Sendable {
     }
 
     /// Fails with ``JWKError/rsaDecryptionFailed`` for any ciphertext that does not decrypt
-    /// under this key, without saying why.
-    public func decrypt(_ ciphertext: Data, hash: RSAOAEPHash) throws(JWKError) -> Data {
-        try key.decryptOAEP(ciphertext, hash: hash)
+    /// under this key, without saying why. With ``RSAEncryptionPadding/pkcs1v15`` on Apple
+    /// platforms, an invalid ciphertext instead returns pseudo-random bytes; see that case.
+    public func decrypt(_ ciphertext: Data, padding: RSAEncryptionPadding) throws(JWKError) -> Data {
+        try key.decrypt(ciphertext, padding: padding)
     }
 }

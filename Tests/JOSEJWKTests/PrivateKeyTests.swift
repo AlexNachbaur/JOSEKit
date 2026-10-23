@@ -1,5 +1,6 @@
 import Foundation
 import JOSECore
+import TestSupport
 import Testing
 
 @testable import JOSEJWK
@@ -107,7 +108,7 @@ struct PrivateKeyTests {
         for (value, material) in values {
             for rendered in [String(describing: value), String(reflecting: value), "\(value)"] {
                 #expect(rendered.contains("redacted"))
-                #expect(!rendered.contains(Base64URL.encode(material)))
+                #expect(!rendered.contains(String(base64URLEncoding: material)))
                 #expect(!rendered.contains(material.hex))
                 #expect(!rendered.contains("\(material.count) bytes") || value is SymmetricKeyMaterial)
             }

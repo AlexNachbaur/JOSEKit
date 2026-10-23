@@ -37,7 +37,7 @@ public enum JWKError: Error, Sendable, Equatable {
     /// A private RSA JWK in a form this package does not handle: without the CRT values
     /// (`p`, `q`, `dp`, `dq`, `qi`), or with more than two primes (`oth`).
     case unsupportedRSAPrivateKey(reason: String)
-    /// A PKCS#1 DER key could not be read.
+    /// A DER key (PKCS#1, SubjectPublicKeyInfo, PKCS#8 or SEC1) could not be read.
     case invalidDER(reason: String)
     /// ECDH could not produce a usable shared secret with the given public key.
     case keyAgreementFailed(curve: String)
@@ -72,6 +72,14 @@ public enum JWKError: Error, Sendable, Equatable {
     case thumbprintUnavailable(keyType: String)
     /// An additional parameter uses a name that the JWK's typed properties already own.
     case reservedParameterName(String)
+    /// The text is not a single PEM block (RFC 7468) with a base64 body.
+    case invalidPEM(reason: String)
+    /// The PEM block holds something other than what was asked for, such as a private key where
+    /// a public key was expected, an encrypted key, or a certificate.
+    case wrongPEMType(found: String, expected: [String])
+    /// The key's algorithm or curve, named by an object identifier in its DER, is not one JOSEJWK
+    /// supports.
+    case unsupportedKeyAlgorithm(oid: String)
 }
 
 extension JWKError: CustomStringConvertible {
@@ -112,7 +120,7 @@ extension JWKError: CustomStringConvertible {
         case .unsupportedRSAPrivateKey(let reason):
             return "RSA private key is not supported: \(reason)"
         case .invalidDER(let reason):
-            return "PKCS#1 DER key could not be read: \(reason)"
+            return "DER key could not be read: \(reason)"
         case .keyAgreementFailed(let curve):
             return "\(curve) key agreement did not produce a usable shared secret"
         case .rsaEncryptionFailed(let reason):
@@ -145,6 +153,12 @@ extension JWKError: CustomStringConvertible {
             return "cannot compute a thumbprint for unrecognised key type \(keyType)"
         case .reservedParameterName(let name):
             return "\"\(name)\" is a registered JWK member and cannot be set as an additional parameter"
+        case .invalidPEM(let reason):
+            return "PEM could not be read: \(reason)"
+        case .wrongPEMType(let found, let expected):
+            return "PEM holds \(found); expected " + expected.joined(separator: " or ")
+        case .unsupportedKeyAlgorithm(let oid):
+            return "key algorithm or curve \(oid) is not supported"
         }
     }
 }

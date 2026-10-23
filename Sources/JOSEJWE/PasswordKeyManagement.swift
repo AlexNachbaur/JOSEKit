@@ -50,11 +50,10 @@ private struct PBES2Derivation<Algorithm: PBES2Algorithm> {
 
     func wrappingKey(saltInput: Data, iterations: Int) throws(JWEError) -> Data {
         do {
-            return try PBKDF2.derive(
+            return try PlatformPBKDF2(hash: Algorithm.hash).derive(
                 password: password,
                 salt: Self.salt(from: saltInput),
                 iterations: iterations,
-                hash: Algorithm.hash,
                 byteCount: Algorithm.keyByteCount
             )
         } catch {
@@ -97,9 +96,9 @@ public struct PBES2Encrypter<Algorithm: PBES2Algorithm>: KeyEncrypter {
         do {
             return KeyEncryptionResult(
                 contentEncryptionKey: contentKey,
-                encryptedKey: try AESKeyWrapping.wrap(contentKey, with: wrappingKey),
+                encryptedKey: try AESKeyWrapping(wrappingKey: wrappingKey).wrap(contentKey),
                 headerParameters: [
-                    "p2s": .string(Base64URL.encode(saltInput)),
+                    "p2s": .string(String(base64URLEncoding: saltInput)),
                     "p2c": .integer(Int64(iterationCount)),
                 ]
             )
@@ -160,6 +159,6 @@ public struct PBES2Decrypter<Algorithm: PBES2Algorithm>: KeyDecrypter {
             throw .invalidIterationCount(found: Int(clamping: count), maximum: maximumIterationCount)
         }
         let wrappingKey = try derivation.wrappingKey(saltInput: saltInput, iterations: Int(count))
-        return try AESKeyWrapping.unwrap(request.encryptedKey, with: wrappingKey)
+        return try AESKeyWrapping(wrappingKey: wrappingKey).unwrap(request.encryptedKey)
     }
 }

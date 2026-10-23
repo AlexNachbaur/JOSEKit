@@ -47,7 +47,7 @@ struct SignatureVectorTests {
         let vector = try Vector(file)
         let algorithm = try vector.string("input", "alg")
         let keys = VerificationKeys([
-            try VectorKeys.verifier(algorithm: algorithm, key: try vector.value("input", "key"))
+            try AnyVerifier(algorithm: algorithm, key: try vector.value("input", "key"))
         ])
         let payload = Data(try vector.string("input", "payload").utf8)
 
@@ -74,14 +74,14 @@ struct SignatureVectorTests {
         let vector = try Vector(file)
         let algorithm = try vector.string("input", "alg")
         let keys = VerificationKeys([
-            try VectorKeys.verifier(algorithm: algorithm, key: try vector.value("input", "key"))
+            try AnyVerifier(algorithm: algorithm, key: try vector.value("input", "key"))
         ])
         guard case .object(var flattened) = try vector.value("output", "json_flat") else {
             throw VectorError(description: "\(file): json_flat is not an object")
         }
         var signature = try vector.bytes("signing", "sig")
         signature[0] ^= 0x01
-        flattened["signature"] = .string(Base64URL.encode(signature))
+        flattened["signature"] = .string(String(base64URLEncoding: signature))
         let tampered = try SimpleJWS.Unverified(json: try JSONValue.object(flattened).json)
         let detached = try detachedPayload(vector, serialization: .object(flattened))
         await #expect(throws: JWSError.self, "\(file)") {
@@ -151,7 +151,7 @@ struct SignatureVectorTests {
 
         var all: [AnyVerifier] = []
         for (algorithm, key) in zip(algorithms, keys) {
-            let verifier = try VectorKeys.verifier(algorithm: try algorithm, key: key)
+            let verifier = try AnyVerifier(algorithm: try algorithm, key: key)
             all.append(verifier)
             let verified = try await jws.verify(with: VerificationKeys([verifier]))
             #expect(verified.payload == payload)

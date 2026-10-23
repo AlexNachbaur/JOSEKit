@@ -35,14 +35,6 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         }
     }
 
-    /// The bytes that stand for the payload in the signing input.
-    static func signingPayload(_ payload: Data, isBase64URLEncoded: Bool) -> Data {
-        guard isBase64URLEncoded else {
-            return payload
-        }
-        return Data(Base64URL.encode(payload).utf8)
-    }
-
     /// A parsed JWS whose signature has not been checked.
     public struct Unverified: Sendable {
         /// One element per signature. A signature whose header could not be accepted is kept as
@@ -77,7 +69,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
                 guard let payloadText else {
                     return nil
                 }
-                return try JWS.decodePayload(payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
+                return try Data(jwsPayload: payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
             }
         }
 
@@ -104,7 +96,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
             self.isPayloadBase64URLEncoded = first.isPayloadBase64URLEncoded
             if let payloadText {
                 // Fail at parse time rather than at verification for a payload that is not base64url.
-                _ = try JWS.decodePayload(payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
+                _ = try Data(jwsPayload: payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
             }
         }
 
@@ -124,7 +116,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
             for entry in entries {
                 do {
                     let entry = try entry.get()
-                    try await JWS.verify(entry, signingPayload: signingPayload, with: keys)
+                    try await entry.verify(signingPayload: signingPayload, with: keys)
                     verifiedHeaders.append(entry.header)
                 } catch {
                     failures.append(error)
@@ -141,12 +133,12 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
                 guard payloadText == nil || payloadText == "" else {
                     throw .payloadSuppliedTwice
                 }
-                return (detached, JWS.signingPayload(detached, isBase64URLEncoded: isPayloadBase64URLEncoded))
+                return (detached, detached.jwsSigningPayload(isBase64URLEncoded: isPayloadBase64URLEncoded))
             }
             guard let payloadText else {
                 throw .payloadMissing
             }
-            let payload = try JWS.decodePayload(payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
+            let payload = try Data(jwsPayload: payloadText, isBase64URLEncoded: isPayloadBase64URLEncoded)
             return (payload, Data(payloadText.utf8))
         }
 
@@ -163,7 +155,7 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
                 do {
                     let entry = try entry.get()
                     let keys = try await Self.keys(for: entry.header, resolving: resolver)
-                    try await JWS.verify(entry, signingPayload: signingPayload, with: keys)
+                    try await entry.verify(signingPayload: signingPayload, with: keys)
                     verifiedHeaders.append(entry.header)
                 } catch {
                     failures.append(error)
@@ -211,17 +203,17 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         }
     }
 
-    private static func verify(
-        _ entry: SignatureEntry,
-        signingPayload: Data,
-        with keys: VerificationKeys
-    ) async throws(JWSError) {
-        let candidates = try keys.candidates(algorithm: entry.header.algorithm, keyID: entry.header.keyID)
-        let message = entry.signingInput(payload: signingPayload)
-        var lastError = JWSError.signatureInvalid(algorithm: entry.header.algorithm, keyID: entry.header.keyID)
+}
+
+extension JWS.SignatureEntry {
+    /// Checks this signature against the keys its header selects.
+    func verify(signingPayload: Data, with keys: VerificationKeys) async throws(JWSError) {
+        let candidates = try keys.candidates(algorithm: header.algorithm, keyID: header.keyID)
+        let message = signingInput(payload: signingPayload)
+        var lastError = JWSError.signatureInvalid(algorithm: header.algorithm, keyID: header.keyID)
         for candidate in candidates {
             do {
-                try await candidate.verify(signature: entry.signature, message: message)
+                try await candidate.verify(signature: signature, message: message)
                 return
             } catch {
                 lastError = error
@@ -229,34 +221,53 @@ public struct JWS<Custom: HeaderParameters>: Sendable {
         }
         throw lastError
     }
+}
 
-    static func decodePayload(_ text: String, isBase64URLEncoded: Bool) throws(JWSError) -> Data {
+extension Data {
+    /// The bytes that stand for this payload in the JWS signing input: its base64url text, or the
+    /// bytes themselves under RFC 7797.
+    func jwsSigningPayload(isBase64URLEncoded: Bool) -> Data {
         guard isBase64URLEncoded else {
-            return Data(text.utf8)
+            return self
         }
-        return try decodeBase64URL(text, part: "payload")
+        return Data(String(base64URLEncoding: self).utf8)
     }
 
-    static func encodePayload(_ payload: Data, isBase64URLEncoded: Bool) throws(JWSError) -> String {
+    /// A JWS payload from its serialized text.
+    init(jwsPayload text: String, isBase64URLEncoded: Bool) throws(JWSError) {
         guard isBase64URLEncoded else {
-            guard let text = strictUTF8String(payload) else {
-                throw .unencodedPayloadNotRepresentable(reason: "the payload is not valid UTF-8")
-            }
-            return text
+            self = Data(text.utf8)
+            return
         }
-        return Base64URL.encode(payload)
+        try self.init(jwsPart: text, named: "payload")
     }
 
-    static func decodeBase64URL(_ text: String, part: String) throws(JWSError) -> Data {
+    /// Decodes one base64url part of a JWS, naming the part in any error.
+    init(jwsPart text: String, named part: String) throws(JWSError) {
         // JOSECore accepts correct padding; JWS does not allow any (RFC 7515 §2).
         guard !text.utf8.contains(UInt8(ascii: "=")) else {
             throw .paddingNotAllowed(part: part)
         }
         do {
-            return try Base64URL.decode(text)
+            self = try Data(base64URLEncoded: text)
         } catch {
             throw .invalidBase64URL(part: part, error)
         }
+    }
+}
+
+extension String {
+    /// A JWS payload's serialized text: base64url, or the payload itself under RFC 7797, which
+    /// must then be UTF-8.
+    init(jwsPayload payload: Data, isBase64URLEncoded: Bool) throws(JWSError) {
+        guard isBase64URLEncoded else {
+            guard let text = strictUTF8String(payload) else {
+                throw .unencodedPayloadNotRepresentable(reason: "the payload is not valid UTF-8")
+            }
+            self = text
+            return
+        }
+        self.init(base64URLEncoding: payload)
     }
 }
 

@@ -1,6 +1,7 @@
 import Foundation
 import JOSECore
 import JOSEJWK
+import TestSupport
 import Testing
 
 @testable import JOSEJWE
@@ -62,13 +63,13 @@ private struct DecryptionFixture: Decodable {
 struct CounterpartTests {
     @Test("every pairing of key management and content encryption from jose decrypts")
     func compactTokens() async throws {
-        let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
+        let fixture = try ValidFixture(fixture: "valid", in: .module)
         #expect(fixture.compact.count == 168)
         #expect(Set(fixture.compact.map(\.algorithm)).count == 16)
         #expect(Set(fixture.compact.map(\.encryption)).count == 6)
         for item in fixture.compact {
             let label = Comment(rawValue: item.label)
-            let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: item.algorithm, jwk: item.jwk)])
+            let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: item.algorithm, jwk: item.jwk)])
             let jwe = try JWE<ExampleHeader>.Encrypted(compact: item.token)
             let decrypted = try await jwe.decrypt(with: keys)
             #expect(decrypted.plaintext.hex == item.plaintext, label)
@@ -84,20 +85,20 @@ struct CounterpartTests {
 
     @Test("ECDH-ES with party information (apu, apv) derives the same key as jose")
     func partyInfo() async throws {
-        let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
+        let fixture = try ValidFixture(fixture: "valid", in: .module)
         #expect(fixture.withPartyInfo.count == 2)
         for item in fixture.withPartyInfo {
-            let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: item.algorithm, jwk: item.jwk)])
+            let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: item.algorithm, jwk: item.jwk)])
             let jwe = try SimpleJWE.Encrypted(compact: item.token)
-            #expect(jwe.header.rawParameters["apu"] == .string(Base64URL.encode(Data("Alice".utf8))))
+            #expect(jwe.header.rawParameters["apu"] == .string(String(base64URLEncoding: Data("Alice".utf8))))
             #expect(try await jwe.decrypt(with: keys).plaintext.hex == item.plaintext, "\(item.algorithm)")
         }
     }
 
     @Test("a flattened JWE from jose with additional data and unprotected headers decrypts")
     func flattened() async throws {
-        let item = try Fixtures.load(ValidFixture.self, named: "valid").flattened
-        let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: "A256KW", jwk: item.jwk)])
+        let item = try ValidFixture(fixture: "valid", in: .module).flattened
+        let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: "A256KW", jwk: item.jwk)])
         let jwe = try SimpleJWE.Encrypted(json: Data(item.json.utf8))
         let decrypted = try await jwe.decrypt(with: keys)
         #expect(decrypted.plaintext.hex == item.plaintext)
@@ -108,7 +109,7 @@ struct CounterpartTests {
 
         // The additional data is authenticated: changing it must make decryption fail.
         var document = try JSONDecoder().decode([String: JSONValue].self, from: Data(item.json.utf8))
-        document["aad"] = .string(Base64URL.encode(Data("different".utf8)))
+        document["aad"] = .string(String(base64URLEncoding: Data("different".utf8)))
         let altered = try SimpleJWE.Encrypted(json: try JSONEncoder().encode(document))
         #expect(
             await thrown { () async throws(JWEError) in try await altered.decrypt(with: keys) } == .decryptionFailed
@@ -117,11 +118,11 @@ struct CounterpartTests {
 
     @Test("a general JWE from jose decrypts with any one of its three recipients' keys")
     func general() async throws {
-        let item = try Fixtures.load(ValidFixture.self, named: "valid").general
+        let item = try ValidFixture(fixture: "valid", in: .module).general
         let jwe = try SimpleJWE.Encrypted(json: Data(item.json.utf8))
         #expect(jwe.headers.map(\.algorithm) == ["RSA-OAEP-256", "ECDH-ES+A128KW", "A128KW"])
         for recipient in item.recipients {
-            let keys = DecryptionKeys([try TestKeys.decrypter(algorithm: recipient.algorithm, jwk: recipient.jwk)])
+            let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: recipient.algorithm, jwk: recipient.jwk)])
             let decrypted = try await jwe.decrypt(with: keys)
             #expect(decrypted.plaintext.hex == item.plaintext, "\(recipient.algorithm)")
             #expect(decrypted.header.keyID == KeyID(rawValue: recipient.keyID))
@@ -161,11 +162,11 @@ struct CounterpartTests {
 
     @Test("compact JWEs: accepts and rejects what jose does, apart from the documented stricter cases")
     func compactVerdictsAgree() async throws {
-        let fixture = try Fixtures.load(DecryptionFixture.self, named: "compact-decryption")
+        let fixture = try DecryptionFixture(fixture: "compact-decryption", in: .module)
         func keys(_ jwk: String) throws -> DecryptionKeys {
             DecryptionKeys([
-                try TestKeys.decrypter(algorithm: "A256KW", jwk: jwk),
-                try TestKeys.decrypter(algorithm: "dir", jwk: jwk),
+                try AnyKeyDecrypter(algorithm: "A256KW", jwk: jwk),
+                try AnyKeyDecrypter(algorithm: "dir", jwk: jwk),
             ])
         }
         let right = try keys(fixture.jwk)
@@ -210,11 +211,11 @@ struct CounterpartTests {
 
     @Test("cryptographic failures are all the same error; structural ones name their cause")
     func failureReasons() async throws {
-        let fixture = try Fixtures.load(DecryptionFixture.self, named: "compact-decryption")
+        let fixture = try DecryptionFixture(fixture: "compact-decryption", in: .module)
         func keys(_ jwk: String) throws -> DecryptionKeys {
             DecryptionKeys([
-                try TestKeys.decrypter(algorithm: "A256KW", jwk: jwk),
-                try TestKeys.decrypter(algorithm: "dir", jwk: jwk),
+                try AnyKeyDecrypter(algorithm: "A256KW", jwk: jwk),
+                try AnyKeyDecrypter(algorithm: "dir", jwk: jwk),
             ])
         }
         let right = try keys(fixture.jwk)
@@ -266,7 +267,12 @@ struct CounterpartTests {
             try await outcome("alg changed to dir with the wrapping key") == .encryptedKeyNotEmpty(algorithm: "dir")
         )
         #expect(try await outcome("dir with a non-empty encrypted key") == .encryptedKeyNotEmpty(algorithm: "dir"))
-        #expect(try await outcome("zip DEF") == .compressionNotSupported)
+        // Where zip is supported, adding it to an existing token is just another altered header.
+        #if os(Windows)
+            #expect(try await outcome("zip DEF") == .unsupportedCompression(algorithm: "DEF"))
+        #else
+            #expect(try await outcome("zip DEF") == .decryptionFailed)
+        #endif
         #expect(
             try await outcome("crit names an unknown extension") == .unsupportedCriticalParameter(name: "urn:example:x")
         )

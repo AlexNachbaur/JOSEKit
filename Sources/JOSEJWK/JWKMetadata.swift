@@ -87,7 +87,7 @@ struct JWKMembers {
 
     init(json: Data) throws(JWKError) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidJSONStructure(error)
         }
@@ -122,7 +122,7 @@ struct JWKMembers {
     func requiredBytes(_ name: String, keyType: String) throws(JWKError) -> Data {
         let string = try requiredString(name, keyType: keyType)
         do {
-            return try Base64URL.decode(string)
+            return try Data(base64URLEncoded: string)
         } catch {
             throw .invalidBase64URL(member: name, error)
         }

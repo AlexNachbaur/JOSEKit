@@ -10,11 +10,11 @@ import JOSECore
 /// A curve usable for ECDH key agreement (RFC 7518 §4.6).
 public protocol KeyAgreementCurve: EllipticCurve {
     /// The raw shared secret `Z`: the x-coordinate of the shared point, the full size of the curve.
-    static func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data
+    func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data
 }
 
 extension P256Curve: KeyAgreementCurve {
-    public static func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data {
+    public func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data {
         let privateKey = try P256.KeyAgreement.PrivateKey(rawRepresentation: privateScalar)
         let publicKey = try P256.KeyAgreement.PublicKey(x963Representation: publicKeyX963)
         return try privateKey.sharedSecretFromKeyAgreement(with: publicKey).withUnsafeBytes { Data($0) }
@@ -22,7 +22,7 @@ extension P256Curve: KeyAgreementCurve {
 }
 
 extension P384Curve: KeyAgreementCurve {
-    public static func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data {
+    public func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data {
         let privateKey = try P384.KeyAgreement.PrivateKey(rawRepresentation: privateScalar)
         let publicKey = try P384.KeyAgreement.PublicKey(x963Representation: publicKeyX963)
         return try privateKey.sharedSecretFromKeyAgreement(with: publicKey).withUnsafeBytes { Data($0) }
@@ -30,7 +30,7 @@ extension P384Curve: KeyAgreementCurve {
 }
 
 extension P521Curve: KeyAgreementCurve {
-    public static func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data {
+    public func sharedSecret(privateScalar: Data, publicKeyX963: Data) throws -> Data {
         let privateKey = try P521.KeyAgreement.PrivateKey(rawRepresentation: privateScalar)
         let publicKey = try P521.KeyAgreement.PublicKey(x963Representation: publicKeyX963)
         return try privateKey.sharedSecretFromKeyAgreement(with: publicKey).withUnsafeBytes { Data($0) }
@@ -44,7 +44,7 @@ extension ECPrivateKey where Curve: KeyAgreementCurve {
     /// ECDH (RFC 7518 §6.2.1 and §4.6.2's validation requirement) is ruled out by the type.
     public func sharedSecret(with publicKey: ECPublicKey<Curve>) throws(JWKError) -> Data {
         do {
-            return try Curve.sharedSecret(
+            return try Curve().sharedSecret(
                 privateScalar: rawRepresentation,
                 publicKeyX963: publicKey.x963Representation
             )

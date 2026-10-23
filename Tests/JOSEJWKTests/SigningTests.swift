@@ -1,5 +1,6 @@
 import Foundation
 import JOSECore
+import TestSupport
 import Testing
 
 @testable import JOSEJWK
@@ -288,7 +289,7 @@ struct SigningTests {
             let roundTripped = try Signature<Curve.Algorithm>(derRepresentation: der)
             #expect(roundTripped.rawRepresentation == signature.rawRepresentation)
             try await verifier.verify(roundTripped, for: message)
-            #expect(try PlatformDER.matches(curve, raw: signature.rawRepresentation, der: der))
+            #expect(try signature.matchesPlatformDER(der, curve: Curve.name))
             let raw = signature.rawRepresentation
             sawShortComponent = sawShortComponent || raw[0] == 0 || raw[Curve.coordinateByteCount] == 0
         }

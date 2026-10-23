@@ -10,17 +10,29 @@ import Testing
 struct EncryptionVectorTests {
     /// Examples with one recipient whose algorithms this package implements, keyed by a JWK.
     static let singleRecipient = [
+        "jwe/5_1.key_encryption_using_rsa_v15_and_aes-hmac-sha2.json",
         "jwe/5_2.key_encryption_using_rsa-oaep_with_aes-gcm.json",
         "jwe/5_4.key_agreement_with_key_wrapping_using_ecdh-es_and_aes-keywrap_with_aes-gcm.json",
         "jwe/5_5.key_agreement_using_ecdh-es_with_aes-cbc-hmac-sha2.json",
         "jwe/5_6.direct_encryption_using_aes-gcm.json",
         "jwe/5_7.key_wrap_using_aes-gcm_keywrap_with_aes-cbc-hmac-sha2.json",
         "jwe/5_8.key_wrap_using_aes-keywrap_with_aes-gcm.json",
+        "jwe/5_9.compressed_content.json",
         "jwe/5_10.including_additional_authentication_data.json",
         "jwe/5_11.protecting_specific_header_fields.json",
         "jwe/5_12.protecting_content_only.json",
         "curve25519/ecdh-es.json",
     ]
+
+    /// The examples this platform can read: §5.9 is compressed, and `zip` is not available on
+    /// Windows.
+    static var readable: [String] {
+        #if os(Windows)
+            return singleRecipient.filter { !$0.contains("compressed") }
+        #else
+            return singleRecipient
+        #endif
+    }
 
     /// Every serialization the example gives, parsed.
     private func serializations(_ vector: Vector) throws -> [(String, SimpleJWE.Encrypted)] {
@@ -36,11 +48,11 @@ struct EncryptionVectorTests {
         return parsed
     }
 
-    @Test("every serialization of each example decrypts to the plaintext", arguments: singleRecipient)
+    @Test("every serialization of each example decrypts to the plaintext", arguments: readable)
     func decrypts(file: String) async throws {
         let vector = try Vector(file)
         let keys = DecryptionKeys([
-            try VectorKeys.decrypter(
+            try AnyKeyDecrypter(
                 algorithm: try vector.string("input", "alg"),
                 key: try vector.value("input", "key")
             )
@@ -66,7 +78,7 @@ struct EncryptionVectorTests {
         }
     }
 
-    @Test("RFC 7520 §5.13: the recipients this package supports each decrypt the multi-recipient example")
+    @Test("RFC 7520 §5.13: each of the three recipients decrypts the multi-recipient example")
     func multipleRecipients() async throws {
         let vector = try Vector("jwe/5_13.encrypting_to_multiple_recipients.json")
         let algorithms = try vector.value("input", "alg").elements.map { try $0.text }
@@ -74,8 +86,9 @@ struct EncryptionVectorTests {
         let plaintext = Data(try vector.string("input", "plaintext").utf8)
         let jwe = try SimpleJWE.Encrypted(json: try vector.value("output", "json").json)
         #expect(jwe.headers.map(\.algorithm.rawValue) == algorithms)
-        for (algorithm, key) in zip(algorithms, keys) where algorithm != "RSA1_5" {
-            let keys = DecryptionKeys([try VectorKeys.decrypter(algorithm: algorithm, key: key)])
+        #expect(algorithms == ["RSA1_5", "ECDH-ES+A256KW", "A256GCMKW"])
+        for (algorithm, key) in zip(algorithms, keys) {
+            let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: algorithm, key: key)])
             let decrypted = try await jwe.decrypt(with: keys)
             #expect(decrypted.plaintext == plaintext, "\(algorithm)")
             #expect(decrypted.header.algorithm.rawValue == algorithm)
@@ -100,11 +113,9 @@ struct EncryptionVectorTests {
     /// tag must come out exactly.
     @Test("content encryption reproduces each example's ciphertext and tag")
     func reproducesContentEncryption() throws {
-        let encryptions: [String: any ContentEncryptionAlgorithm.Type] = [
-            "A128GCM": A128GCM.self, "A192GCM": A192GCM.self, "A256GCM": A256GCM.self,
-            "A128CBC-HS256": A128CBCHS256.self, "A192CBC-HS384": A192CBCHS384.self,
-            "A256CBC-HS512": A256CBCHS512.self,
-        ]
+        let encryptions = Dictionary(
+            uniqueKeysWithValues: ContentEncryption.allCases.map { ($0.identifier.rawValue, $0) }
+        )
         let reproducible =
             Self.singleRecipient.filter { $0.hasPrefix("jwe/") } + [
                 "jwe/5_3.key_wrap_using_pbes2-aes-keywrap_with-aes-cbc-hmac-sha2.json"
@@ -126,8 +137,13 @@ struct EncryptionVectorTests {
             } else {
                 key = try SymmetricJWK(json: try vector.value("input", "key").json).key.rawRepresentation
             }
+            // §5.9 encrypts the compressed plaintext, which it records.
+            var content = Data(try vector.string("input", "plaintext").utf8)
+            if vector.has("generated", "plaintext_c") {
+                content = try vector.bytes("generated", "plaintext_c")
+            }
             let (ciphertext, tag) = try encryption.encrypt(
-                Data(try vector.string("input", "plaintext").utf8),
+                content,
                 key: key,
                 initializationVector: try vector.bytes("generated", "iv"),
                 additionalAuthenticatedData: try authenticatedData(vector)
@@ -149,16 +165,16 @@ struct EncryptionVectorTests {
         ] {
             let vector = try Vector(file)
             let wrappingKey = try SymmetricJWK(json: try vector.value("input", "key").json).key.rawRepresentation
-            let wrapped = try AESKeyWrapping.wrap(try vector.bytes("generated", "cek"), with: wrappingKey)
+            let wrapped = try AESKeyWrapping(wrappingKey: wrappingKey).wrap(try vector.bytes("generated", "cek"))
             #expect(wrapped == (try vector.bytes("encrypting_key", "encrypted_key")), "\(file)")
         }
     }
 
-    @Test("an altered tag is refused with the uniform decryption error", arguments: singleRecipient)
+    @Test("an altered tag is refused with the uniform decryption error", arguments: readable)
     func refusesTampering(file: String) async throws {
         let vector = try Vector(file)
         let keys = DecryptionKeys([
-            try VectorKeys.decrypter(
+            try AnyKeyDecrypter(
                 algorithm: try vector.string("input", "alg"),
                 key: try vector.value("input", "key")
             )
@@ -168,29 +184,43 @@ struct EncryptionVectorTests {
         }
         var tag = try vector.bytes("encrypting_content", "tag")
         tag[0] ^= 0x01
-        flattened["tag"] = .string(Base64URL.encode(tag))
+        flattened["tag"] = .string(String(base64URLEncoding: tag))
         let tampered = try SimpleJWE.Encrypted(json: try JSONValue.object(flattened).json)
         await #expect(throws: JWEError.decryptionFailed, "\(file)") {
             try await tampered.decrypt(with: keys)
         }
     }
 
-    // MARK: Not yet supported
+}
 
-    /// RFC 7520 §5.1 uses RSA1_5 and §5.9 uses `zip`, neither of which this package implements
-    /// yet. These record how each is refused today; they change when support is added.
-    @Test("RSA1_5 and compressed examples are refused, naming what is unsupported")
-    func unsupported() async throws {
-        let rsa = try Vector("jwe/5_1.key_encryption_using_rsa_v15_and_aes-hmac-sha2.json")
-        let rsaJWE = try SimpleJWE.Encrypted(compact: try rsa.string("output", "compact"))
-        let oaep = DecryptionKeys([try VectorKeys.decrypter(algorithm: "RSA-OAEP", key: try rsa.value("input", "key"))])
-        await #expect(throws: JWEError.noDecrypterForAlgorithm(algorithm: "RSA1_5", offered: ["RSA-OAEP"])) {
-            try await rsaJWE.decrypt(with: oaep)
-        }
+#if !os(Windows)
+    extension EncryptionVectorTests {
+        // MARK: Compression
 
-        let compressed = try Vector("jwe/5_9.compressed_content.json")
-        #expect(throws: JWEError.compressionNotSupported) {
-            try SimpleJWE.Encrypted(compact: try compressed.string("output", "compact"))
+        /// RFC 7520 §5.9's compressed plaintext comes from another implementation's DEFLATE, so
+        /// decompressing it checks that this package reads raw DEFLATE (RFC 1951), not zlib.
+        @Test("RFC 7520 §5.9: the compressed plaintext is raw DEFLATE, and decompresses to the plaintext")
+        func compressedContent() async throws {
+            let vector = try Vector("jwe/5_9.compressed_content.json")
+            let plaintext = Data(try vector.string("input", "plaintext").utf8)
+            let compressed = try vector.bytes("generated", "plaintext_c")
+            let deflate = DeflateCompression()
+            #expect(try deflate.decompress(compressed, limit: plaintext.count) == plaintext)
+            #expect(throws: CompressionError.tooLarge) {
+                try deflate.decompress(compressed, limit: plaintext.count - 1)
+            }
+
+            let jwe = try SimpleJWE.Encrypted(compact: try vector.string("output", "compact"))
+            #expect(jwe.header.compression == .deflate)
+            let keys = DecryptionKeys([
+                try AnyKeyDecrypter(algorithm: "A128KW", key: try vector.value("input", "key"))
+            ])
+            await #expect(throws: JWEError.decompressedSizeExceedsLimit(maximum: 100)) {
+                try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 100)
+            }
+            await #expect(throws: JWEError.compressionNotAllowed) {
+                try await jwe.decrypt(with: keys, maximumDecompressedByteCount: 0)
+            }
         }
     }
-}
+#endif

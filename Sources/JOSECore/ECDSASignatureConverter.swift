@@ -82,8 +82,6 @@ extension ECDSASignatureError: CustomStringConvertible {
 /// This is a change of encoding only. It does not check that `r` and `s` are in range for any
 /// curve; that is the verifier's job.
 public struct ECDSASignatureConverter: Sendable {
-    private init() {}
-
     /// The largest coordinate for which the DER SEQUENCE length still fits in a single length
     /// octet (`2 * (2 + n + 1) <= 255`). P-521, the largest JOSE curve, uses 66.
     public static let maximumCoordinateByteCount = 124
@@ -91,19 +89,25 @@ public struct ECDSASignatureConverter: Sendable {
     private static let sequenceTag: UInt8 = 0x30
     private static let integerTag: UInt8 = 0x02
 
+    /// The size of `r` and of `s` in the raw form: the curve's coordinate size.
+    public let coordinateByteCount: Int
+
+    /// A converter for a curve whose coordinates are `coordinateByteCount` bytes.
+    public init(coordinateByteCount: Int) throws(ECDSASignatureError) {
+        guard (1...Self.maximumCoordinateByteCount).contains(coordinateByteCount) else {
+            throw .unsupportedCoordinateByteCount(coordinateByteCount)
+        }
+        self.coordinateByteCount = coordinateByteCount
+    }
+
     /// Converts a DER signature to `r || s`, each exactly `coordinateByteCount` bytes.
     ///
     /// The two adjustments run in opposite directions and each applies to a minority of
     /// signatures: a DER INTEGER with its top bit set carries a leading `0x00` that is dropped,
     /// and one with leading zero bytes is shorter than the coordinate and is left-padded.
-    public static func rawSignature(
-        fromDER der: Data,
-        coordinateByteCount: Int
-    ) throws(ECDSASignatureError) -> Data {
-        try validate(coordinateByteCount: coordinateByteCount)
-
+    public func rawSignature(fromDER der: Data) throws(ECDSASignatureError) -> Data {
         var reader = DERReader(bytes: [UInt8](der))
-        let sequenceLength = try reader.readHeader(expectedTag: sequenceTag)
+        let sequenceLength = try reader.readHeader(expectedTag: Self.sequenceTag)
         guard sequenceLength == reader.remaining else {
             throw .derSequenceLengthMismatch(declared: sequenceLength, available: reader.remaining)
         }
@@ -122,12 +126,7 @@ public struct ECDSASignatureConverter: Sendable {
     }
 
     /// Converts `r || s` to a DER signature.
-    public static func derSignature(
-        fromRaw raw: Data,
-        coordinateByteCount: Int
-    ) throws(ECDSASignatureError) -> Data {
-        try validate(coordinateByteCount: coordinateByteCount)
-
+    public func derSignature(fromRaw raw: Data) throws(ECDSASignatureError) -> Data {
         let bytes = [UInt8](raw)
         guard bytes.count == coordinateByteCount * 2 else {
             throw .rawSignatureWrongLength(expected: coordinateByteCount * 2, found: bytes.count)
@@ -139,7 +138,7 @@ public struct ECDSASignatureConverter: Sendable {
         appendInteger(bytes[coordinateByteCount...], to: &body)
 
         var der = Data(capacity: body.count + 3)
-        der.append(sequenceTag)
+        der.append(Self.sequenceTag)
         // `maximumCoordinateByteCount` keeps `body.count` at or below 255.
         if body.count >= 0x80 {
             der.append(0x81)
@@ -149,13 +148,7 @@ public struct ECDSASignatureConverter: Sendable {
         return der
     }
 
-    private static func validate(coordinateByteCount: Int) throws(ECDSASignatureError) {
-        guard (1...maximumCoordinateByteCount).contains(coordinateByteCount) else {
-            throw .unsupportedCoordinateByteCount(coordinateByteCount)
-        }
-    }
-
-    private static func appendInteger(_ coordinate: ArraySlice<UInt8>, to output: inout [UInt8]) {
+    private func appendInteger(_ coordinate: ArraySlice<UInt8>, to output: inout [UInt8]) {
         var magnitude = coordinate.drop(while: { $0 == 0 })
         if magnitude.isEmpty {
             // Zero is encoded as a single 0x00, not as an empty INTEGER.
@@ -166,7 +159,7 @@ public struct ECDSASignatureConverter: Sendable {
             needsSignByte = first & 0x80 != 0
         }
 
-        output.append(integerTag)
+        output.append(Self.integerTag)
         if needsSignByte {
             output.append(UInt8(truncatingIfNeeded: magnitude.count + 1))
             output.append(0x00)

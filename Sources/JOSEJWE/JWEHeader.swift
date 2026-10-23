@@ -25,6 +25,11 @@ public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
     public var x509CertificateSHA1Thumbprint: String?
     /// `x5t#S256`
     public var x509CertificateSHA256Thumbprint: String?
+    /// `zip`: compress the plaintext before encrypting it. Always written to the protected
+    /// header, as RFC 7516 §4.1.3 requires. Compressing secrets alongside data an attacker
+    /// controls can reveal them through the ciphertext's length (as in CRIME), so leave this off
+    /// unless the plaintext is entirely yours.
+    public var compression: JWECompression?
     public var custom: Custom
 
     public init(
@@ -37,6 +42,7 @@ public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
         x509CertificateChain: [String]? = nil,
         x509CertificateSHA1Thumbprint: String? = nil,
         x509CertificateSHA256Thumbprint: String? = nil,
+        compression: JWECompression? = nil,
         custom: Custom
     ) {
         self.keyID = keyID
@@ -48,6 +54,7 @@ public struct JWEHeaderParameters<Custom: HeaderParameters>: Sendable {
         self.x509CertificateChain = x509CertificateChain
         self.x509CertificateSHA1Thumbprint = x509CertificateSHA1Thumbprint
         self.x509CertificateSHA256Thumbprint = x509CertificateSHA256Thumbprint
+        self.compression = compression
         self.custom = custom
     }
 }
@@ -62,7 +69,8 @@ extension JWEHeaderParameters where Custom == EmptyHeaderParameters {
         x509URL: String? = nil,
         x509CertificateChain: [String]? = nil,
         x509CertificateSHA1Thumbprint: String? = nil,
-        x509CertificateSHA256Thumbprint: String? = nil
+        x509CertificateSHA256Thumbprint: String? = nil,
+        compression: JWECompression? = nil
     ) {
         self.init(
             keyID: keyID,
@@ -74,6 +82,7 @@ extension JWEHeaderParameters where Custom == EmptyHeaderParameters {
             x509CertificateChain: x509CertificateChain,
             x509CertificateSHA1Thumbprint: x509CertificateSHA1Thumbprint,
             x509CertificateSHA256Thumbprint: x509CertificateSHA256Thumbprint,
+            compression: compression,
             custom: EmptyHeaderParameters()
         )
     }
@@ -106,6 +115,11 @@ public struct JWEHeader<Custom: HeaderParameters>: Sendable {
         parameters.contentType
     }
 
+    /// `zip`, always from the protected header.
+    public var compression: JWECompression? {
+        parameters.compression
+    }
+
     public var custom: Custom {
         parameters.custom
     }
@@ -118,36 +132,30 @@ let registeredJWEHeaderNames: Set<String> = [
     "epk", "apu", "apv", "iv", "tag", "p2s", "p2c",
 ]
 
-struct JWEJSON {
-    private init() {}
-
-    static func encoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        // Sorted so that the same header always produces the same bytes.
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return encoder
-    }
-
-    static func decodeBase64URL(_ text: String, part: String) throws(JWEError) -> Data {
+extension Data {
+    /// Decodes one base64url part of a JWE, naming the part in any error.
+    init(jwePart text: String, named part: String) throws(JWEError) {
         guard !text.utf8.contains(UInt8(ascii: "=")) else {
             throw .paddingNotAllowed(part: part)
         }
         do {
-            return try Base64URL.decode(text)
+            self = try Data(base64URLEncoded: text)
         } catch {
             throw .invalidBase64URL(part: part, error)
         }
     }
+}
 
-    /// Reads the protected header's JSON, rejecting duplicate member names.
-    static func protectedValues(_ json: Data) throws(JWEError) -> [String: JSONValue] {
+extension [String: JSONValue] {
+    /// Reads a JWE protected header's JSON, rejecting duplicate member names.
+    init(jweProtectedHeader json: Data) throws(JWEError) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidHeaderStructure(error)
         }
         do {
-            return try JSONDecoder().decode([String: JSONValue].self, from: json)
+            self = try JSONDecoder().decode([String: JSONValue].self, from: json)
         } catch {
             throw .invalidHeaderJSON(description: String(describing: error))
         }
@@ -175,9 +183,7 @@ extension JWEHeader {
             }
         }
 
-        guard values["zip"] == nil else {
-            throw .compressionNotSupported
-        }
+        let compression = try parseCompression(in: values, unprotectedNames: unprotectedNames)
         guard let algorithm = try string("alg", in: values) else {
             throw .missingAlgorithm
         }
@@ -193,7 +199,7 @@ extension JWEHeader {
             if let protectedJSON, unprotectedNames.isEmpty {
                 custom = try JSONDecoder().decode(Custom.self, from: protectedJSON)
             } else {
-                custom = try JSONDecoder().decode(Custom.self, from: try JWEJSON.encoder().encode(values))
+                custom = try JSONDecoder().decode(Custom.self, from: try JSONEncoder.deterministic().encode(values))
             }
         } catch {
             throw .invalidCustomParameters(description: String(describing: error))
@@ -215,6 +221,7 @@ extension JWEHeader {
         parameters.x509CertificateChain = try stringArray("x5c", in: values)
         parameters.x509CertificateSHA1Thumbprint = try string("x5t", in: values)
         parameters.x509CertificateSHA256Thumbprint = try string("x5t#S256", in: values)
+        parameters.compression = compression
         return JWEHeader(
             algorithm: AlgorithmIdentifier(rawValue: algorithm),
             contentEncryption: AlgorithmIdentifier(rawValue: contentEncryption),
@@ -233,6 +240,24 @@ extension JWEHeader {
             throw .headerParameterWrongType(name: name, expected: "a string")
         }
         return string
+    }
+
+    /// The `zip` parameter, which must be protected (RFC 7516 §4.1.3) and must name a compression
+    /// this package implements and this platform supports.
+    private static func parseCompression(
+        in values: [String: JSONValue],
+        unprotectedNames: Set<String>
+    ) throws(JWEError) -> JWECompression? {
+        guard let name = try string("zip", in: values) else {
+            return nil
+        }
+        guard !unprotectedNames.contains("zip") else {
+            throw .headerParameterNotProtected(name: "zip")
+        }
+        guard let compression = JWECompression(rawValue: name) else {
+            throw .unsupportedCompression(algorithm: name)
+        }
+        return compression
     }
 
     private static func stringArray(_ name: String, in values: [String: JSONValue]) throws(JWEError) -> [String]? {
@@ -261,7 +286,7 @@ extension JWEHeader {
             throw .headerParameterWrongType(name: "jwk", expected: "an object")
         }
         do {
-            return try JWK(json: try JWEJSON.encoder().encode(value))
+            return try JWK(json: try JSONEncoder.deterministic().encode(value))
         } catch let error as JWKError {
             throw .invalidJWKParameter(error)
         } catch {
@@ -315,7 +340,7 @@ extension JWEHeaderParameters {
     func values() throws(JWEError) -> [String: JSONValue] {
         var values: [String: JSONValue]
         do {
-            let customJSON = try JWEJSON.encoder().encode(custom)
+            let customJSON = try JSONEncoder.deterministic().encode(custom)
             guard case .object(let object) = try JSONDecoder().decode(JSONValue.self, from: customJSON) else {
                 throw JWEError.customParametersNotObject
             }
@@ -342,6 +367,9 @@ extension JWEHeaderParameters {
         }
         if let contentType {
             values["cty"] = .string(contentType.rawValue)
+        }
+        if let compression {
+            values["zip"] = .string(compression.rawValue)
         }
         if let jwk {
             do {

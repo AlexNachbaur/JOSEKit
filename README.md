@@ -18,7 +18,8 @@ fails loudly where it cannot.
 
 Swift 6 with strict concurrency and typed throws. Apple platforms (macOS 13, iOS 16, tvOS 16,
 watchOS 9, visionOS 1), Linux, Windows and Android. CryptoKit on Apple platforms and
-[swift-crypto](https://github.com/apple/swift-crypto) elsewhere.
+[swift-crypto](https://github.com/apple/swift-crypto) elsewhere. JWE compression uses the system
+zlib, so it is not available on Windows.
 
 ## Installation
 
@@ -41,7 +42,7 @@ Each module is its own library product, so an application builds only what it us
 | Product | What it does | Depends on | Documentation |
 |---|---|---|---|
 | `JOSECore` | base64url, strict JSON, signing protocols, algorithm types. No cryptography. | nothing | [JOSECore](Documentation/JOSECore.md) |
-| `JOSEJWK` | Keys, JWK and JWK Sets, thumbprints, the built-in algorithms, Secure Enclave. | `JOSECore` | [JOSEJWK](Documentation/JOSEJWK.md) |
+| `JOSEJWK` | Keys, JWK and JWK Sets, PEM import, thumbprints, the built-in algorithms, Secure Enclave. | `JOSECore` | [JOSEJWK](Documentation/JOSEJWK.md) |
 | `JOSEJWS` | JSON Web Signature in all three serializations, key resolution from headers. | `JOSEJWK` | [JOSEJWS](Documentation/JOSEJWS.md) |
 | `JOSEJWE` | JSON Web Encryption in all three serializations, several recipients. | `JOSEJWK` | [JOSEJWE](Documentation/JOSEJWE.md) |
 | `JOSEJWT` | Signed JWTs: claims, a claims builder, validation policies. | `JOSEJWS` | [JOSEJWT](Documentation/JOSEJWT.md) |
@@ -54,14 +55,14 @@ import JOSEJWK
 import JOSEJWS
 import JOSEJWT
 
-let token = try await SimpleJWT.sign(with: signer, type: "at+jwt") {
+let token = try await SimpleJWT.Signed(signingWith: signer, type: "at+jwt") {
     Issuer("https://issuer.example")
     Audience("https://api.example")
     ExpiresIn(.seconds(300))
-}
+}.compactSerialization()
 
 let provider = CachingJWKSetProvider(URLSessionJWKSetProvider())
-let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [ES256.self])
+let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [.es256])
 let validated = try await SimpleJWT.Unverified(compact: token)
     .verify(with: keys)
     .validate(JWTValidationPolicy(

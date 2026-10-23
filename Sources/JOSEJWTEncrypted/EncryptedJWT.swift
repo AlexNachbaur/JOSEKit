@@ -90,13 +90,21 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
         }
 
         /// Decrypts the token. The result's claims have still not been validated.
+        ///
+        /// - Parameter maximumDecompressedByteCount: For a compressed token (`zip`), the largest
+        ///   claims set accepted after decompression; 0 or less refuses compressed tokens.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+            contentEncryptions: [any ContentEncryptionAlgorithm] = ContentEncryption.allCases,
+            maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(EncryptedJWTError) -> Decrypted {
             let decrypted: JWE<Header>.Decrypted
             do {
-                decrypted = try await jwe.decrypt(with: keys, contentEncryptions: contentEncryptions)
+                decrypted = try await jwe.decrypt(
+                    with: keys,
+                    contentEncryptions: contentEncryptions,
+                    maximumDecompressedByteCount: maximumDecompressedByteCount
+                )
             } catch {
                 throw .jwe(error)
             }
@@ -137,13 +145,16 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
         public let rawClaims: [String: JSONValue]
     }
 
-    /// Encrypts `claims` to one recipient and returns the JWT.
-    public static func encrypt<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
-        _ claims: JWTClaims<Custom>,
+}
+
+extension EncryptedJWT.Encrypted {
+    /// Encrypts `claims` to one recipient.
+    public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
+        encrypting claims: JWTClaims<Custom>,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         header: JWEHeaderParameters<Header>
-    ) async throws(EncryptedJWTError) -> String {
+    ) async throws(EncryptedJWTError) {
         let payload: Data
         do {
             payload = try claims.jsonRepresentation()
@@ -157,25 +168,43 @@ public struct EncryptedJWT<Custom: Codable & Sendable, Header: HeaderParameters>
             header.contentType = nil
         }
         do {
-            return try await JWE<Header>.encrypt(payload, to: recipient, using: contentEncryption, header: header)
-                .compactSerialization()
+            jwe = try await JWE<Header>.Encrypted(
+                encrypting: payload,
+                to: recipient,
+                using: contentEncryption,
+                header: header
+            )
+        } catch {
+            throw .jwe(error)
+        }
+    }
+
+    /// The token in the JWE Compact Serialization, the only one a JWT uses (RFC 7519 §7.1).
+    public func compactSerialization() throws(EncryptedJWTError) -> String {
+        do {
+            return try jwe.compactSerialization()
         } catch {
             throw .jwe(error)
         }
     }
 }
 
-extension EncryptedJWT where Header == EmptyHeaderParameters {
-    /// Encrypts `claims` to one recipient and returns the JWT.
+extension EncryptedJWT.Encrypted where Header == EmptyHeaderParameters {
+    /// Encrypts `claims` to one recipient.
     ///
     /// - Parameter type: The header's `typ`. Defaults to `JWT`.
-    public static func encrypt<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
-        _ claims: JWTClaims<Custom>,
+    public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
+        encrypting claims: JWTClaims<Custom>,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         type: MediaType? = "JWT"
-    ) async throws(EncryptedJWTError) -> String {
-        try await encrypt(claims, to: recipient, using: contentEncryption, header: JWEHeaderParameters(type: type))
+    ) async throws(EncryptedJWTError) {
+        try await self.init(
+            encrypting: claims,
+            to: recipient,
+            using: contentEncryption,
+            header: JWEHeaderParameters(type: type)
+        )
     }
 }
 
@@ -221,13 +250,21 @@ public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: S
         }
 
         /// Decrypts the outer token and returns the signed JWT inside it, **unverified**.
+        ///
+        /// - Parameter maximumDecompressedByteCount: For a compressed token (`zip`), the largest
+        ///   inner token accepted after decompression; 0 or less refuses compressed tokens.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+            contentEncryptions: [any ContentEncryptionAlgorithm] = ContentEncryption.allCases,
+            maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(EncryptedJWTError) -> Decrypted {
             let decrypted: SimpleJWE.Decrypted
             do {
-                decrypted = try await jwe.decrypt(with: keys, contentEncryptions: contentEncryptions)
+                decrypted = try await jwe.decrypt(
+                    with: keys,
+                    contentEncryptions: contentEncryptions,
+                    maximumDecompressedByteCount: maximumDecompressedByteCount
+                )
             } catch {
                 throw .jwe(error)
             }
@@ -295,56 +332,68 @@ public struct NestedJWT<Custom: Codable & Sendable, Header: HeaderParameters>: S
         }
     }
 
+}
+
+extension NestedJWT.Encrypted {
     /// Signs `claims`, then encrypts the signed JWT to one recipient.
     ///
     /// - Parameters:
     ///   - header: The header of the inner, signed JWT.
     ///   - type: The outer JWE header's `typ`. Its `cty` is always `JWT`, as RFC 7519 §5.2 requires.
-    public static func signThenEncrypt<
+    public init<
         S: Signer,
         Recipient: KeyEncrypter,
         Encryption: ContentEncryptionAlgorithm
     >(
-        _ claims: JWTClaims<Custom>,
+        signing claims: JWTClaims<Custom>,
         signedBy signer: S,
         header: JWSHeaderParameters<Header>,
         encryptedTo recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         type: MediaType? = nil
-    ) async throws(EncryptedJWTError) -> String {
-        let inner: String
+    ) async throws(EncryptedJWTError) {
+        let inner: JWT<Custom, Header>.Signed
         do {
-            inner = try await JWT<Custom, Header>.sign(claims, with: signer, header: header)
+            inner = try await JWT<Custom, Header>.Signed(signing: claims, with: signer, header: header)
         } catch {
             throw .jwt(error)
         }
         do {
-            return try await SimpleJWE.encrypt(
-                Data(inner.utf8),
+            jwe = try await SimpleJWE.Encrypted(
+                encrypting: Data(inner.compactSerialization().utf8),
                 to: recipient,
                 using: contentEncryption,
                 header: JWEHeaderParameters(type: type, contentType: nestedContentType)
-            ).compactSerialization()
+            )
+        } catch {
+            throw .jwe(error)
+        }
+    }
+
+    /// The token in the JWE Compact Serialization, the only one a JWT uses (RFC 7519 §7.1).
+    public func compactSerialization() throws(EncryptedJWTError) -> String {
+        do {
+            return try jwe.compactSerialization()
         } catch {
             throw .jwe(error)
         }
     }
 }
 
-extension NestedJWT where Header == EmptyHeaderParameters {
+extension NestedJWT.Encrypted where Header == EmptyHeaderParameters {
     /// Signs `claims`, then encrypts the signed JWT to one recipient.
-    public static func signThenEncrypt<
+    public init<
         S: Signer,
         Recipient: KeyEncrypter,
         Encryption: ContentEncryptionAlgorithm
     >(
-        _ claims: JWTClaims<Custom>,
+        signing claims: JWTClaims<Custom>,
         signedBy signer: S,
         encryptedTo recipient: Recipient,
-        using contentEncryption: Encryption.Type
-    ) async throws(EncryptedJWTError) -> String {
-        try await signThenEncrypt(
-            claims,
+        using contentEncryption: Encryption
+    ) async throws(EncryptedJWTError) {
+        try await self.init(
+            signing: claims,
             signedBy: signer,
             header: JWSHeaderParameters(type: "JWT"),
             encryptedTo: recipient,

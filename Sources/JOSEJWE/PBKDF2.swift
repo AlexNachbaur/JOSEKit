@@ -14,14 +14,22 @@ public enum PBKDF2Hash: Sendable {
     case sha512
 }
 
+/// PBKDF2 (RFC 8018) with HMAC over one hash as the PRF.
+protocol PBKDF2Function: Sendable {
+    init(hash: PBKDF2Hash)
+    func derive(password: Data, salt: Data, iterations: Int, byteCount: Int) throws -> Data
+}
+
 #if canImport(CommonCrypto)
     import CommonCrypto
 
-    struct PBKDF2 {
-        private init() {}
+    /// The PBKDF2 implementation for this platform.
+    typealias PlatformPBKDF2 = CommonCryptoPBKDF2
 
-        static func derive(password: Data, salt: Data, iterations: Int, hash: PBKDF2Hash, byteCount: Int) throws -> Data
-        {
+    struct CommonCryptoPBKDF2: PBKDF2Function {
+        let hash: PBKDF2Hash
+
+        func derive(password: Data, salt: Data, iterations: Int, byteCount: Int) throws -> Data {
             let algorithm: CCPseudoRandomAlgorithm
             switch hash {
             case .sha256:
@@ -58,11 +66,13 @@ public enum PBKDF2Hash: Sendable {
     import Crypto
     import CryptoExtras
 
-    struct PBKDF2 {
-        private init() {}
+    /// The PBKDF2 implementation for this platform.
+    typealias PlatformPBKDF2 = SwiftCryptoPBKDF2
 
-        static func derive(password: Data, salt: Data, iterations: Int, hash: PBKDF2Hash, byteCount: Int) throws -> Data
-        {
+    struct SwiftCryptoPBKDF2: PBKDF2Function {
+        let hash: PBKDF2Hash
+
+        func derive(password: Data, salt: Data, iterations: Int, byteCount: Int) throws -> Data {
             let function: KDF.Insecure.PBKDF2.HashFunction
             switch hash {
             case .sha256:

@@ -19,7 +19,7 @@ public struct ECDSASigner<Curve: ECDSACurve>: Signer {
 
     public init(privateKey: ECPrivateKey<Curve>, keyID: KeyID? = nil) throws(JWKError) {
         do {
-            key = try Curve.signingKey(privateScalar: privateKey.rawRepresentation)
+            key = try Curve().signingKey(privateScalar: privateKey.rawRepresentation)
         } catch {
             throw .invalidPrivateKey(curve: Curve.name)
         }
@@ -30,7 +30,7 @@ public struct ECDSASigner<Curve: ECDSACurve>: Signer {
     public func sign(_ message: Data) async throws(SigningError) -> Signature<Algorithm> {
         let raw: Data
         do {
-            raw = try Curve.rawSignature(for: message, using: key)
+            raw = try Curve().rawSignature(for: message, using: key)
         } catch {
             throw .keyOperationFailed(algorithm: Algorithm.identifier, underlying: UnderlyingError(error))
         }
@@ -51,7 +51,7 @@ public struct ECDSAVerifier<Curve: ECDSACurve>: Verifier {
 
     public init(publicKey: ECPublicKey<Curve>, keyID: KeyID? = nil) throws(JWKError) {
         do {
-            key = try Curve.verifyingKey(x963: publicKey.x963Representation)
+            key = try Curve().verifyingKey(x963: publicKey.x963Representation)
         } catch {
             throw .pointNotOnCurve(curve: Curve.name)
         }
@@ -79,7 +79,7 @@ public struct ECDSAVerifier<Curve: ECDSACurve>: Verifier {
     }
 
     public func verify(_ signature: Signature<Algorithm>, for message: Data) async throws(VerificationError) {
-        guard Curve.isValid(rawSignature: signature.rawRepresentation, for: message, using: key) else {
+        guard Curve().isValid(rawSignature: signature.rawRepresentation, for: message, using: key) else {
             throw .signatureMismatch(algorithm: Algorithm.identifier)
         }
     }

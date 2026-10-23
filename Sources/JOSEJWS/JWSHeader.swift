@@ -120,17 +120,6 @@ let registeredHeaderNames: Set<String> = [
 
 let unencodedPayloadName = "b64"
 
-struct HeaderJSON {
-    private init() {}
-
-    static func encoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        // Sorted so that the same header always produces the same bytes.
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return encoder
-    }
-}
-
 extension JWSHeader {
     /// Reads a header from its protected bytes and, for the JSON serializations, its unprotected
     /// members.
@@ -141,7 +130,7 @@ extension JWSHeader {
         var protectedValues: [String: JSONValue] = [:]
         if let protectedJSON {
             do {
-                try JSONMemberUniqueness.validate(protectedJSON)
+                try protectedJSON.requireUniqueJSONMembers()
             } catch {
                 throw .invalidHeaderStructure(error)
             }
@@ -187,7 +176,7 @@ extension JWSHeader {
                 throw .headerParameterWrongType(name: "jwk", expected: "an object")
             }
             do {
-                jwk = try JWK(json: try HeaderJSON.encoder().encode(jwkValue))
+                jwk = try JWK(json: try JSONEncoder.deterministic().encode(jwkValue))
             } catch let error as JWKError {
                 throw .invalidJWKParameter(error)
             } catch {
@@ -217,7 +206,7 @@ extension JWSHeader {
             if let protectedJSON, unprotectedNames.isEmpty {
                 custom = try JSONDecoder().decode(Custom.self, from: protectedJSON)
             } else {
-                custom = try JSONDecoder().decode(Custom.self, from: try HeaderJSON.encoder().encode(values))
+                custom = try JSONDecoder().decode(Custom.self, from: try JSONEncoder.deterministic().encode(values))
             }
         } catch {
             throw .invalidCustomParameters(description: String(describing: error))
@@ -315,7 +304,7 @@ extension JWSHeaderParameters {
     ) throws(JWSError) -> Data {
         var values: [String: JSONValue]
         do {
-            let customJSON = try HeaderJSON.encoder().encode(custom)
+            let customJSON = try JSONEncoder.deterministic().encode(custom)
             guard case .object(let object) = try JSONDecoder().decode(JSONValue.self, from: customJSON) else {
                 throw JWSError.customParametersNotObject
             }
@@ -370,7 +359,7 @@ extension JWSHeaderParameters {
             if let jwk {
                 values["jwk"] = try JSONDecoder().decode(JSONValue.self, from: try jwk.jsonRepresentation())
             }
-            return try HeaderJSON.encoder().encode(values)
+            return try JSONEncoder.deterministic().encode(values)
         } catch {
             throw .headerEncodingFailed(description: String(describing: error))
         }

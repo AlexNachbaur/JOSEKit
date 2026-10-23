@@ -132,22 +132,22 @@ public struct PrivateJWK: Sendable {
         var members = publicJWK.members
         switch key {
         case .p256(let key):
-            members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+            members.values["d"] = .string(String(base64URLEncoding: key.rawRepresentation))
         case .p384(let key):
-            members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+            members.values["d"] = .string(String(base64URLEncoding: key.rawRepresentation))
         case .p521(let key):
-            members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+            members.values["d"] = .string(String(base64URLEncoding: key.rawRepresentation))
         case .ed25519(let key):
-            members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+            members.values["d"] = .string(String(base64URLEncoding: key.rawRepresentation))
         case .x25519(let key):
-            members.values["d"] = .string(Base64URL.encode(key.rawRepresentation))
+            members.values["d"] = .string(String(base64URLEncoding: key.rawRepresentation))
         case .rsa(let key):
-            members.values["d"] = .string(Base64URL.encode(key.components.privateExponent))
-            members.values["p"] = .string(Base64URL.encode(key.components.prime1))
-            members.values["q"] = .string(Base64URL.encode(key.components.prime2))
-            members.values["dp"] = .string(Base64URL.encode(key.components.exponent1))
-            members.values["dq"] = .string(Base64URL.encode(key.components.exponent2))
-            members.values["qi"] = .string(Base64URL.encode(key.components.coefficient))
+            members.values["d"] = .string(String(base64URLEncoding: key.components.privateExponent))
+            members.values["p"] = .string(String(base64URLEncoding: key.components.prime1))
+            members.values["q"] = .string(String(base64URLEncoding: key.components.prime2))
+            members.values["dp"] = .string(String(base64URLEncoding: key.components.exponent1))
+            members.values["dq"] = .string(String(base64URLEncoding: key.components.exponent2))
+            members.values["qi"] = .string(String(base64URLEncoding: key.components.coefficient))
         }
         return try members.jsonRepresentation()
     }
@@ -187,7 +187,7 @@ public struct SymmetricJWK: Sendable {
     public func jsonRepresentation() throws(JWKError) -> Data {
         var members = JWKMembers(values: [
             "kty": "oct",
-            "k": .string(Base64URL.encode(key.rawRepresentation)),
+            "k": .string(String(base64URLEncoding: key.rawRepresentation)),
         ])
         members.set(metadata)
         return try members.jsonRepresentation()

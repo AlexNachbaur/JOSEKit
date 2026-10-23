@@ -1,5 +1,6 @@
 import Foundation
 import JOSECore
+import TestSupport
 import Testing
 
 @testable import JOSEJWK
@@ -117,8 +118,8 @@ struct RSATests {
             }
         }
         let key = try RSAPrivateKey().publicKey
-        let n = Base64URL.encode(key.modulus)
-        let e = Base64URL.encode(key.exponent)
+        let n = String(base64URLEncoding: key.modulus)
+        let e = String(base64URLEncoding: key.exponent)
         #expect(key.canonicalJSON == #"{"e":"\#(e)","kty":"RSA","n":"\#(n)"}"#)
     }
 
@@ -231,9 +232,9 @@ struct RSATests {
     func alteredPrivateExponent() throws {
         let key = try #require(try KeysFixture.load().rsaKeys.first)
         var altered = key.privateJwk
-        var d = try Base64URL.decode(try #require(altered["d"]))
+        var d = try Data(base64URLEncoded: try #require(altered["d"]))
         d[d.count / 2] ^= 0x01
-        altered["d"] = Base64URL.encode(d)
+        altered["d"] = String(base64URLEncoding: d)
         _ = try PrivateJWK(json: try JSONEncoder().encode(key.privateJwk))
         #if canImport(Security)
             _ = try PrivateJWK(json: try JSONEncoder().encode(altered))
@@ -370,7 +371,7 @@ struct RSATests {
         let key = try RSAPrivateKey()
         for rendered in [String(describing: key), String(reflecting: key), "\(PrivateJWK(.rsa(key)))"] {
             #expect(rendered.contains("redacted"))
-            #expect(!rendered.contains(Base64URL.encode(key.components.privateExponent)))
+            #expect(!rendered.contains(String(base64URLEncoding: key.components.privateExponent)))
             #expect(!rendered.contains(key.components.prime1.hex))
         }
     }

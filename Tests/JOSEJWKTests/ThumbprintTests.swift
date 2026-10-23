@@ -35,12 +35,12 @@ struct ThumbprintTests {
     @Test("the canonical form has members in lexical order with no whitespace")
     func canonicalForm() throws {
         let key = (try ECPrivateKey<P256Curve>()).publicKey
-        let x = Base64URL.encode(key.x)
-        let y = Base64URL.encode(key.y)
+        let x = String(base64URLEncoding: key.x)
+        let y = String(base64URLEncoding: key.y)
         #expect(key.canonicalJSON == #"{"crv":"P-256","kty":"EC","x":"\#(x)","y":"\#(y)"}"#)
 
         let edwards = (try Ed25519PrivateKey()).publicKey
-        let edwardsX = Base64URL.encode(edwards.rawRepresentation)
+        let edwardsX = String(base64URLEncoding: edwards.rawRepresentation)
         #expect(edwards.canonicalJSON == #"{"crv":"Ed25519","kty":"OKP","x":"\#(edwardsX)"}"#)
     }
 

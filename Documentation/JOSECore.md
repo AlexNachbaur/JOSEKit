@@ -10,19 +10,21 @@ Windows and Android.
 
 | Type | Purpose |
 |---|---|
-| `Base64URL` | Unpadded base64url. Decoding refuses anything an encoder could not have produced: wrong padding, interior `=`, non-alphabet bytes, 4n+1 lengths, non-zero trailing bits. |
-| `JSONMemberUniqueness` | Rejects JSON objects that repeat a member name at any depth. Foundation silently takes the first duplicate; RFC 7515 allows only rejection or last-wins. |
-| `JSONStringEscaper` | JSON string literals byte-identical to `JSON.stringify`, for canonical forms such as RFC 7638 thumbprints. |
+| `String(base64URLEncoding:)`, `Data(base64URLEncoded:)` | Unpadded base64url. Decoding refuses anything an encoder could not have produced: wrong padding, interior `=`, non-alphabet bytes, 4n+1 lengths, non-zero trailing bits. |
+| `Data.requireUniqueJSONMembers()` | Rejects JSON objects that repeat a member name at any depth. Foundation silently takes the first duplicate; RFC 7515 allows only rejection or last-wins. |
+| `String(jsonQuoting:)` | JSON string literals byte-identical to `JSON.stringify`, for canonical forms such as RFC 7638 thumbprints. |
 | `JSONValue` | Any JSON value, with integers kept apart from doubles. |
-| `ECDSASignatureConverter` | DER ↔ IEEE P1363 for ECDSA signatures, including the strip and left-pad cases. |
+| `ECDSASignatureConverter(coordinateByteCount:)` | DER ↔ IEEE P1363 for ECDSA signatures on a curve of that coordinate size, including the strip and left-pad cases. |
 | `MediaType` | `typ`/`cty` values compared as RFC 7515 §4.1.9 requires: `JWT` equals `application/jwt`. |
 | `AlgorithmIdentifier`, `KeyID` | Typed wrappers so that an algorithm name cannot be passed where a key ID is expected. |
 | `SignatureAlgorithm`, `Signer`, `Verifier`, `Signature<A>` | The signing abstractions. The algorithm is a type, so an ES256 signature cannot reach an ES384 verifier. |
 | `UnderlyingError` | A comparable record of an error from below (a keychain call, a network fetch), so that every error type in the packages can be `Equatable`. |
 | `HeaderParameters` | The protocol a custom JWS or JWE header type conforms to. |
 
-Algorithm marker types for ES256/384/512, Ed25519 and EdDSA, HS256/384/512, RS256/384/512 and
-PS256/384/512 live here; their implementations are in `JOSEJWK`.
+The algorithm types for ES256/384/512, Ed25519 and EdDSA, HS256/384/512, RS256/384/512 and
+PS256/384/512 live here; their implementations are in `JOSEJWK`. As types they bind signers,
+verifiers and signatures to one algorithm at compile time. As values (`ES256()`) they can be
+listed where several algorithms are accepted.
 
 ## Adding an algorithm
 
@@ -36,6 +38,9 @@ struct MyAlgorithm: SignatureAlgorithm {
     static let signatureByteCount: Int? = 64
 }
 ```
+
+To list it in `VerificationKeys(jwks:allowing:)`, also conform it to `JWKVerifiableAlgorithm`
+(in `JOSEJWS`) and pass `MyAlgorithm()`.
 
 ## Testing
 

@@ -22,21 +22,29 @@ public protocol ECDHESAlgorithm: KeyManagementAlgorithm {
 public struct ECDHES: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES"
     public static let keyWrapByteCount: Int? = nil
+
+    public init() {}
 }
 
 public struct ECDHESA128KW: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES+A128KW"
     public static let keyWrapByteCount: Int? = 16
+
+    public init() {}
 }
 
 public struct ECDHESA192KW: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES+A192KW"
     public static let keyWrapByteCount: Int? = 24
+
+    public init() {}
 }
 
 public struct ECDHESA256KW: ECDHESAlgorithm {
     public static let identifier: AlgorithmIdentifier = "ECDH-ES+A256KW"
     public static let keyWrapByteCount: Int? = 32
+
+    public init() {}
 }
 
 /// A public key a JWE can be encrypted to with ECDH-ES.
@@ -59,7 +67,7 @@ extension ECPublicKey: ECDHRecipientPublicKey where Curve: KeyAgreementCurve {
     public func ephemeralAgreement() throws(JWKError) -> (ephemeralPublicKey: JWK, sharedSecret: Data) {
         let ephemeral = try ECPrivateKey<Curve>()
         let secret = try ephemeral.sharedSecret(with: self)
-        return (try ECDHJSON.jwk(for: ephemeral.publicKey), secret)
+        return (try ephemeral.publicKey.ephemeralJWK(), secret)
     }
 }
 
@@ -107,50 +115,44 @@ extension X25519PrivateKey: ECDHRecipientPrivateKey {
     }
 }
 
-struct ECDHJSON {
-    private init() {}
-
-    /// A typed public key as a `JWK`. The curves this package knows have their own case; a curve
-    /// added outside it goes through JSON, which is the only form every curve shares.
-    static func jwk<Curve: EllipticCurve>(for key: ECPublicKey<Curve>) throws(JWKError) -> JWK {
-        if let key = key as? ECPublicKey<P256Curve> {
+extension ECPublicKey {
+    /// This key as a `JWK`, for the `epk` header. The curves this package knows have their own
+    /// case; a curve added outside it goes through JSON, which is the only form every curve shares.
+    func ephemeralJWK() throws(JWKError) -> JWK {
+        if let key = self as? ECPublicKey<P256Curve> {
             return JWK(.p256(key))
         }
-        if let key = key as? ECPublicKey<P384Curve> {
+        if let key = self as? ECPublicKey<P384Curve> {
             return JWK(.p384(key))
         }
-        if let key = key as? ECPublicKey<P521Curve> {
+        if let key = self as? ECPublicKey<P521Curve> {
             return JWK(.p521(key))
         }
-        return try JWK(json: try ecPublicKey(key))
-    }
-
-    static func ecPublicKey<Curve: EllipticCurve>(_ key: ECPublicKey<Curve>) throws(JWKError) -> Data {
         let members: [String: JSONValue] = [
             "kty": "EC",
             "crv": .string(Curve.name),
-            "x": .string(Base64URL.encode(key.x)),
-            "y": .string(Base64URL.encode(key.y)),
+            "x": .string(String(base64URLEncoding: x)),
+            "y": .string(String(base64URLEncoding: y)),
         ]
+        let json: Data
         do {
-            return try JSONEncoder().encode(members)
+            json = try JSONEncoder().encode(members)
         } catch {
             throw .invalidJSON(description: String(describing: error))
         }
+        return try JWK(json: json)
     }
 }
 
-/// The Concat KDF of NIST SP 800-56A with SHA-256, as profiled by RFC 7518 §4.6.2.
+/// The Concat KDF of NIST SP 800-56A with SHA-256, as profiled by RFC 7518 §4.6.2, with the
+/// parameters RFC 7518 binds into it.
 struct ConcatKDF {
-    private init() {}
+    let algorithmID: String
+    let partyUInfo: Data
+    let partyVInfo: Data
+    let keyByteCount: Int
 
-    static func derive(
-        sharedSecret: Data,
-        algorithmID: String,
-        partyUInfo: Data,
-        partyVInfo: Data,
-        keyByteCount: Int
-    ) -> Data {
+    func deriveKey(from sharedSecret: Data) -> Data {
         var otherInfo = lengthPrefixed(Data(algorithmID.utf8))
         otherInfo += lengthPrefixed(partyUInfo)
         otherInfo += lengthPrefixed(partyVInfo)
@@ -170,11 +172,11 @@ struct ConcatKDF {
         return derived.prefix(keyByteCount)
     }
 
-    private static func bigEndian(_ value: UInt32) -> Data {
+    private func bigEndian(_ value: UInt32) -> Data {
         Data([UInt8(value >> 24), UInt8(value >> 16 & 0xFF), UInt8(value >> 8 & 0xFF), UInt8(value & 0xFF)])
     }
 
-    private static func lengthPrefixed(_ data: Data) -> Data {
+    private func lengthPrefixed(_ data: Data) -> Data {
         bigEndian(UInt32(data.count)) + data
     }
 }
@@ -221,8 +223,8 @@ private func requireAgreementPermission(
 
 extension ECDHESAlgorithm {
     /// A decrypter for a private EC or X25519 JWK, honouring its `use`, `key_ops` and `alg`.
-    public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
-        try requireAgreementPermission(jwk.metadata, algorithm: identifier)
+    public func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+        try requireAgreementPermission(jwk.metadata, algorithm: Self.identifier)
         let keyID = jwk.metadata.keyID
         switch jwk.key {
         case .p256(let key):
@@ -304,10 +306,10 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
             throw .headerEncodingFailed(description: String(describing: error))
         }
         if !partyUInfo.isEmpty {
-            headerParameters["apu"] = .string(Base64URL.encode(partyUInfo))
+            headerParameters["apu"] = .string(String(base64URLEncoding: partyUInfo))
         }
         if !partyVInfo.isEmpty {
-            headerParameters["apv"] = .string(Base64URL.encode(partyVInfo))
+            headerParameters["apv"] = .string(String(base64URLEncoding: partyVInfo))
         }
 
         let parameters = derivationParameters(
@@ -315,13 +317,12 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
             contentEncryption: request.contentEncryption,
             contentKeyByteCount: request.keyByteCount
         )
-        let derived = ConcatKDF.derive(
-            sharedSecret: agreement.sharedSecret,
+        let derived = ConcatKDF(
             algorithmID: parameters.algorithmID,
             partyUInfo: partyUInfo,
             partyVInfo: partyVInfo,
             keyByteCount: parameters.keyByteCount
-        )
+        ).deriveKey(from: agreement.sharedSecret)
 
         guard Algorithm.keyWrapByteCount != nil else {
             return KeyEncryptionResult(
@@ -334,7 +335,7 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
         do {
             return KeyEncryptionResult(
                 contentEncryptionKey: contentKey,
-                encryptedKey: try AESKeyWrapping.wrap(contentKey, with: derived),
+                encryptedKey: try AESKeyWrapping(wrappingKey: derived).wrap(contentKey),
                 headerParameters: headerParameters
             )
         } catch {
@@ -391,20 +392,19 @@ public struct ECDHESDecrypter<Algorithm: ECDHESAlgorithm, Key: ECDHRecipientPriv
             contentEncryption: request.contentEncryption,
             contentKeyByteCount: request.keyByteCount
         )
-        let derived = ConcatKDF.derive(
-            sharedSecret: sharedSecret,
+        let derived = ConcatKDF(
             algorithmID: parameters.algorithmID,
             partyUInfo: partyUInfo,
             partyVInfo: partyVInfo,
             keyByteCount: parameters.keyByteCount
-        )
+        ).deriveKey(from: sharedSecret)
         guard Algorithm.keyWrapByteCount != nil else {
             guard request.encryptedKey.isEmpty else {
                 throw .encryptedKeyNotEmpty(algorithm: Algorithm.identifier)
             }
             return derived
         }
-        return try AESKeyWrapping.unwrap(request.encryptedKey, with: derived)
+        return try AESKeyWrapping(wrappingKey: derived).unwrap(request.encryptedKey)
     }
 
     private static func describe(_ jwk: JWK) -> String {
@@ -425,42 +425,63 @@ public struct ECDHESDecrypter<Algorithm: ECDHESAlgorithm, Key: ECDHRecipientPriv
     }
 }
 
-// MARK: - RSA-OAEP
+// MARK: - RSA
 
-/// RSAES-OAEP key encryption (RFC 7518 §4.3).
-public protocol RSAOAEPAlgorithm: KeyManagementAlgorithm {
-    static var hash: RSAOAEPHash { get }
+/// RSA key encryption (RFC 7518 §4.2, §4.3): the content encryption key is encrypted to the
+/// recipient's public key.
+public protocol RSAKeyEncryptionAlgorithm: KeyManagementAlgorithm {
+    static var padding: RSAEncryptionPadding { get }
 }
 
 /// RSAES-OAEP with SHA-1 and MGF1 with SHA-1.
-public struct RSAOAEP: RSAOAEPAlgorithm {
+public struct RSAOAEP: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA-OAEP"
-    public static let hash = RSAOAEPHash.sha1
+    public static let padding = RSAEncryptionPadding.oaep(.sha1)
+
+    public init() {}
 }
 
 /// RSAES-OAEP with SHA-256 and MGF1 with SHA-256.
-public struct RSAOAEP256: RSAOAEPAlgorithm {
+public struct RSAOAEP256: RSAKeyEncryptionAlgorithm {
     public static let identifier: AlgorithmIdentifier = "RSA-OAEP-256"
-    public static let hash = RSAOAEPHash.sha256
+    public static let padding = RSAEncryptionPadding.oaep(.sha256)
+
+    public init() {}
 }
 
-extension RSAOAEPAlgorithm {
+/// RSAES-PKCS1-v1_5, `RSA1_5` (RFC 7518 §4.2).
+///
+/// Its decryption leaks whether the padding was valid unless every failure is handled the same
+/// way (Bleichenbacher's attack). JOSEKit does that: an unwrap that fails for any reason
+/// continues with a random key, so it fails exactly as a wrong content key does, with
+/// ``JWEError/decryptionFailed`` (RFC 7516 §11.5). It is used only when a caller builds an
+/// ``RSAEncrypter`` or ``RSADecrypter`` for it. Prefer `RSA-OAEP-256` wherever the other side
+/// supports it.
+public struct RSA15: RSAKeyEncryptionAlgorithm {
+    public static let identifier: AlgorithmIdentifier = "RSA1_5"
+    public static let padding = RSAEncryptionPadding.pkcs1v15
+
+    public init() {}
+}
+
+extension RSAKeyEncryptionAlgorithm {
     /// A decrypter for a private RSA JWK, honouring its `use`, `key_ops` and `alg`.
-    public static func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
-        AnyKeyDecrypter(try RSAOAEPDecrypter<Self>(jwk: jwk))
+    public func decrypter(for jwk: PrivateJWK) throws(JWKError) -> AnyKeyDecrypter {
+        AnyKeyDecrypter(try RSADecrypter<Self>(jwk: jwk))
     }
 }
 
 extension RSAOAEP: JWKDecryptableAlgorithm {}
 extension RSAOAEP256: JWKDecryptableAlgorithm {}
+extension RSA15: JWKDecryptableAlgorithm {}
 
 /// Encrypts the content encryption key to a recipient's RSA public key.
-public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
+public struct RSAEncrypter<Algorithm: RSAKeyEncryptionAlgorithm>: KeyEncrypter {
     public let keyID: KeyID?
-    private let key: RSAOAEPEncryptionKey
+    private let key: RSAEncryptionKey
 
     public init(publicKey: RSAPublicKey, keyID: KeyID? = nil) throws(JWKError) {
-        key = try RSAOAEPEncryptionKey(publicKey: publicKey)
+        key = try RSAEncryptionKey(publicKey: publicKey)
         self.keyID = keyID
     }
 
@@ -479,7 +500,7 @@ public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
         do {
             return KeyEncryptionResult(
                 contentEncryptionKey: contentKey,
-                encryptedKey: try key.encrypt(contentKey, hash: Algorithm.hash)
+                encryptedKey: try key.encrypt(contentKey, padding: Algorithm.padding)
             )
         } catch {
             throw .keyEncryptionFailed(algorithm: Algorithm.identifier, error)
@@ -488,12 +509,16 @@ public struct RSAOAEPEncrypter<Algorithm: RSAOAEPAlgorithm>: KeyEncrypter {
 }
 
 /// Recovers the content encryption key with an RSA private key.
-public struct RSAOAEPDecrypter<Algorithm: RSAOAEPAlgorithm>: KeyDecrypter {
+///
+/// Any failure to recover the key is ``JWEError/decryptionFailed``, with no detail. The JWE
+/// decryption then continues with a random key, so the outcome is the same as for a key that
+/// decrypted but is wrong.
+public struct RSADecrypter<Algorithm: RSAKeyEncryptionAlgorithm>: KeyDecrypter {
     public let keyID: KeyID?
-    private let key: RSAOAEPDecryptionKey
+    private let key: RSADecryptionKey
 
     public init(privateKey: RSAPrivateKey, keyID: KeyID? = nil) throws(JWKError) {
-        key = try RSAOAEPDecryptionKey(privateKey: privateKey)
+        key = try RSADecryptionKey(privateKey: privateKey)
         self.keyID = keyID
     }
 
@@ -508,7 +533,7 @@ public struct RSAOAEPDecrypter<Algorithm: RSAOAEPAlgorithm>: KeyDecrypter {
 
     public func decryptKey(_ request: KeyDecryptionRequest) async throws(JWEError) -> Data {
         do {
-            return try key.decrypt(request.encryptedKey, hash: Algorithm.hash)
+            return try key.decrypt(request.encryptedKey, padding: Algorithm.padding)
         } catch {
             throw .decryptionFailed
         }

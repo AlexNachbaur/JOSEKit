@@ -95,18 +95,32 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         ///     names.
         ///   - contentEncryptions: The `enc` algorithms to accept. Defaults to those this package
         ///     implements.
+        ///   - maximumDecompressedByteCount: For a compressed JWE (`zip`), the largest plaintext
+        ///     accepted after decompression. 0 or less refuses compressed JWEs before any
+        ///     cryptography is done.
         public func decrypt(
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type] = ContentEncryption.standard
+            contentEncryptions: [any ContentEncryptionAlgorithm] = ContentEncryption.allCases,
+            maximumDecompressedByteCount: Int = JWECompression.defaultMaximumDecompressedByteCount
         ) async throws(JWEError) -> Decrypted {
             var failures: [JWEError] = []
             for recipient in recipients {
-                do {
+                do throws(JWEError) {
                     let recipient = try recipient.get()
-                    let plaintext = try await decrypt(recipient, with: keys, contentEncryptions: contentEncryptions)
+                    if recipient.header.compression != nil {
+                        guard maximumDecompressedByteCount > 0 else {
+                            throw JWEError.compressionNotAllowed
+                        }
+                    }
+                    let decrypted = try await decrypt(recipient, with: keys, contentEncryptions: contentEncryptions)
+                    let plaintext = try Self.decompress(
+                        decrypted,
+                        compression: recipient.header.compression,
+                        limit: maximumDecompressedByteCount
+                    )
                     var additionalData: Data?
                     if let additionalDataEncoded {
-                        additionalData = try JWEJSON.decodeBase64URL(additionalDataEncoded, part: "aad")
+                        additionalData = try Data(jwePart: additionalDataEncoded, named: "aad")
                     }
                     return Decrypted(
                         header: recipient.header,
@@ -123,10 +137,31 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             throw .noRecipientDecrypted(reasons: failures)
         }
 
+        /// The plaintext of an authenticated JWE, decompressed if its header says so.
+        private static func decompress(
+            _ content: Data,
+            compression: JWECompression?,
+            limit: Int
+        ) throws(JWEError) -> Data {
+            guard let compression else {
+                return content
+            }
+            do {
+                return try compression.decompress(content, limit: limit)
+            } catch {
+                switch error {
+                case .tooLarge:
+                    throw .decompressedSizeExceedsLimit(maximum: limit)
+                case .malformed, .failed:
+                    throw .invalidCompressedContent
+                }
+            }
+        }
+
         private func decrypt(
             _ recipient: Recipient,
             with keys: DecryptionKeys,
-            contentEncryptions: [any ContentEncryptionAlgorithm.Type]
+            contentEncryptions: [any ContentEncryptionAlgorithm]
         ) async throws(JWEError) -> Data {
             let header = recipient.header
             guard let encryption = contentEncryptions.first(where: { $0.identifier == header.contentEncryption })
@@ -205,21 +240,24 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         public let additionalAuthenticatedData: Data?
     }
 
-    // MARK: Encryption
+}
 
+// MARK: - Encryption
+
+extension JWE.Encrypted {
     /// Encrypts `plaintext` to one recipient.
     ///
     /// `alg` comes from the recipient's type and `enc` from `contentEncryption`; neither can be
     /// supplied separately. Every header parameter is placed in the protected header.
-    public static func encrypt<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
-        _ plaintext: Data,
+    public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
+        encrypting plaintext: Data,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
-    ) async throws(JWEError) -> Encrypted {
-        try await encrypt(
-            plaintext,
+    ) async throws(JWEError) {
+        try await self.init(
+            encrypting: plaintext,
             to: [AnyKeyEncrypter(recipient)],
             using: contentEncryption,
             header: header,
@@ -232,13 +270,13 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
     /// With more than one recipient, `enc` and the caller's parameters are in the protected
     /// header and each recipient's `alg`, `kid` and key parameters are in that recipient's own
     /// header, which only the JSON serialization can carry. `header` may not then set `kid`.
-    public static func encrypt<Encryption: ContentEncryptionAlgorithm>(
-        _ plaintext: Data,
+    public init<Encryption: ContentEncryptionAlgorithm>(
+        encrypting plaintext: Data,
         to recipients: [AnyKeyEncrypter],
-        using contentEncryption: Encryption.Type,
+        using contentEncryption: Encryption,
         header: JWEHeaderParameters<Custom>,
         additionalAuthenticatedData: Data? = nil
-    ) async throws(JWEError) -> Encrypted {
+    ) async throws(JWEError) {
         guard !recipients.isEmpty else {
             throw .noRecipients
         }
@@ -246,7 +284,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             throw .sharedKeyIDWithMultipleRecipients
         }
         var protected = try header.values()
-        protected["enc"] = .string(Encryption.identifier.rawValue)
+        protected["enc"] = .string(contentEncryption.identifier.rawValue)
 
         var contentKey: Data?
         var results: [(AnyKeyEncrypter, KeyEncryptionResult)] = []
@@ -254,8 +292,8 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             // A later `dir` or `ECDH-ES` recipient is handed the key already chosen and refuses it.
             let result = try await recipient.encryptKey(
                 KeyEncryptionRequest(
-                    contentEncryption: Encryption.identifier,
-                    keyByteCount: Encryption.keyByteCount,
+                    contentEncryption: contentEncryption.identifier,
+                    keyByteCount: contentEncryption.keyByteCount,
                     contentEncryptionKey: contentKey
                 )
             )
@@ -273,7 +311,7 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             contentKey = result.contentEncryptionKey
             results.append((recipient, result))
         }
-        guard let contentKey, contentKey.count == Encryption.keyByteCount else {
+        guard let contentKey, contentKey.count == contentEncryption.keyByteCount else {
             throw .contentEncryptionFailed(description: "the key encrypter did not supply a key of the right size")
         }
 
@@ -297,14 +335,14 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
 
         let protectedJSON: Data
         do {
-            protectedJSON = try JWEJSON.encoder().encode(protected)
+            protectedJSON = try JSONEncoder.deterministic().encode(protected)
         } catch {
             throw .headerEncodingFailed(description: String(describing: error))
         }
-        let protectedEncoded = Base64URL.encode(protectedJSON)
+        let protectedEncoded = String(base64URLEncoding: protectedJSON)
         var additionalDataEncoded: String?
         if let additionalAuthenticatedData {
-            additionalDataEncoded = Base64URL.encode(additionalAuthenticatedData)
+            additionalDataEncoded = String(base64URLEncoding: additionalAuthenticatedData)
         }
 
         var parsedRecipients: [Result<JWE.Recipient, JWEError>] = []
@@ -328,9 +366,9 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
         }
 
         let initializationVector = SymmetricKeyMaterial(
-            randomByteCount: Encryption.initializationVectorByteCount
+            randomByteCount: contentEncryption.initializationVectorByteCount
         ).rawRepresentation
-        var sealed = try Encrypted(
+        var sealed = try Self(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: [:],
             recipients: parsedRecipients,
@@ -339,13 +377,22 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             tag: Data(),
             additionalDataEncoded: additionalDataEncoded
         )
-        let (ciphertext, tag) = try Encryption.encrypt(
-            plaintext,
+        // `zip` is in the protected header, so it is authenticated along with the content.
+        var content = plaintext
+        if let compression = header.compression {
+            do {
+                content = try compression.compress(plaintext)
+            } catch {
+                throw .contentEncryptionFailed(description: "compression failed")
+            }
+        }
+        let (ciphertext, tag) = try contentEncryption.encrypt(
+            content,
             key: contentKey,
             initializationVector: initializationVector,
             additionalAuthenticatedData: sealed.authenticatedData
         )
-        sealed = try Encrypted(
+        sealed = try Self(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: [:],
             recipients: parsedRecipients,
@@ -354,18 +401,23 @@ public struct JWE<Custom: HeaderParameters>: Sendable {
             tag: tag,
             additionalDataEncoded: additionalDataEncoded
         )
-        return sealed
+        self = sealed
     }
 }
 
-extension JWE where Custom == EmptyHeaderParameters {
+extension JWE.Encrypted where Custom == EmptyHeaderParameters {
     /// Encrypts `plaintext` to one recipient, with a header of registered parameters only.
-    public static func encrypt<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
-        _ plaintext: Data,
+    public init<Recipient: KeyEncrypter, Encryption: ContentEncryptionAlgorithm>(
+        encrypting plaintext: Data,
         to recipient: Recipient,
-        using contentEncryption: Encryption.Type
-    ) async throws(JWEError) -> Encrypted {
-        try await encrypt(plaintext, to: recipient, using: contentEncryption, header: JWEHeaderParameters())
+        using contentEncryption: Encryption
+    ) async throws(JWEError) {
+        try await self.init(
+            encrypting: plaintext,
+            to: recipient,
+            using: contentEncryption,
+            header: JWEHeaderParameters()
+        )
     }
 }
 

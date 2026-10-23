@@ -28,7 +28,7 @@ for the `alg` it names, so there is no separate list to forget. Build it from ve
 result builder, or from a JWK Set:
 
 ```swift
-let keys = VerificationKeys(jwks: set, allowing: [ES256.self, PS256.self])
+let keys = VerificationKeys(jwks: set, allowing: [.es256, .ps256])
 let keys = try VerificationKeys {
     try ECDSAVerifier(publicKey: p256, keyID: "a")
     try HMACVerifier<HS256>(key: secret)
@@ -39,8 +39,12 @@ For a JWK Set at a URL you know in advance, such as an OpenID Connect issuer's `
 
 ```swift
 let provider = CachingJWKSetProvider(URLSessionJWKSetProvider())
-let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [RS256.self, ES256.self])
+let keys = try await VerificationKeys(jwksAt: issuerJWKSURL, provider: provider, allowing: [.rs256, .es256])
 ```
+
+The algorithms that can be listed are the cases of `JWSAlgorithm`, each delegating to its type
+(`ES256` and so on). An add-on algorithm conforms to `JWKVerifiableAlgorithm` and is listed as
+an instance.
 
 `alg: none` has no type and cannot be constructed. A token naming a `kid` is tried only against
 keys with that ID or with none.
@@ -48,7 +52,7 @@ keys with that ID or with none.
 ## Signing
 
 ```swift
-let signed = try await SimpleJWS.sign(payload, with: signer, header: JWSHeaderParameters(type: "JWT"))
+let signed = try await SimpleJWS.Signed(signing: payload, with: signer, header: JWSHeaderParameters(type: "JWT"))
 try signed.compactSerialization()
 try signed.flattenedJSONSerialization(detached: true)
 try await signed.adding(signatureWith: other, header: JWSHeaderParameters()).generalJSONSerialization()
@@ -66,7 +70,7 @@ and bounded:
 
 ```swift
 let resolver = HeaderKeyResolver(
-    algorithms: [ES256.self],
+    algorithms: [.es256],
     jwkSetProvider: CachingJWKSetProvider(URLSessionJWKSetProvider()),
     allowedJWKSetURLs: [issuerJWKSURL],                         // exact HTTPS URLs only
     certificateChainValidator: try SecTrustCertificateChainValidator(anchors: [issuerCA])

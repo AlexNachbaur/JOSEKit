@@ -142,7 +142,7 @@ which verifiers the caller supplies — there is no separate `algorithms: [...]`
 let keys = VerificationKeys {
     ES256.verifier(publicKey)             // typed: ECPublicKey<P256>
     EdDSA.verifier(edKey)
-    try jwks.verifiers(allowing: ES256.self, ES384.self)
+    try jwks.verifiers(allowing: .es256, .es384)
 }
 ```
 
@@ -188,7 +188,7 @@ public struct JWTClaims<Custom: Codable & Sendable>: Sendable {
 A plain initialiser is the primary API. The result builder is optional sugar over it:
 
 ```swift
-let jwt = try await JWT.sign(with: signer, type: "at+jwt") {
+let jwt = try await JWT.Signed(signingWith: signer, type: "at+jwt") {
     Issuer("https://issuer.example")
     Subject(userID)
     Audience("https://api.example")
@@ -245,14 +245,16 @@ Distinguishing them is a padding/unwrap oracle (RFC 7516 §11.5). This conflicts
 ## 3. Package contents
 
 ### jose-core
-- `Base64URL`: unpadded output; strict input per the engineering rules (rejects 4n+1, interior
-  `=`, wrong padding length, non-alphabet bytes, and non-zero trailing bits — D10).
+- base64url (`String(base64URLEncoding:)`, `Data(base64URLEncoded:)`, D24): unpadded output;
+  strict input per the engineering rules (rejects 4n+1, interior `=`, wrong padding length,
+  non-alphabet bytes, and non-zero trailing bits — D10).
 - Strict JSON object reader that **rejects duplicate member names** (RFC 7515 §4 permits reject or
   last-wins; `JSONDecoder` silently picks one, and which one differs between implementations —
   a known header-smuggling vector). See D6.
 - `JSONValue` enum for ad-hoc header parameters and claims.
 - JSON string escaper used by thumbprint canonicalisation.
-- `ECDSASignatureConverter`: DER ↔ P1363, both strip and left-pad paths, for P-256/384/521.
+- `ECDSASignatureConverter(coordinateByteCount:)`: DER ↔ P1363, both strip and left-pad paths,
+  for P-256/384/521.
 - `AlgorithmIdentifier`, `KeyID`, `MediaType` (typed wrappers, not bare `String`).
 
 ### jose-jwk
@@ -348,6 +350,12 @@ These were made after the packages were built. Where they conflict with anything
 | D16 | Secure Enclave (amends D7) | A keychain store, `SecureEnclaveKeyStore`, is included alongside the signer. |
 | D17 | Naming | JWE key types are named for their role, `…Encrypter` and `…Decrypter`, symmetric and asymmetric alike. The common generic forms have `Simple…` typealiases (`SimpleJWS`, `SimpleJWE`, `SimpleJWT`, `SimpleEncryptedJWT`, `SimpleNestedJWT`). |
 | D18 | Header key sources | `jku` and `x5c` are optional and overridable: each is used only when the caller supplies a provider or validator, through `HeaderKeyResolver`. |
+| D19 | Name and license | The package is **JOSEKit**, MIT-licensed. Module names keep the `JOSE` prefix. |
+| D20 | Parity with jose-swift | JOSEKit covers what beatt83/jose-swift does, except where listed here: RSA1_5, `zip`, PEM import, ES256K and secp256k1, and `x5c` validation on every platform are added. ECDH-1PU, C20P and XC20P (expired drafts) are not. Ed448 and X448 are not (jose-swift declares but does not implement them, and CryptoKit has neither). This supersedes D11's "`zip: DEF` no" and the earlier exclusion of RSA1_5. |
+| D21 | RSA1_5 | Implemented with the countermeasures of RFC 7516 §11.5: a failed unwrap continues with a random key, so a padding failure and an authentication failure are the same `.decryptionFailed`. Used only when a caller builds an RSA1_5 encrypter or decrypter; nothing selects it otherwise. |
+| D22 | Dependencies for parity | Each lives in its own product so that only applications using the feature build it: `swift-secp256k1` (ES256K, secp256k1 keys) in `JOSESecp256k1`; Apple's `swift-certificates` (cross-platform `x5c` validation) in `JOSEX509`. `zip` uses the system zlib wherever there is one (it ships with Apple's operating systems). Windows has none, and `zip` is not available there. `JWECompression` has a case only for each compression the platform supports, so on Windows code asking for `.deflate` fails to build. A received `zip` JWE is refused there with `unsupportedCompression`. Each case delegates to a struct conforming to the internal `CompressionAlgorithm` protocol (`DeflateCompression`). Bundling zlib's source was considered and declined. zlib produces and reads raw DEFLATE (RFC 1951), as RFC 7516 §4.1.3 requires. Decompressed size is limited (250 000 bytes by default, as in panva/jose), and `zip` is accepted only from the protected header. Apple's Compression framework was the first choice there, but it silently discards input after the end of the stream, which zlib and the browsers' DecompressionStream refuse; one implementation keeps every platform the same. PEM import extends JOSEJWK's own DER reader and adds no dependency. |
+| D23 | Test vectors | The JOSE cookbook (RFC 7520, RFC 7797, RFC 8037 examples) is vendored unmodified. Vectors that exist only as RFC text are not transcribed. |
+| D24 | No static-only types | A type is not used as a namespace for static functions, whether it is a caseless enum or a struct with a private `init`. Behaviour lives on instances. Interchangeable implementations of one operation are a protocol with a conforming struct for each; when only one is right for a platform, conditional compilation picks it. A choice among variants is an enum whose cases exist only where the platform supports them, so an unavailable choice fails to build, and each case delegates to its implementation (`JWECompression` and `DeflateCompression`). Parsing becomes initialisers on the parsed type, and small utilities become extensions on the type they operate on. Algorithm and curve types (`ES256`, `A256GCM`, `P256Curve`, ...) stay types, so §2.1's compile-time binding and D5's add-on algorithms are kept. Their behaviour moves to instances, and the built-in sets also get enums with platform-limited cases. Static constants and factories on a type that has instances are not namespaces and are unaffected. |
 
 ## 6. Proposed order once approved
 

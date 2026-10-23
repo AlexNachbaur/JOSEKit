@@ -55,7 +55,7 @@ struct Vector {
         guard let found = lookup(path) else {
             throw VectorError(description: "\(name) has no \(path.joined(separator: "."))")
         }
-        return try Base64URL.decode(try found.text)
+        return try Data(base64URLEncoded: try found.text)
     }
 
     private func lookup(_ path: [String]) -> JSONValue? {
@@ -106,69 +106,66 @@ extension JSONValue {
     }
 }
 
-struct VectorKeys {
-    private init() {}
-
+extension AnyVerifier {
     /// A verifier for `algorithm` from a cookbook key, public or private.
-    static func verifier(algorithm: String, key: JSONValue) throws -> AnyVerifier {
+    init(algorithm: String, key: JSONValue) throws {
         let json = try key.json
         if algorithm.hasPrefix("HS") {
             let symmetric = try SymmetricJWK(json: json)
             switch algorithm {
             case "HS256":
-                return AnyVerifier(try HMACVerifier<HS256>(jwk: symmetric))
+                self.init(try HMACVerifier<HS256>(jwk: symmetric))
             case "HS384":
-                return AnyVerifier(try HMACVerifier<HS384>(jwk: symmetric))
+                self.init(try HMACVerifier<HS384>(jwk: symmetric))
             case "HS512":
-                return AnyVerifier(try HMACVerifier<HS512>(jwk: symmetric))
+                self.init(try HMACVerifier<HS512>(jwk: symmetric))
             default:
                 throw VectorError(description: "no verifier for \(algorithm)")
             }
+            return
         }
         // The cookbook's signing keys are private; verification needs only the public half.
         let publicKey = try PrivateJWK(json: json).publicJWK
-        let types: [String: any JWKVerifiableAlgorithm.Type] = [
-            "RS256": RS256.self, "RS384": RS384.self, "RS512": RS512.self,
-            "PS256": PS256.self, "PS384": PS384.self, "PS512": PS512.self,
-            "ES256": ES256.self, "ES384": ES384.self, "ES512": ES512.self,
-            "EdDSA": EdDSA.self, "Ed25519": JOSECore.Ed25519.self,
-        ]
-        guard let type = types[algorithm] else {
+        guard let named = JWSAlgorithm.allCases.first(where: { $0.identifier.rawValue == algorithm }) else {
             throw VectorError(description: "no verifier for \(algorithm)")
         }
-        return try type.verifier(for: publicKey)
+        self = try named.verifier(for: publicKey)
     }
+}
 
+extension AnyKeyDecrypter {
     /// A decrypter for `algorithm` from a cookbook key.
-    static func decrypter(algorithm: String, key: JSONValue) throws -> AnyKeyDecrypter {
+    init(algorithm: String, key: JSONValue) throws {
         let json = try key.json
         switch algorithm {
         case "dir":
-            return AnyKeyDecrypter(try DirectDecrypter(jwk: try SymmetricJWK(json: json)))
+            self.init(try DirectDecrypter(jwk: try SymmetricJWK(json: json)))
         case "A128KW":
-            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A128KW>(jwk: try SymmetricJWK(json: json)))
+            self.init(try AESKeyWrapDecrypter<A128KW>(jwk: try SymmetricJWK(json: json)))
         case "A192KW":
-            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A192KW>(jwk: try SymmetricJWK(json: json)))
+            self.init(try AESKeyWrapDecrypter<A192KW>(jwk: try SymmetricJWK(json: json)))
         case "A256KW":
-            return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: try SymmetricJWK(json: json)))
+            self.init(try AESKeyWrapDecrypter<A256KW>(jwk: try SymmetricJWK(json: json)))
         case "A128GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A128GCMKW>(jwk: try SymmetricJWK(json: json)))
+            self.init(try AESGCMKeyWrapDecrypter<A128GCMKW>(jwk: try SymmetricJWK(json: json)))
         case "A192GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A192GCMKW>(jwk: try SymmetricJWK(json: json)))
+            self.init(try AESGCMKeyWrapDecrypter<A192GCMKW>(jwk: try SymmetricJWK(json: json)))
         case "A256GCMKW":
-            return AnyKeyDecrypter(try AESGCMKeyWrapDecrypter<A256GCMKW>(jwk: try SymmetricJWK(json: json)))
+            self.init(try AESGCMKeyWrapDecrypter<A256GCMKW>(jwk: try SymmetricJWK(json: json)))
+        case "RSA1_5":
+            self.init(try RSADecrypter<RSA15>(jwk: try PrivateJWK(json: json)))
         case "RSA-OAEP":
-            return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP>(jwk: try PrivateJWK(json: json)))
+            self.init(try RSADecrypter<RSAOAEP>(jwk: try PrivateJWK(json: json)))
         case "RSA-OAEP-256":
-            return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
+            self.init(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
         case "ECDH-ES":
-            return try ECDHES.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhES.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A128KW":
-            return try ECDHESA128KW.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhESA128KW.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A192KW":
-            return try ECDHESA192KW.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhESA192KW.decrypter(for: try PrivateJWK(json: json))
         case "ECDH-ES+A256KW":
-            return try ECDHESA256KW.decrypter(for: try PrivateJWK(json: json))
+            self = try KeyManagement.ecdhESA256KW.decrypter(for: try PrivateJWK(json: json))
         default:
             throw VectorError(description: "no decrypter for \(algorithm)")
         }

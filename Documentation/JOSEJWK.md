@@ -29,6 +29,30 @@ let thumbprint = try key.thumbprint()             // RFC 7638, SHA-256
 let set = try JWKSet(json: data)                  // set.rejected says why any key was skipped
 ```
 
+### PEM
+
+`JWK(pem:)` and `PrivateJWK(pem:)` read one PEM block (RFC 7468), with optional `metadata`:
+
+| Type | PEM label | Keys |
+|---|---|---|
+| `JWK` | `PUBLIC KEY` (SubjectPublicKeyInfo) | RSA, P-256, P-384, P-521, Ed25519, X25519 |
+| `JWK` | `RSA PUBLIC KEY` (PKCS#1) | RSA |
+| `PrivateJWK` | `PRIVATE KEY` (PKCS#8, versions 1 and 2) | RSA, P-256, P-384, P-521, Ed25519, X25519 |
+| `PrivateJWK` | `RSA PRIVATE KEY` (PKCS#1) | RSA |
+| `PrivateJWK` | `EC PRIVATE KEY` (SEC1) | P-256, P-384, P-521 |
+
+```swift
+let key = try JWK(pem: pemText, metadata: JWKMetadata(keyID: "signing-2026"))
+```
+
+Reading is strict:
+
+- The DER must be canonical.
+- A public key carried inside a private key must be that key's own.
+- Encrypted keys (`ENCRYPTED PRIVATE KEY`, or OpenSSL's legacy `Proc-Type` headers) are refused, and so are certificates.
+- Any other algorithm or curve, such as brainpool or Ed448, fails with `unsupportedKeyAlgorithm(oid:)`.
+- The usual key checks apply, for example RSA keys must be at least 2048 bits.
+
 ## Signing and verifying
 
 `ECDSASigner<Curve>`, `Ed25519Signer<Algorithm>`, `RSASigner<Algorithm>` and `HMACSigner<Algorithm>`
@@ -65,6 +89,8 @@ swift test --filter JOSEJWKTests
 ./scripts/interop.sh jwk     # closed-loop check against panva/jose and OpenSSL (needs Node)
 ```
 
-Fixtures in `Tests/JOSEJWKTests/Fixtures` come from `interop/jwk/generate-fixtures.mjs`. Secure
+Fixtures in `Tests/JOSEJWKTests/Fixtures` come from `interop/jwk/generate-fixtures.mjs`, and
+`pem.json` from `interop/jwk/generate-pem-fixtures.mjs` (OpenSSL's PEM output for each key, with
+the same key as a JWK). Secure
 Enclave and keychain tests run against real hardware only where the process is entitled to use
 it; elsewhere they run against mocks and say so.

@@ -31,7 +31,7 @@ public struct ECPublicKey<Curve: EllipticCurve>: Sendable, Hashable {
         guard bytes[0] == 0x04 else {
             throw .x963NotUncompressed(curve: Curve.name, marker: bytes[0])
         }
-        guard Curve.isPointOnCurve(x963: bytes) else {
+        guard Curve().isPointOnCurve(x963: bytes) else {
             throw .pointNotOnCurve(curve: Curve.name)
         }
         self.x963Representation = bytes
@@ -52,7 +52,7 @@ public struct ECPublicKey<Curve: EllipticCurve>: Sendable, Hashable {
 extension ECPublicKey where Curve: ECDSACurve {
     /// Wraps a CryptoKit (or swift-crypto) signing public key.
     public init(_ key: Curve.VerifyingKey) throws(JWKError) {
-        try self.init(x963Representation: Curve.x963(of: key))
+        try self.init(x963Representation: Curve().x963(of: key))
     }
 }
 
@@ -68,7 +68,7 @@ public struct ECPrivateKey<Curve: EllipticCurve>: Sendable {
 
     /// Generates a new key.
     public init() throws(JWKError) {
-        try self.init(rawRepresentation: Curve.generatePrivateScalar())
+        try self.init(rawRepresentation: Curve().generatePrivateScalar())
     }
 
     public init(rawRepresentation: Data) throws(JWKError) {
@@ -81,7 +81,7 @@ public struct ECPrivateKey<Curve: EllipticCurve>: Sendable {
             )
         }
         let scalar = Data(rawRepresentation)
-        guard let publicPoint = Curve.publicKeyX963(privateScalar: scalar) else {
+        guard let publicPoint = Curve().publicKeyX963(privateScalar: scalar) else {
             throw .invalidPrivateKey(curve: Curve.name)
         }
         self.rawRepresentation = scalar
@@ -92,7 +92,7 @@ public struct ECPrivateKey<Curve: EllipticCurve>: Sendable {
 extension ECPrivateKey where Curve: ECDSACurve {
     /// Wraps a CryptoKit (or swift-crypto) signing private key.
     public init(_ key: Curve.SigningKey) throws(JWKError) {
-        try self.init(rawRepresentation: Curve.privateScalar(of: key))
+        try self.init(rawRepresentation: Curve().privateScalar(of: key))
     }
 }
 

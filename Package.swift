@@ -20,6 +20,13 @@ let cryptoExtras: Target.Dependency = .product(
     package: "swift-crypto",
     condition: .when(platforms: nonApplePlatforms)
 )
+// Windows has no system zlib, so JWE compression (`zip`) is not available there.
+let zlib: Target.Dependency = .target(
+    name: "CZlib",
+    condition: .when(platforms: [
+        .macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS, .driverKit, .linux, .android, .wasi, .openbsd,
+    ])
+)
 
 let package = Package(
     name: "JOSEKit",
@@ -65,8 +72,14 @@ let package = Package(
         ),
         .target(
             name: "JOSEJWE",
-            dependencies: ["JOSECore", "JOSEJWK", crypto, cryptoExtras],
+            dependencies: ["JOSECore", "JOSEJWK", zlib, crypto, cryptoExtras],
             swiftSettings: swiftSettings
+        ),
+        // The system zlib, for JWE compression (`zip`). No pkg-config lookup: on a Mac it can pick
+        // up a Homebrew zlib in place of the SDK's, which breaks builds for other Apple platforms.
+        .systemLibrary(
+            name: "CZlib",
+            providers: [.apt(["zlib1g-dev"]), .yum(["zlib-devel"])]
         ),
         .target(
             name: "JOSEJWT",
@@ -117,39 +130,49 @@ let package = Package(
 
         // MARK: Tests
 
+        // Helpers the test targets share: fixture loading, hex, and keys from counterpart JWKs.
+        // Not a product; it is built only for the tests that depend on it.
+        .target(
+            name: "TestSupport",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            path: "Tests/TestSupport",
+            swiftSettings: swiftSettings
+        ),
         .testTarget(
             name: "JOSECoreTests",
-            dependencies: ["JOSECore"],
+            dependencies: ["JOSECore", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWKTests",
-            dependencies: ["JOSECore", "JOSEJWK", crypto],
+            dependencies: ["JOSECore", "JOSEJWK", "TestSupport", crypto],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWSTests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWETests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWTTests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "JOSEJWTEncryptedTests",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted"],
+            dependencies: [
+                "JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted", "TestSupport",
+            ],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),

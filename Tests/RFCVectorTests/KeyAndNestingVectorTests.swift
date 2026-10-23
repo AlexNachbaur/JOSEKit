@@ -41,10 +41,10 @@ struct KeyAndNestingVectorTests {
     func nestedJWT() async throws {
         let vector = try Vector("6.nesting_signatures_and_encryption.json")
         let decryption = DecryptionKeys([
-            try VectorKeys.decrypter(algorithm: "RSA-OAEP", key: try vector.value("encrypt", "input", "key"))
+            try AnyKeyDecrypter(algorithm: "RSA-OAEP", key: try vector.value("encrypt", "input", "key"))
         ])
         let verification = VerificationKeys([
-            try VectorKeys.verifier(algorithm: "PS256", key: try vector.value("sign", "input", "key"))
+            try AnyVerifier(algorithm: "PS256", key: try vector.value("sign", "input", "key"))
         ])
         // The claims expire at 1300819380 (2011-03-22T18:43:00Z); validate just before then.
         let policy = JWTValidationPolicy(

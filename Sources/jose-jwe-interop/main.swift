@@ -31,6 +31,18 @@ struct Challenge: Decodable {
     let multiple: [EncryptCase]
     /// JWEs made by the counterpart, some intact and some not, for this package to open.
     let decrypt: [DecryptCase]
+
+    /// Compression (`zip: DEF`): a shared A256KW key, a plaintext for this package to compress,
+    /// and JWEs the counterpart compressed for this package to open.
+    struct Compression: Decodable {
+        struct Token: Decodable {
+            let token: String
+        }
+        let jwk: String
+        let plaintext: String
+        let tokens: [Token]
+    }
+    let compression: Compression
 }
 
 struct Response: Encodable {
@@ -47,6 +59,9 @@ struct Response: Encodable {
     var produced: [Produced] = []
     var multiple = ""
     var outcomes: [Outcome] = []
+    /// The compression plaintext, compressed and encrypted by this package.
+    var compressed = ""
+    var compressedOutcomes: [Outcome] = []
 }
 
 struct InteropError: Error, CustomStringConvertible {
@@ -113,9 +128,9 @@ func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> An
     case "ECDH-ES+A256KW":
         return AnyKeyEncrypter(try ECDHESEncrypter<ECDHESA256KW>(jwk: try publicKey()))
     case "RSA-OAEP":
-        return AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP>(jwk: try publicKey()))
+        return AnyKeyEncrypter(try RSAEncrypter<RSAOAEP>(jwk: try publicKey()))
     case "RSA-OAEP-256":
-        return AnyKeyEncrypter(try RSAOAEPEncrypter<RSAOAEP256>(jwk: try publicKey()))
+        return AnyKeyEncrypter(try RSAEncrypter<RSAOAEP256>(jwk: try publicKey()))
     case "PBES2-HS256+A128KW":
         return AnyKeyEncrypter(
             try PBES2Encrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation, keyID: keyID)
@@ -184,9 +199,9 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "ECDH-ES+A256KW":
         return try ecdhDecrypter(ECDHESA256KW.self, try PrivateJWK(json: json))
     case "RSA-OAEP":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP>(privateKey: try rsa()))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP>(privateKey: try rsa()))
     case "RSA-OAEP-256":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(privateKey: try rsa()))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(privateKey: try rsa()))
     case "PBES2-HS256+A128KW":
         return AnyKeyDecrypter(PBES2Decrypter<PBES2HS256A128KW>(password: try secret().rawRepresentation))
     case "PBES2-HS384+A192KW":
@@ -207,50 +222,50 @@ func seal(
     let header = JWEHeaderParameters(type: "example+jwe")
     switch encryption {
     case "A128GCM":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
-            using: A128GCM.self,
+            using: .a128gcm,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A192GCM":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
-            using: A192GCM.self,
+            using: .a192gcm,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A256GCM":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
-            using: A256GCM.self,
+            using: .a256gcm,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A128CBC-HS256":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
-            using: A128CBCHS256.self,
+            using: .a128cbcHS256,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A192CBC-HS384":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
-            using: A192CBCHS384.self,
+            using: .a192cbcHS384,
             header: header,
             additionalAuthenticatedData: additionalData
         )
     case "A256CBC-HS512":
-        return try await SimpleJWE.encrypt(
-            plaintext,
+        return try await SimpleJWE.Encrypted(
+            encrypting: plaintext,
             to: recipients,
-            using: A256CBCHS512.self,
+            using: .a256cbcHS512,
             header: header,
             additionalAuthenticatedData: additionalData
         )
@@ -306,5 +321,25 @@ for item in challenge.decrypt {
         response.outcomes.append(Response.Outcome(accepted: false, plaintext: nil))
     }
 }
+
+// `zip` does not exist on Windows (no system zlib); the interop check runs on Linux and macOS.
+#if !os(Windows)
+    let zipKey = try SymmetricJWK(json: Data(challenge.compression.jwk.utf8))
+    response.compressed = try await SimpleJWE.Encrypted(
+        encrypting: try bytes(fromHex: challenge.compression.plaintext),
+        to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
+        using: .a256gcm,
+        header: JWEHeaderParameters(compression: .deflate)
+    ).compactSerialization()
+    let zipKeys = DecryptionKeys([AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: zipKey))])
+    for item in challenge.compression.tokens {
+        do {
+            let decrypted = try await SimpleJWE.Encrypted(compact: item.token).decrypt(with: zipKeys)
+            response.compressedOutcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
+        } catch {
+            response.compressedOutcomes.append(Response.Outcome(accepted: false, plaintext: nil))
+        }
+    }
+#endif
 
 FileHandle.standardOutput.write(try JSONEncoder().encode(response))

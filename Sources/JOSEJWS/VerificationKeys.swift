@@ -47,76 +47,187 @@ public struct AnyVerifier: Sendable {
     }
 }
 
-/// An algorithm for which a verifier can be built from a ``JWK``. Conform an add-on algorithm to
-/// this to make it usable with ``VerificationKeys/init(jwks:allowing:)``.
-public protocol JWKVerifiableAlgorithm: SignatureAlgorithm {
-    static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier
+/// An algorithm for which a verifier can be built from a ``JWK``, so that it can be listed in
+/// ``VerificationKeys/init(jwks:allowing:)`` and ``HeaderKeyResolver``.
+///
+/// The built-in ones are the cases of ``JWSAlgorithm``. An add-on algorithm conforms with an
+/// instance, as the built-in types do: `ES256()`.
+public protocol JWKVerifiableAlgorithm: Sendable {
+    /// The algorithm's `alg`.
+    var identifier: AlgorithmIdentifier { get }
+
+    /// A verifier for this algorithm, if the key's type and its `use`, `key_ops` and `alg`
+    /// allow it.
+    func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier
+}
+
+extension JWKVerifiableAlgorithm where Self: SignatureAlgorithm {
+    public var identifier: AlgorithmIdentifier {
+        Self.identifier
+    }
 }
 
 extension ES256: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try ECDSAVerifier<P256Curve>(jwk: jwk))
     }
 }
 
 extension ES384: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try ECDSAVerifier<P384Curve>(jwk: jwk))
     }
 }
 
 extension ES512: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try ECDSAVerifier<P521Curve>(jwk: jwk))
     }
 }
 
 extension JOSECore.Ed25519: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try Ed25519Verifier<JOSECore.Ed25519>(jwk: jwk))
     }
 }
 
 extension EdDSA: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try Ed25519Verifier<EdDSA>(jwk: jwk))
     }
 }
 
 extension RS256: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try RSAVerifier<RS256>(jwk: jwk))
     }
 }
 
 extension RS384: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try RSAVerifier<RS384>(jwk: jwk))
     }
 }
 
 extension RS512: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try RSAVerifier<RS512>(jwk: jwk))
     }
 }
 
 extension PS256: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try RSAVerifier<PS256>(jwk: jwk))
     }
 }
 
 extension PS384: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try RSAVerifier<PS384>(jwk: jwk))
     }
 }
 
 extension PS512: JWKVerifiableAlgorithm {
-    public static func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
         AnyVerifier(try RSAVerifier<PS512>(jwk: jwk))
     }
+}
+
+/// The signature algorithms whose verifiers this package can build from a JWK. Each case
+/// delegates to the type that implements it, such as ``ES256``.
+public enum JWSAlgorithm: JWKVerifiableAlgorithm, CaseIterable, Hashable {
+    case es256
+    case es384
+    case es512
+    case ed25519
+    case edDSA
+    case rs256
+    case rs384
+    case rs512
+    case ps256
+    case ps384
+    case ps512
+
+    /// The type that implements this algorithm.
+    public var algorithm: any JWKVerifiableAlgorithm {
+        switch self {
+        case .es256:
+            return ES256()
+        case .es384:
+            return ES384()
+        case .es512:
+            return ES512()
+        case .ed25519:
+            return JOSECore.Ed25519()
+        case .edDSA:
+            return EdDSA()
+        case .rs256:
+            return RS256()
+        case .rs384:
+            return RS384()
+        case .rs512:
+            return RS512()
+        case .ps256:
+            return PS256()
+        case .ps384:
+            return PS384()
+        case .ps512:
+            return PS512()
+        }
+    }
+
+    public var identifier: AlgorithmIdentifier {
+        algorithm.identifier
+    }
+
+    public func verifier(for jwk: JWK) throws(JWKError) -> AnyVerifier {
+        try algorithm.verifier(for: jwk)
+    }
+}
+
+// So that `allowing: [.es256, .ps256]` reads naturally (SE-0299).
+extension JWKVerifiableAlgorithm where Self == ES256 {
+    public static var es256: ES256 { ES256() }
+}
+
+extension JWKVerifiableAlgorithm where Self == ES384 {
+    public static var es384: ES384 { ES384() }
+}
+
+extension JWKVerifiableAlgorithm where Self == ES512 {
+    public static var es512: ES512 { ES512() }
+}
+
+extension JWKVerifiableAlgorithm where Self == JOSECore.Ed25519 {
+    public static var ed25519: JOSECore.Ed25519 { JOSECore.Ed25519() }
+}
+
+extension JWKVerifiableAlgorithm where Self == EdDSA {
+    public static var edDSA: EdDSA { EdDSA() }
+}
+
+extension JWKVerifiableAlgorithm where Self == RS256 {
+    public static var rs256: RS256 { RS256() }
+}
+
+extension JWKVerifiableAlgorithm where Self == RS384 {
+    public static var rs384: RS384 { RS384() }
+}
+
+extension JWKVerifiableAlgorithm where Self == RS512 {
+    public static var rs512: RS512 { RS512() }
+}
+
+extension JWKVerifiableAlgorithm where Self == PS256 {
+    public static var ps256: PS256 { PS256() }
+}
+
+extension JWKVerifiableAlgorithm where Self == PS384 {
+    public static var ps384: PS384 { PS384() }
+}
+
+extension JWKVerifiableAlgorithm where Self == PS512 {
+    public static var ps512: PS512 { PS512() }
 }
 
 /// The keys a JWS may be verified with.
@@ -139,7 +250,7 @@ public struct VerificationKeys: Sendable {
     ///
     /// Each key yields a verifier for each listed algorithm it is suitable for: right key type,
     /// and permitted by the key's `use`, `key_ops` and `alg`. Keys suitable for none are skipped.
-    public init(jwks: JWKSet, allowing algorithms: [any JWKVerifiableAlgorithm.Type]) {
+    public init(jwks: JWKSet, allowing algorithms: [any JWKVerifiableAlgorithm]) {
         var verifiers: [AnyVerifier] = []
         for jwk in jwks.keys {
             // A key that suits no algorithm contributes no verifier, and a token needing it then
@@ -154,7 +265,7 @@ public struct VerificationKeys: Sendable {
     /// caller with a single key can report the real reason it was unusable.
     static func verifiers(
         for jwk: JWK,
-        allowing algorithms: [any JWKVerifiableAlgorithm.Type]
+        allowing algorithms: [any JWKVerifiableAlgorithm]
     ) -> (verifiers: [AnyVerifier], failures: [JWKError]) {
         var verifiers: [AnyVerifier] = []
         var failures: [JWKError] = []

@@ -65,7 +65,7 @@ extension VerificationKeys {
     public init(
         jwksAt url: URL,
         provider: any JWKSetProvider,
-        allowing algorithms: [any JWKVerifiableAlgorithm.Type]
+        allowing algorithms: [any JWKVerifiableAlgorithm]
     ) async throws(KeyResolutionError) {
         let set: JWKSet
         do {
@@ -106,10 +106,10 @@ public struct HeaderKeyResolver: Sendable {
     public var certificateChainValidator: (any CertificateChainValidator)?
     public var allowsEmbeddedKey: Bool
     /// The algorithms a resolved key may be used with.
-    public let algorithms: [any JWKVerifiableAlgorithm.Type]
+    public let algorithms: [any JWKVerifiableAlgorithm]
 
     public init(
-        algorithms: [any JWKVerifiableAlgorithm.Type],
+        algorithms: [any JWKVerifiableAlgorithm],
         jwkSetProvider: (any JWKSetProvider)? = nil,
         allowedJWKSetURLs: Set<URL> = [],
         certificateChainValidator: (any CertificateChainValidator)? = nil,
@@ -198,14 +198,13 @@ public struct HeaderKeyResolver: Sendable {
             }
             certificates.append(der)
         }
-        if let thumbprint = header.parameters.x509CertificateSHA1Thumbprint {
-            guard thumbprint == Base64URL.encode(CertificateDigest.sha1(certificates[0])) else {
-                throw .certificateThumbprintMismatch(parameter: "x5t")
-            }
-        }
-        if let thumbprint = header.parameters.x509CertificateSHA256Thumbprint {
-            guard thumbprint == Base64URL.encode(CertificateDigest.sha256(certificates[0])) else {
-                throw .certificateThumbprintMismatch(parameter: "x5t#S256")
+        let thumbprints: [(CertificateDigest, String?)] = [
+            (.sha1, header.parameters.x509CertificateSHA1Thumbprint),
+            (.sha256, header.parameters.x509CertificateSHA256Thumbprint),
+        ]
+        for case (let digest, let thumbprint?) in thumbprints {
+            guard thumbprint == String(base64URLEncoding: digest.digest(of: certificates[0])) else {
+                throw .certificateThumbprintMismatch(parameter: digest.parameter)
             }
         }
         do {

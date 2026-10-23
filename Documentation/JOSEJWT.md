@@ -25,7 +25,7 @@ token should take a `Validated`, which cannot be made any other way.
 ## Building a token
 
 ```swift
-let token = try await SimpleJWT.sign(with: signer, type: "at+jwt") {
+let signed = try await SimpleJWT.Signed(signingWith: signer, type: "at+jwt") {
     Issuer("https://issuer.example")
     Subject(userID)
     Audience("https://api.example")
@@ -34,6 +34,7 @@ let token = try await SimpleJWT.sign(with: signer, type: "at+jwt") {
     JWTID.random()
     Claim("scope", "read write")
 }
+let token = signed.compactSerialization()
 ```
 
 Typed claims go in a `Codable` struct as the `Custom` parameter, and are written exactly as the
@@ -59,7 +60,9 @@ refused unless `requiresExpiration: false`. A negative leeway counts as zero.
 ## Encrypted and nested JWTs (`JOSEJWTEncrypted`)
 
 ```swift
-let token = try await EncryptedJWT<MyClaims, EmptyHeaderParameters>.encrypt(claims, to: recipient, using: A256GCM.self)
+let token = try await EncryptedJWT<MyClaims, EmptyHeaderParameters>
+    .Encrypted(encrypting: claims, to: recipient, using: .a256gcm)
+    .compactSerialization()
 let validated = try await EncryptedJWT<MyClaims, EmptyHeaderParameters>.Encrypted(compact: token)
     .decrypt(with: keys)
     .validate(policy)
@@ -69,7 +72,8 @@ A token encrypted to a public key proves nothing about who wrote it. For an issu
 
 ```swift
 let token = try await NestedJWT<MyClaims, EmptyHeaderParameters>
-    .signThenEncrypt(claims, signedBy: signer, encryptedTo: recipient, using: A256GCM.self)
+    .Encrypted(signing: claims, signedBy: signer, encryptedTo: recipient, using: .a256gcm)
+    .compactSerialization()
 let encrypted = try NestedJWT<MyClaims, EmptyHeaderParameters>.Encrypted(compact: token)
 encrypted.header                         // the outer header, readable before decryption
 let validated = try await encrypted

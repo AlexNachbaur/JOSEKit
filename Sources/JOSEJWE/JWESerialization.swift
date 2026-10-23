@@ -14,8 +14,8 @@ extension JWE.Encrypted {
         guard !segments[0].isEmpty else {
             throw .missingAlgorithm
         }
-        let protectedJSON = try JWEJSON.decodeBase64URL(segments[0], part: "protected header")
-        let protected = try JWEJSON.protectedValues(protectedJSON)
+        let protectedJSON = try Data(jwePart: segments[0], named: "protected header")
+        let protected = try [String: JSONValue](jweProtectedHeader: protectedJSON)
         let header = try JWEHeader<Custom>.parse(
             protectedJSON: protectedJSON,
             protected: protected,
@@ -24,16 +24,16 @@ extension JWE.Encrypted {
         )
         let recipient = JWE.Recipient(
             header: header,
-            encryptedKey: try JWEJSON.decodeBase64URL(segments[1], part: "encrypted key"),
+            encryptedKey: try Data(jwePart: segments[1], named: "encrypted key"),
             unprotected: [:]
         )
         try self.init(
             protectedEncoded: segments[0],
             sharedUnprotected: [:],
             recipients: [.success(recipient)],
-            initializationVector: try JWEJSON.decodeBase64URL(segments[2], part: "initialization vector"),
-            ciphertext: try JWEJSON.decodeBase64URL(segments[3], part: "ciphertext"),
-            tag: try JWEJSON.decodeBase64URL(segments[4], part: "authentication tag"),
+            initializationVector: try Data(jwePart: segments[2], named: "initialization vector"),
+            ciphertext: try Data(jwePart: segments[3], named: "ciphertext"),
+            tag: try Data(jwePart: segments[4], named: "authentication tag"),
             additionalDataEncoded: nil
         )
     }
@@ -41,7 +41,7 @@ extension JWE.Encrypted {
     /// Parses the JWE JSON Serialization, in either its flattened or its general form.
     public init(json: Data) throws(JWEError) {
         do {
-            try JSONMemberUniqueness.validate(json)
+            try json.requireUniqueJSONMembers()
         } catch {
             throw .invalidJSONStructure(error)
         }
@@ -75,8 +75,8 @@ extension JWE.Encrypted {
         var protectedJSON: Data?
         var protected: [String: JSONValue] = [:]
         if !protectedEncoded.isEmpty {
-            let decoded = try JWEJSON.decodeBase64URL(protectedEncoded, part: "protected header")
-            protected = try JWEJSON.protectedValues(decoded)
+            let decoded = try Data(jwePart: protectedEncoded, named: "protected header")
+            protected = try [String: JSONValue](jweProtectedHeader: decoded)
             protectedJSON = decoded
         }
         let sharedUnprotected = try object("unprotected", in: document)
@@ -113,7 +113,7 @@ extension JWE.Encrypted {
                     guard case .string(let text) = value else {
                         throw JWEError.invalidJSONSerialization(reason: "\"encrypted_key\" must be a string")
                     }
-                    encryptedKey = try JWEJSON.decodeBase64URL(text, part: "encrypted key")
+                    encryptedKey = try Data(jwePart: text, named: "encrypted key")
                 }
                 let header = try JWEHeader<Custom>.parse(
                     protectedJSON: protectedJSON,
@@ -136,15 +136,15 @@ extension JWE.Encrypted {
 
         let additionalDataEncoded = try string("aad")
         if let additionalDataEncoded {
-            _ = try JWEJSON.decodeBase64URL(additionalDataEncoded, part: "aad")
+            _ = try Data(jwePart: additionalDataEncoded, named: "aad")
         }
         try self.init(
             protectedEncoded: protectedEncoded,
             sharedUnprotected: sharedUnprotected,
             recipients: recipients,
-            initializationVector: try JWEJSON.decodeBase64URL(try string("iv") ?? "", part: "initialization vector"),
-            ciphertext: try JWEJSON.decodeBase64URL(ciphertextEncoded, part: "ciphertext"),
-            tag: try JWEJSON.decodeBase64URL(try string("tag") ?? "", part: "authentication tag"),
+            initializationVector: try Data(jwePart: try string("iv") ?? "", named: "initialization vector"),
+            ciphertext: try Data(jwePart: ciphertextEncoded, named: "ciphertext"),
+            tag: try Data(jwePart: try string("tag") ?? "", named: "authentication tag"),
             additionalDataEncoded: additionalDataEncoded
         )
     }
@@ -174,18 +174,18 @@ extension JWE.Encrypted {
         }
         return [
             protectedEncoded,
-            Base64URL.encode(usable[0].encryptedKey),
-            Base64URL.encode(initializationVector),
-            Base64URL.encode(ciphertext),
-            Base64URL.encode(tag),
+            String(base64URLEncoding: usable[0].encryptedKey),
+            String(base64URLEncoding: initializationVector),
+            String(base64URLEncoding: ciphertext),
+            String(base64URLEncoding: tag),
         ].joined(separator: ".")
     }
 
     private func commonMembers() -> [String: JSONValue] {
         var document: [String: JSONValue] = [
-            "iv": .string(Base64URL.encode(initializationVector)),
-            "ciphertext": .string(Base64URL.encode(ciphertext)),
-            "tag": .string(Base64URL.encode(tag)),
+            "iv": .string(String(base64URLEncoding: initializationVector)),
+            "ciphertext": .string(String(base64URLEncoding: ciphertext)),
+            "tag": .string(String(base64URLEncoding: tag)),
         ]
         if !protectedEncoded.isEmpty {
             document["protected"] = .string(protectedEncoded)
@@ -205,14 +205,14 @@ extension JWE.Encrypted {
             members["header"] = .object(recipient.unprotected)
         }
         if !recipient.encryptedKey.isEmpty {
-            members["encrypted_key"] = .string(Base64URL.encode(recipient.encryptedKey))
+            members["encrypted_key"] = .string(String(base64URLEncoding: recipient.encryptedKey))
         }
         return members
     }
 
     private static func encode(_ document: [String: JSONValue]) throws(JWEError) -> Data {
         do {
-            return try JWEJSON.encoder().encode(document)
+            return try JSONEncoder.deterministic().encode(document)
         } catch {
             throw .headerEncodingFailed(description: String(describing: error))
         }

@@ -35,61 +35,62 @@ extension Base64URLError: CustomStringConvertible {
     }
 }
 
-/// base64url as used by JOSE (RFC 7515 §2, RFC 4648 §5).
-///
-/// Encoded values are compared for equality by other implementations (thumbprints, key coordinates),
-/// so decoding accepts only strings an encoder could have produced. Foundation's
-/// `Data(base64Encoded:)` is deliberately not used: it accepts over-padded input such as `"YQ==="`.
-public struct Base64URL: Sendable {
-    private init() {}
+// base64url as used by JOSE (RFC 7515 §2, RFC 4648 §5).
+//
+// Encoded values are compared for equality by other implementations (thumbprints, key
+// coordinates), so decoding accepts only strings an encoder could have produced. Foundation's
+// `Data(base64Encoded:)` is deliberately not used: it accepts over-padded input such as `"YQ==="`.
 
-    private static let paddingByte = UInt8(ascii: "=")
-    private static let invalid: UInt8 = 0xFF
+private let base64URLPadding = UInt8(ascii: "=")
+private let base64URLInvalid: UInt8 = 0xFF
 
-    private static let alphabet: [UInt8] = Array(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".utf8
-    )
+private let base64URLAlphabet: [UInt8] = Array(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".utf8
+)
 
-    private static let decodeTable: [UInt8] = {
-        var table = [UInt8](repeating: invalid, count: 256)
-        for (value, character) in alphabet.enumerated() {
-            table[Int(character)] = UInt8(value)
-        }
-        return table
-    }()
+private let base64URLDecodeTable: [UInt8] = {
+    var table = [UInt8](repeating: base64URLInvalid, count: 256)
+    for (value, character) in base64URLAlphabet.enumerated() {
+        table[Int(character)] = UInt8(value)
+    }
+    return table
+}()
 
-    /// Encodes `bytes` without padding.
-    public static func encode(_ bytes: some Collection<UInt8>) -> String {
+extension String {
+    /// `bytes` in base64url, without padding.
+    public init(base64URLEncoding bytes: some Collection<UInt8>) {
         var output: [UInt8] = []
         output.reserveCapacity((bytes.count * 4 + 2) / 3)
         var iterator = bytes.makeIterator()
         while let first = iterator.next() {
             let second = iterator.next()
             let third = iterator.next()
-            output.append(alphabet[Int(first >> 2)])
-            output.append(alphabet[Int((first & 0x03) << 4 | (second ?? 0) >> 4)])
+            output.append(base64URLAlphabet[Int(first >> 2)])
+            output.append(base64URLAlphabet[Int((first & 0x03) << 4 | (second ?? 0) >> 4)])
             guard let second else {
                 break
             }
-            output.append(alphabet[Int((second & 0x0F) << 2 | (third ?? 0) >> 6)])
+            output.append(base64URLAlphabet[Int((second & 0x0F) << 2 | (third ?? 0) >> 6)])
             guard let third else {
                 break
             }
-            output.append(alphabet[Int(third & 0x3F)])
+            output.append(base64URLAlphabet[Int(third & 0x3F)])
         }
-        return String(decoding: output, as: UTF8.self)
+        self.init(decoding: output, as: UTF8.self)
     }
+}
 
+extension Data {
     /// Decodes a base64url string.
     ///
     /// Padding is optional, but if present it must be exactly the amount that completes the final
     /// quantum. Everything else that is not canonical base64url is refused; see ``Base64URLError``.
-    public static func decode(_ string: some StringProtocol) throws(Base64URLError) -> Data {
+    public init(base64URLEncoded string: some StringProtocol) throws(Base64URLError) {
         let bytes = Array(string.utf8)
 
         var bodyCount = bytes.count
-        if let firstPadding = bytes.firstIndex(of: paddingByte) {
-            guard bytes[firstPadding...].allSatisfy({ $0 == paddingByte }) else {
+        if let firstPadding = bytes.firstIndex(of: base64URLPadding) {
+            guard bytes[firstPadding...].allSatisfy({ $0 == base64URLPadding }) else {
                 throw .misplacedPadding(offset: firstPadding)
             }
             bodyCount = firstPadding
@@ -113,8 +114,8 @@ public struct Base64URL: Sendable {
         var accumulator: UInt32 = 0
         var pendingBits: UInt32 = 0
         for offset in 0..<bodyCount {
-            let value = decodeTable[Int(bytes[offset])]
-            guard value != invalid else {
+            let value = base64URLDecodeTable[Int(bytes[offset])]
+            guard value != base64URLInvalid else {
                 throw .invalidCharacter(byte: bytes[offset], offset: offset)
             }
             accumulator = (accumulator << 6) | UInt32(value)
@@ -132,6 +133,6 @@ public struct Base64URL: Sendable {
             throw .nonCanonicalTrailingBits(offset: bodyCount - 1)
         }
 
-        return output
+        self = output
     }
 }

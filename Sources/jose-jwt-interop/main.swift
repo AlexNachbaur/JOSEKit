@@ -65,7 +65,7 @@ let now = Date(timeIntervalSince1970: challenge.now)
 let clock = JWTClock.fixed(now)
 
 func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produced {
-    let built = try await SignedJWT<EmptyClaims>.sign(with: signer, type: "at+jwt") {
+    let built = try await SignedJWT<EmptyClaims>.Signed(signingWith: signer, type: "at+jwt") {
         Issuer("https://issuer.example")
         Subject("user-123")
         Audience("https://api.example")
@@ -75,7 +75,7 @@ func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produ
         JWTID("built-1")
         Claim("scope", "read write")
         Claim("nested", ["flag": true, "list": [1, "two"]])
-    }
+    }.compactSerialization()
 
     var claims = JWTClaims(
         issuer: "https://issuer.example",
@@ -85,11 +85,11 @@ func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produ
         custom: AppClaims(scope: "admin", tenant: 7, roles: ["a", "b"])
     )
     claims.additionalClaims["https://example.com/claim"] = "namespaced"
-    let typed = try await JWT<AppClaims, AppHeader>.sign(
-        claims,
+    let typed = try await JWT<AppClaims, AppHeader>.Signed(
+        signing: claims,
         with: signer,
         header: JWSHeaderParameters(type: "JWT", custom: AppHeader(nonce: "n-1"))
-    )
+    ).compactSerialization()
     return Response.Produced(algorithm: S.Algorithm.identifier.rawValue, jwk: jwk, built: built, typed: typed)
 }
 
@@ -123,15 +123,10 @@ response.produced.append(
 
 func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
     let json = Data(jwk.utf8)
+    if let named = JWSAlgorithm.allCases.first(where: { $0.identifier.rawValue == algorithm }) {
+        return try named.verifier(for: try JWK(json: json))
+    }
     switch algorithm {
-    case "ES256":
-        return try ES256.verifier(for: try JWK(json: json))
-    case "Ed25519":
-        return try JOSECore.Ed25519.verifier(for: try JWK(json: json))
-    case "RS256":
-        return try RS256.verifier(for: try JWK(json: json))
-    case "PS256":
-        return try PS256.verifier(for: try JWK(json: json))
     case "HS256":
         return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
     default:

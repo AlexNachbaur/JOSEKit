@@ -106,11 +106,15 @@ let secondSigner = try ECDSASigner(privateKey: secondKey, keyID: "second")
 let secondJWK = text(try JWK(.p256(secondKey.publicKey)).jsonRepresentation())
 
 func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produced {
-    let signed = try await SimpleJWS.sign(payload, with: signer, header: JWSHeaderParameters(type: "example+jws"))
+    let signed = try await SimpleJWS.Signed(
+        signing: payload,
+        with: signer,
+        header: JWSHeaderParameters(type: "example+jws")
+    )
     let both = try await signed.adding(signatureWith: secondSigner, header: JWSHeaderParameters())
-    let unencoded = try await SimpleJWS.sign(unencodedPayload, with: signer, payloadEncoding: .unencoded)
-    let custom = try await JWS<LevelHeader>.sign(
-        payload,
+    let unencoded = try await SimpleJWS.Signed(signing: unencodedPayload, with: signer, payloadEncoding: .unencoded)
+    let custom = try await JWS<LevelHeader>.Signed(
+        signing: payload,
         with: signer,
         header: JWSHeaderParameters(custom: LevelHeader(level: 7, must: "understood"))
     )
@@ -177,29 +181,10 @@ for key in challenge.hmacKeys {
 
 func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
     let json = Data(jwk.utf8)
+    if let named = JWSAlgorithm.allCases.first(where: { $0.identifier.rawValue == algorithm }) {
+        return try named.verifier(for: try JWK(json: json))
+    }
     switch algorithm {
-    case "ES256":
-        return try ES256.verifier(for: try JWK(json: json))
-    case "ES384":
-        return try ES384.verifier(for: try JWK(json: json))
-    case "ES512":
-        return try ES512.verifier(for: try JWK(json: json))
-    case "Ed25519":
-        return try JOSECore.Ed25519.verifier(for: try JWK(json: json))
-    case "EdDSA":
-        return try EdDSA.verifier(for: try JWK(json: json))
-    case "RS256":
-        return try RS256.verifier(for: try JWK(json: json))
-    case "RS384":
-        return try RS384.verifier(for: try JWK(json: json))
-    case "RS512":
-        return try RS512.verifier(for: try JWK(json: json))
-    case "PS256":
-        return try PS256.verifier(for: try JWK(json: json))
-    case "PS384":
-        return try PS384.verifier(for: try JWK(json: json))
-    case "PS512":
-        return try PS512.verifier(for: try JWK(json: json))
     case "HS256":
         return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
     case "HS384":

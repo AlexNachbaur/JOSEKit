@@ -33,9 +33,9 @@ extension JWS {
             signatureWith signer: S,
             header: JWSHeaderParameters<Custom>
         ) async throws(JWSError) -> Signed {
-            let entry = try await JWS.makeEntry(
-                payload: payload,
-                signer: signer,
+            let entry = try await SignatureEntry(
+                signing: payload,
+                with: signer,
                 header: header,
                 isPayloadBase64URLEncoded: isPayloadBase64URLEncoded
             )
@@ -51,7 +51,7 @@ extension JWS {
             }
             var payloadText = ""
             if !detached {
-                payloadText = try JWS.encodePayload(payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
+                payloadText = try String(jwsPayload: payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
                 if !isPayloadBase64URLEncoded {
                     // RFC 7797 §5.2: without encoding, the payload itself sits between the
                     // periods, so it cannot contain one, and should be limited to printable ASCII.
@@ -66,7 +66,7 @@ extension JWS {
                 }
             }
             let entry = entries[0]
-            return entry.protectedEncoded + "." + payloadText + "." + Base64URL.encode(entry.signature)
+            return entry.protectedEncoded + "." + payloadText + "." + String(base64URLEncoding: entry.signature)
         }
 
         /// The flattened JWS JSON Serialization, which holds exactly one signature.
@@ -77,7 +77,7 @@ extension JWS {
             var document = Self.signatureObject(entries[0])
             if !detached {
                 document["payload"] = .string(
-                    try JWS.encodePayload(payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
+                    try String(jwsPayload: payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
                 )
             }
             return try Self.encode(document)
@@ -90,7 +90,7 @@ extension JWS {
             ]
             if !detached {
                 document["payload"] = .string(
-                    try JWS.encodePayload(payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
+                    try String(jwsPayload: payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
                 )
             }
             return try Self.encode(document)
@@ -99,80 +99,87 @@ extension JWS {
         private static func signatureObject(_ entry: SignatureEntry) -> [String: JSONValue] {
             [
                 "protected": .string(entry.protectedEncoded),
-                "signature": .string(Base64URL.encode(entry.signature)),
+                "signature": .string(String(base64URLEncoding: entry.signature)),
             ]
         }
 
         private static func encode(_ document: [String: JSONValue]) throws(JWSError) -> Data {
             do {
-                return try HeaderJSON.encoder().encode(document)
+                return try JSONEncoder.deterministic().encode(document)
             } catch {
                 throw .headerEncodingFailed(description: String(describing: error))
             }
         }
     }
 
+}
+
+extension JWS.Signed {
     /// Signs `payload`.
     ///
     /// The header's `alg` is taken from the signer's type and cannot be supplied separately.
     /// Every header parameter is placed in the protected header.
-    public static func sign<S: Signer>(
-        _ payload: Data,
+    public init<S: Signer>(
+        signing payload: Data,
         with signer: S,
         header: JWSHeaderParameters<Custom>,
         payloadEncoding: PayloadEncoding = .base64URL
-    ) async throws(JWSError) -> Signed {
+    ) async throws(JWSError) {
         var isEncoded = true
         if case .unencoded = payloadEncoding {
             isEncoded = false
         }
-        let entry = try await makeEntry(
-            payload: payload,
-            signer: signer,
+        let entry = try await JWS.SignatureEntry(
+            signing: payload,
+            with: signer,
             header: header,
             isPayloadBase64URLEncoded: isEncoded
         )
-        return Signed(entries: [entry], payload: payload, payloadEncoding: payloadEncoding)
+        self.init(entries: [entry], payload: payload, payloadEncoding: payloadEncoding)
     }
+}
 
-    static func makeEntry<S: Signer>(
-        payload: Data,
-        signer: S,
+extension JWS.SignatureEntry {
+    /// Signs `payload` under `header`, producing one signature.
+    init<S: Signer>(
+        signing payload: Data,
+        with signer: S,
         header: JWSHeaderParameters<Custom>,
         isPayloadBase64URLEncoded: Bool
-    ) async throws(JWSError) -> SignatureEntry {
+    ) async throws(JWSError) {
         let protectedJSON = try header.protectedJSON(
             algorithm: S.Algorithm.identifier,
             signerKeyID: signer.keyID,
             isPayloadBase64URLEncoded: isPayloadBase64URLEncoded
         )
-        let protectedEncoded = Base64URL.encode(protectedJSON)
+        let protectedEncoded = String(base64URLEncoding: protectedJSON)
         // Parsing our own header back keeps one definition of what a header means, and refuses to
         // sign anything this package would not itself accept.
         let parsed = try JWSHeader<Custom>.parse(protected: protectedJSON, unprotected: nil)
-        let unsigned = SignatureEntry(protectedEncoded: protectedEncoded, header: parsed, signature: Data())
-        let signingPayload = signingPayload(payload, isBase64URLEncoded: isPayloadBase64URLEncoded)
+        let unsigned = Self(protectedEncoded: protectedEncoded, header: parsed, signature: Data())
+        let signingPayload = payload.jwsSigningPayload(isBase64URLEncoded: isPayloadBase64URLEncoded)
         let signature: Signature<S.Algorithm>
         do {
             signature = try await signer.sign(unsigned.signingInput(payload: signingPayload))
         } catch {
             throw .signingFailed(error)
         }
-        return SignatureEntry(
-            protectedEncoded: protectedEncoded,
-            header: parsed,
-            signature: signature.rawRepresentation
-        )
+        self.init(protectedEncoded: protectedEncoded, header: parsed, signature: signature.rawRepresentation)
     }
 }
 
-extension JWS where Custom == EmptyHeaderParameters {
+extension JWS.Signed where Custom == EmptyHeaderParameters {
     /// Signs `payload` with a header of registered parameters only.
-    public static func sign<S: Signer>(
-        _ payload: Data,
+    public init<S: Signer>(
+        signing payload: Data,
         with signer: S,
         payloadEncoding: PayloadEncoding = .base64URL
-    ) async throws(JWSError) -> Signed {
-        try await sign(payload, with: signer, header: JWSHeaderParameters(), payloadEncoding: payloadEncoding)
+    ) async throws(JWSError) {
+        try await self.init(
+            signing: payload,
+            with: signer,
+            header: JWSHeaderParameters(),
+            payloadEncoding: payloadEncoding
+        )
     }
 }

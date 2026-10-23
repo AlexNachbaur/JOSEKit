@@ -62,9 +62,9 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "A256KW":
         return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: try SymmetricJWK(json: json)))
     case "ECDH-ES":
-        return try ECDHES.decrypter(for: try PrivateJWK(json: json))
+        return try ECDHES().decrypter(for: try PrivateJWK(json: json))
     case "RSA-OAEP-256":
-        return AnyKeyDecrypter(try RSAOAEPDecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
+        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
     default:
         throw InteropError(description: "unsupported algorithm \(algorithm)")
     }
@@ -85,26 +85,30 @@ let signerJWK = String(decoding: try JWK(.p256(signingKey.publicKey)).jsonRepres
 /// Produces both token kinds through the public API, for one concrete recipient type and the
 /// named content encryption.
 func produce<R: KeyEncrypter>(_ recipient: R, algorithm: String, encryption: String) async throws -> Response.Produced {
-    func make<E: ContentEncryptionAlgorithm>(_ contentEncryption: E.Type) async throws -> Response.Produced {
+    func make(_ contentEncryption: some ContentEncryptionAlgorithm) async throws -> Response.Produced {
         Response.Produced(
             algorithm: algorithm,
-            encrypted: try await SimpleEncryptedJWT.encrypt(claims, to: recipient, using: contentEncryption),
-            nested: try await SimpleNestedJWT.signThenEncrypt(
-                claims,
+            encrypted: try await SimpleEncryptedJWT.Encrypted(
+                encrypting: claims,
+                to: recipient,
+                using: contentEncryption
+            ).compactSerialization(),
+            nested: try await SimpleNestedJWT.Encrypted(
+                signing: claims,
                 signedBy: signer,
                 encryptedTo: recipient,
                 using: contentEncryption
-            ),
+            ).compactSerialization(),
             signerJwk: signerJWK
         )
     }
     switch encryption {
     case "A256GCM":
-        return try await make(A256GCM.self)
+        return try await make(.a256gcm)
     case "A128CBC-HS256":
-        return try await make(A128CBCHS256.self)
+        return try await make(.a128cbcHS256)
     case "A256CBC-HS512":
-        return try await make(A256CBCHS512.self)
+        return try await make(.a256cbcHS512)
     default:
         throw InteropError(description: "unsupported content encryption \(encryption)")
     }
@@ -134,7 +138,7 @@ for recipient in challenge.recipients {
         )
     case "RSA-OAEP-256":
         produced = try await produce(
-            try RSAOAEPEncrypter<RSAOAEP256>(jwk: try JWK(json: json)),
+            try RSAEncrypter<RSAOAEP256>(jwk: try JWK(json: json)),
             algorithm: recipient.algorithm,
             encryption: recipient.encryption
         )
@@ -164,7 +168,7 @@ for item in challenge.verify {
     let keys = DecryptionKeys([try decrypter(algorithm: item.algorithm, jwk: item.jwk)])
     do {
         if let signerJwk = item.signerJwk {
-            let verification = VerificationKeys([try ES256.verifier(for: try JWK(json: Data(signerJwk.utf8)))])
+            let verification = VerificationKeys([try ES256().verifier(for: try JWK(json: Data(signerJwk.utf8)))])
             _ = try await SimpleNestedJWT.Encrypted(compact: item.token).decrypt(with: keys).verify(with: verification)
                 .validate(policy)
         } else {

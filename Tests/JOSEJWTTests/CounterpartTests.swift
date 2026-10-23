@@ -2,6 +2,7 @@ import Foundation
 import JOSECore
 import JOSEJWK
 import JOSEJWS
+import TestSupport
 import Testing
 
 @testable import JOSEJWT
@@ -85,7 +86,7 @@ struct CounterpartTests {
 
     @Test("JWTs from jose verify and validate, and their claims read back as jose reads them")
     func validTokens() async throws {
-        let fixture = try Fixtures.load(ValidFixture.self, named: "valid")
+        let fixture = try ValidFixture(fixture: "valid", in: .module)
         #expect(fixture.tokens.map(\.algorithm) == ["ES256", "ES384", "Ed25519", "EdDSA", "RS256", "PS256", "HS256"])
         let policy = JWTValidationPolicy(
             issuer: .exactly("https://issuer.example"),
@@ -95,7 +96,7 @@ struct CounterpartTests {
         )
         for (index, token) in fixture.tokens.enumerated() {
             let label = Comment(rawValue: token.algorithm)
-            let keys = VerificationKeys([try TestKeys.verifier(algorithm: token.algorithm, jwk: token.jwk)])
+            let keys = VerificationKeys([try AnyVerifier(algorithm: token.algorithm, jwk: token.jwk)])
             let validated = try await SignedJWT<ExampleClaims>.Unverified(compact: token.token)
                 .verify(with: keys)
                 .validate(policy)
@@ -123,8 +124,8 @@ struct CounterpartTests {
 
     @Test("validation verdicts match jose's at the same instant, apart from the documented stricter cases")
     func validationVerdictsAgree() async throws {
-        let fixture = try Fixtures.load(ValidationFixture.self, named: "validation")
-        let keys = VerificationKeys([try TestKeys.verifier(algorithm: "ES256", jwk: fixture.jwk)])
+        let fixture = try ValidationFixture(fixture: "validation", in: .module)
+        let keys = VerificationKeys([try AnyVerifier(algorithm: "ES256", jwk: fixture.jwk)])
         var accepted = 0
         var rejected = 0
         var stricter = 0

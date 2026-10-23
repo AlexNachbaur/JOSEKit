@@ -112,7 +112,7 @@ public struct JWK: Sendable, Hashable {
             }
             recognizedNames.formUnion(["crv", "x"])
         case "RSA":
-            for privateMember in RSAPrivateMembers.names {
+            for privateMember in Self.rsaPrivateMemberNames {
                 try members.requireAbsent(privateMember, keyType: keyType)
             }
             key = .rsa(
@@ -200,29 +200,27 @@ extension JWKMembers {
     mutating func setECPublicKey<Curve: EllipticCurve>(_ key: ECPublicKey<Curve>) {
         values["kty"] = "EC"
         values["crv"] = .string(Curve.name)
-        values["x"] = .string(Base64URL.encode(key.x))
-        values["y"] = .string(Base64URL.encode(key.y))
+        values["x"] = .string(String(base64URLEncoding: key.x))
+        values["y"] = .string(String(base64URLEncoding: key.y))
     }
 
     mutating func setOctetKeyPair(curve: String, x: Data) {
         values["kty"] = "OKP"
         values["crv"] = .string(curve)
-        values["x"] = .string(Base64URL.encode(x))
+        values["x"] = .string(String(base64URLEncoding: x))
     }
 }
 
-/// The members that make an RSA JWK a private key (RFC 7518 §6.3.2).
-struct RSAPrivateMembers {
-    private init() {}
-
-    static let names = ["d", "p", "q", "dp", "dq", "qi", "oth"]
+extension JWK {
+    /// The members that make an RSA JWK a private key (RFC 7518 §6.3.2).
+    static let rsaPrivateMemberNames = ["d", "p", "q", "dp", "dq", "qi", "oth"]
 }
 
 extension JWKMembers {
     mutating func setRSAPublicKey(_ key: RSAPublicKey) {
         values["kty"] = "RSA"
-        values["n"] = .string(Base64URL.encode(key.modulus))
-        values["e"] = .string(Base64URL.encode(key.exponent))
+        values["n"] = .string(String(base64URLEncoding: key.modulus))
+        values["e"] = .string(String(base64URLEncoding: key.exponent))
     }
 }
 

@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 
 import PackageDescription
 
@@ -49,9 +49,17 @@ let package = Package(
         // Encrypted and nested JWTs. Separate from JOSEJWT so that an application that only signs
         // and verifies does not build the encryption code.
         .library(name: "JOSEJWTEncrypted", targets: ["JOSEJWTEncrypted"]),
+        // ES256K and secp256k1 keys (RFC 8812), on bitcoin-core's libsecp256k1.
+        .library(name: "JOSESecp256k1", targets: ["JOSESecp256k1"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-crypto.git", "4.0.0"..<"6.0.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", "4.0.0"..<"6.0.0"),
+        // ECDSA only: none of the package's optional modules (ECDH, Schnorr, MuSig, recovery).
+        .package(
+            url: "https://github.com/21-DOT-DEV/swift-secp256k1.git",
+            .upToNextMinor(from: "0.23.2"),
+            traits: []
+        ),
     ],
     targets: [
         // MARK: Libraries
@@ -89,6 +97,14 @@ let package = Package(
         .target(
             name: "JOSEJWTEncrypted",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT"],
+            swiftSettings: swiftSettings
+        ),
+        .target(
+            name: "JOSESecp256k1",
+            dependencies: [
+                "JOSECore", "JOSEJWK", "JOSEJWS",
+                .product(name: "P256K", package: "swift-secp256k1"),
+            ],
             swiftSettings: swiftSettings
         ),
 

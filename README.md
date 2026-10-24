@@ -72,6 +72,10 @@ let validated = try await SimpleJWT.Unverified(compact: token)
     ))
 ```
 
+## Not yet supported
+
+[TODO.md](TODO.md) lists what is deferred or deliberately left out, such as `zip` on Windows.
+
 ## Testing
 
 ```

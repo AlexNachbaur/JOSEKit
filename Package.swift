@@ -27,6 +27,15 @@ let zlib: Target.Dependency = .target(
         .macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS, .driverKit, .linux, .android, .wasi, .openbsd,
     ])
 )
+// swift-secp256k1 shares its C sources into its targets with a build plugin, which produces nothing
+// on Windows, so ES256K is not available there.
+let secp256k1: Target.Dependency = .product(
+    name: "P256K",
+    package: "swift-secp256k1",
+    condition: .when(platforms: [
+        .macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android,
+    ])
+)
 
 let package = Package(
     name: "JOSEKit",
@@ -101,10 +110,7 @@ let package = Package(
         ),
         .target(
             name: "JOSESecp256k1",
-            dependencies: [
-                "JOSECore", "JOSEJWK", "JOSEJWS",
-                .product(name: "P256K", package: "swift-secp256k1"),
-            ],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", secp256k1],
             swiftSettings: swiftSettings
         ),
 

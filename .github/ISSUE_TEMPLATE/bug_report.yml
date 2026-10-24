@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in JOSEKit isn't behaving as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. A minimal reproduction makes fixes much faster.
+
+        ⚠️ For security issues, please do **not** file a public issue: see [SECURITY.md](../blob/main/SECURITY.md).
+        Never paste real private keys or live tokens here; generate throwaway ones.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >
+        The smallest code that reproduces the problem, with the token and the public JWK
+        involved (throwaway keys only). Say which implementation produced the token if it
+        was not JOSEKit.
+      render: swift
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: The error, output or crash you observed.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: JOSEKit version
+      placeholder: a commit SHA from main (there is no release yet)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: e.g. Swift 6.3, macOS 26 / Xcode 26.5, iOS 26 simulator, or Ubuntu 24.04, Windows 11, Android
+    validations:
+      required: true

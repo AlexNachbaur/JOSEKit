@@ -50,23 +50,6 @@ private struct AppClaims: Codable, Sendable, Equatable {
     let level: Int
 }
 
-/// A decrypter for the fixture's recipient key.
-private func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
-    let json = Data(jwk.utf8)
-    switch algorithm {
-    case "dir":
-        return AnyKeyDecrypter(try DirectDecrypter(jwk: try SymmetricJWK(json: json)))
-    case "A256KW":
-        return AnyKeyDecrypter(try AESKeyWrapDecrypter<A256KW>(jwk: try SymmetricJWK(json: json)))
-    case "ECDH-ES":
-        return try ECDHES().decrypter(for: try PrivateJWK(json: json))
-    case "RSA-OAEP-256":
-        return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
-    default:
-        throw FixtureError(description: "no decrypter for \(algorithm)")
-    }
-}
-
 @Suite("Encrypted and nested JWTs")
 struct EncryptedJWTTests {
     static let now = Date(timeIntervalSince1970: 1_800_000_000)
@@ -94,7 +77,7 @@ struct EncryptedJWTTests {
         let fixture = try Fixture(fixture: "encrypted", in: .module)
         #expect(fixture.encrypted.map(\.algorithm) == ["dir", "A256KW", "ECDH-ES", "RSA-OAEP-256"])
         for item in fixture.encrypted {
-            let keys = DecryptionKeys([try decrypter(algorithm: item.algorithm, jwk: item.jwk)])
+            let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: item.algorithm, jwk: item.jwk)])
             let validated = try await EncryptedJWT<AppClaims, EmptyHeaderParameters>.Encrypted(compact: item.token)
                 .decrypt(with: keys)
                 .validate(policy(type: .exactly("JWT"), at: Date(timeIntervalSince1970: fixture.now)))
@@ -112,8 +95,8 @@ struct EncryptedJWTTests {
     @Test("verdicts on encrypted JWTs match jose's, apart from the documented stricter case")
     func counterpartVerdicts() async throws {
         let fixture = try Fixture(fixture: "encrypted", in: .module)
-        let right = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
-        let wrong = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationWrongJwk)])
+        let right = DecryptionKeys([try AnyKeyDecrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
+        let wrong = DecryptionKeys([try AnyKeyDecrypter(algorithm: "A256KW", jwk: fixture.validationWrongJwk)])
         var accepted = 0
         var rejected = 0
         for testCase in fixture.validation {
@@ -165,7 +148,7 @@ struct EncryptedJWTTests {
     @Test("a replicated claim in the header that differs from the claims set is refused by name")
     func replicatedClaims() async throws {
         let fixture = try Fixture(fixture: "encrypted", in: .module)
-        let keys = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
+        let keys = DecryptionKeys([try AnyKeyDecrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
         func outcome(_ name: String) async throws -> EncryptedJWTError? {
             let token = try #require(fixture.validation.first { $0.name == name }).token
             do {
@@ -196,7 +179,7 @@ struct EncryptedJWTTests {
     @Test("nested JWTs from jose decrypt to a signed JWT that must still verify and validate")
     func counterpartNestedTokens() async throws {
         let fixture = try Fixture(fixture: "encrypted", in: .module)
-        let decryption = DecryptionKeys([try decrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
+        let decryption = DecryptionKeys([try AnyKeyDecrypter(algorithm: "A256KW", jwk: fixture.validationJwk)])
         let verification = VerificationKeys([
             try ES256().verifier(for: try JWK(json: Data(fixture.nestedSignerJwk.utf8)))
         ]

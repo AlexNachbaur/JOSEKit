@@ -134,7 +134,7 @@ let package = Package(
         // Not a product; it is built only for the tests that depend on it.
         .target(
             name: "TestSupport",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE"],
             path: "Tests/TestSupport",
             swiftSettings: swiftSettings
         ),

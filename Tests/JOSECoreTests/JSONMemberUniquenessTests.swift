@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 import Testing
 
 @testable import JOSECore
@@ -171,16 +172,30 @@ struct JSONMemberUniquenessTests {
         try validate(arrays)
     }
 
-    @Test("an object with tens of thousands of members scans in linear time")
+    @Test("scanning time grows linearly with the number of members")
     func manyMembers() throws {
-        // Regression: the scanner once copied its name set on every insert, which made this
-        // take seconds. The bound is generous so that a slow CI machine does not fail it, but a
-        // quadratic implementation takes well over it.
-        let count = 60_000
-        let json = "{" + (0..<count).map { #""m\#($0)":\#($0)"# }.joined(separator: ",") + "}"
-        let start = ContinuousClock.now
-        try validate(json)
-        #expect(ContinuousClock.now - start < .seconds(2))
+        // Regression: the scanner once copied its name set on every insert, which is quadratic.
+        // Comparing two sizes, rather than timing against a fixed limit, keeps a slow machine
+        // from failing this: four times the members take about four times as long when the scan
+        // is linear, and about sixteen times when it is quadratic.
+        func document(_ count: Int) -> Data {
+            Data(("{" + (0..<count).map { #""m\#($0)":\#($0)"# }.joined(separator: ",") + "}").utf8)
+        }
+        func fastestScan(of json: Data) throws -> Duration {
+            var times: [Duration] = []
+            for _ in 0..<3 {
+                let start = ContinuousClock.now
+                try json.requireUniqueJSONMembers()
+                times.append(ContinuousClock.now - start)
+            }
+            guard let fastest = times.min(), fastest > .zero else {
+                throw FixtureError(description: "the scan took no measurable time")
+            }
+            return fastest
+        }
+        let small = try fastestScan(of: document(20_000))
+        let large = try fastestScan(of: document(80_000))
+        #expect(large / small < 8, "80,000 members took \(large / small)× as long as 20,000")
     }
 
     @Test("works on Data slices whose start index is not zero")

@@ -1,11 +1,10 @@
 // Shared by the fixture generator and the closed-loop check.
 
 import crypto from 'node:crypto';
-import { createRequire } from 'node:module';
 import { exportJWK, generateKeyPair } from 'jose';
+import josePackage from 'jose/package.json' with { type: 'json' };
 
-const require = createRequire(import.meta.url);
-export const joseVersion = require('jose/package.json').version;
+export const joseVersion = josePackage.version;
 
 export const ENCRYPTIONS = [
     { enc: 'A128GCM', keyByteCount: 16 },

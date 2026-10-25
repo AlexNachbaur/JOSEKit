@@ -5,11 +5,10 @@
 // RFC 7638 thumbprints, which do not depend on the curve.
 
 import crypto from 'node:crypto';
-import { createRequire } from 'node:module';
 import { base64url } from 'jose';
+import josePackage from 'jose/package.json' with { type: 'json' };
 
-const require = createRequire(import.meta.url);
-export const joseVersion = require('jose/package.json').version;
+export const joseVersion = josePackage.version;
 
 /** The order of secp256k1's base point (SEC 2 §2.4.1). */
 export const ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;

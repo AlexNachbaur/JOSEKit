@@ -11,12 +11,11 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 import { base64url } from 'jose';
+import josePackage from 'jose/package.json' with { type: 'json' };
 import { CURVES, generateKeyPair, sign, verifies } from './ecdsa.mjs';
 
-const require = createRequire(import.meta.url);
-const joseVersion = require('jose/package.json').version;
+const joseVersion = josePackage.version;
 const fixturesDirectory = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '../../Tests/JOSECoreTests/Fixtures',

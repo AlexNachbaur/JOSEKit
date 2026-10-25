@@ -14,9 +14,29 @@ public struct JWK: Sendable, Hashable {
         case ed25519(Ed25519PublicKey)
         case x25519(X25519PublicKey)
         case rsa(RSAPublicKey)
+        /// A key of a type another module adds, such as a secp256k1 key from JOSESecp256k1.
+        case external(ExternalKey)
         /// A key type or curve this package does not implement. Its members are kept as they
         /// were read so that an add-on can interpret them.
         case unrecognized(UnrecognizedKey)
+    }
+
+    /// A key of a type another module adds. Two are equal when their JWK members are.
+    public struct ExternalKey: Sendable, Hashable {
+        public let key: any ExternalPublicKey
+
+        public init(_ key: any ExternalPublicKey) {
+            self.key = key
+        }
+
+        public static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.key.keyType == rhs.key.keyType && lhs.key.jwkMembers == rhs.key.jwkMembers
+        }
+
+        public func hash(into hasher: inout Hasher) {
+            hasher.combine(key.keyType)
+            hasher.combine(key.jwkMembers)
+        }
     }
 
     /// A key whose `kty` (or `crv`) is not one this package implements.
@@ -59,6 +79,8 @@ public struct JWK: Sendable, Hashable {
             return "OKP"
         case .rsa:
             return "RSA"
+        case .external(let external):
+            return external.key.keyType
         case .unrecognized(let unrecognized):
             return unrecognized.keyType
         }
@@ -73,15 +95,17 @@ public struct JWK: Sendable, Hashable {
     }
 
     /// Parses a JWK from JSON, rejecting duplicate member names.
-    public init(json: Data) throws(JWKError) {
-        try self.init(members: JWKMembers(json: json))
+    ///
+    /// A key whose type is listed in `keyTypes` is read as ``Key/external(_:)``. Any other key type
+    /// this package does not implement is read as ``Key/unrecognized(_:)``.
+    public init(json: Data, keyTypes: [any ExternalKeyType] = []) throws(JWKError) {
+        try self.init(members: JWKMembers(json: json), keyTypes: keyTypes)
     }
 
-    init(members: JWKMembers) throws(JWKError) {
+    init(members: JWKMembers, keyTypes: [any ExternalKeyType] = []) throws(JWKError) {
         let keyType = try members.requiredString("kty", keyType: nil)
         metadata = try members.metadata()
 
-        var recognizedNames: Set<String> = ["kty"]
         switch keyType {
         case "EC":
             let curve = try members.requiredString("crv", keyType: keyType)
@@ -93,10 +117,8 @@ public struct JWK: Sendable, Hashable {
             case P521Curve.name:
                 key = .p521(try Self.ecPublicKey(members, keyType: keyType))
             default:
-                key = try Self.unrecognized(members, keyType: keyType)
-                return
+                key = try Self.unlisted(members, keyType: keyType, keyTypes: keyTypes)
             }
-            recognizedNames.formUnion(["crv", "x", "y"])
         case "OKP":
             let curve = try members.requiredString("crv", keyType: keyType)
             switch curve {
@@ -107,10 +129,8 @@ public struct JWK: Sendable, Hashable {
                 try members.requireAbsent("d", keyType: keyType)
                 key = .x25519(try X25519PublicKey(rawRepresentation: members.requiredBytes("x", keyType: keyType)))
             default:
-                key = try Self.unrecognized(members, keyType: keyType)
-                return
+                key = try Self.unlisted(members, keyType: keyType, keyTypes: keyTypes)
             }
-            recognizedNames.formUnion(["crv", "x"])
         case "RSA":
             for privateMember in Self.rsaPrivateMemberNames {
                 try members.requireAbsent(privateMember, keyType: keyType)
@@ -121,14 +141,15 @@ public struct JWK: Sendable, Hashable {
                     exponent: members.requiredBytes("e", keyType: keyType)
                 )
             )
-            recognizedNames.formUnion(["n", "e"])
         case "oct":
             throw .symmetricKeyInPublicKey
         default:
-            key = try Self.unrecognized(members, keyType: keyType)
-            return
+            key = try Self.unlisted(members, keyType: keyType, keyTypes: keyTypes)
         }
 
+        // The members the key accounts for are the ones writing the bare key out produces. An
+        // unrecognised key accounts for all of them, so it carries no extras.
+        let recognizedNames = Set(JWK(key).members.values.keys)
         // Names the typed properties own are not carried as extras: `setAdditionalParameter`
         // refuses them, and what parses must be what can be built.
         for name in Self.reservedNames
@@ -141,7 +162,22 @@ public struct JWK: Sendable, Hashable {
         }
     }
 
-    private static func ecPublicKey<Curve: EllipticCurve>(
+    /// A key whose type or curve ``Key`` does not list: one of `keyTypes` if it reads the key, and
+    /// otherwise unrecognised.
+    private static func unlisted(
+        _ members: JWKMembers,
+        keyType: String,
+        keyTypes: [any ExternalKeyType]
+    ) throws(JWKError) -> Key {
+        for externalType in keyTypes {
+            if let key = try externalType.publicKey(from: members.values) {
+                return .external(ExternalKey(key))
+            }
+        }
+        return try unrecognized(members, keyType: keyType)
+    }
+
+    static func ecPublicKey<Curve: EllipticCurve>(
         _ members: JWKMembers,
         keyType: String
     ) throws(JWKError) -> ECPublicKey<Curve> {
@@ -182,6 +218,9 @@ public struct JWK: Sendable, Hashable {
             members.setOctetKeyPair(curve: X25519PublicKey.curveName, x: key.rawRepresentation)
         case .rsa(let key):
             members.setRSAPublicKey(key)
+        case .external(let external):
+            members.values.merge(external.key.jwkMembers) { _, keyMember in keyMember }
+            members.values["kty"] = .string(external.key.keyType)
         case .unrecognized(let unrecognized):
             members.values = unrecognized.parameters
             members.values["kty"] = .string(unrecognized.keyType)
@@ -258,8 +297,9 @@ public struct JWKSet: Sendable {
         self.rejected = []
     }
 
-    /// Parses a JWK Set, rejecting duplicate member names anywhere in the document.
-    public init(json: Data) throws(JWKError) {
+    /// Parses a JWK Set, rejecting duplicate member names anywhere in the document. Keys are read
+    /// as ``JWK/init(json:keyTypes:)`` reads them.
+    public init(json: Data, keyTypes: [any ExternalKeyType] = []) throws(JWKError) {
         let members = try JWKMembers(json: json)
         guard case .array(let entries) = members.values["keys"] else {
             throw .invalidKeySet
@@ -272,7 +312,7 @@ public struct JWKSet: Sendable {
                 continue
             }
             do {
-                keys.append(try JWK(members: JWKMembers(values: values)))
+                keys.append(try JWK(members: JWKMembers(values: values), keyTypes: keyTypes))
             } catch {
                 rejected.append(RejectedKey(index: index, error: error))
             }

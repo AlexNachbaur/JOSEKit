@@ -46,7 +46,7 @@ struct SigningTests {
             return key as? ECPrivateKey<Curve>
         case .p521(let key):
             return key as? ECPrivateKey<Curve>
-        case .ed25519, .x25519, .rsa:
+        case .ed25519, .x25519, .rsa, .external:
             return nil
         }
     }

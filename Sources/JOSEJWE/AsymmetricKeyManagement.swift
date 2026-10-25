@@ -85,7 +85,7 @@ extension ECPrivateKey: ECDHRecipientPrivateKey where Curve: KeyAgreementCurve {
             peer = key as? ECPublicKey<Curve>
         case .p521(let key):
             peer = key as? ECPublicKey<Curve>
-        case .ed25519, .x25519, .rsa, .unrecognized:
+        case .ed25519, .x25519, .rsa, .external, .unrecognized:
             peer = nil
         }
         guard let peer else {
@@ -235,7 +235,7 @@ extension ECDHESAlgorithm {
             return AnyKeyDecrypter(ECDHESDecrypter<Self, ECPrivateKey<P521Curve>>(privateKey: key, keyID: keyID))
         case .x25519(let key):
             return AnyKeyDecrypter(ECDHESDecrypter<Self, X25519PrivateKey>(privateKey: key, keyID: keyID))
-        case .ed25519, .rsa:
+        case .ed25519, .rsa, .external:
             throw .keyTypeMismatch(expected: "EC or OKP X25519", found: jwk.publicJWK.keyType)
         }
     }
@@ -281,7 +281,7 @@ public struct ECDHESEncrypter<Algorithm: ECDHESAlgorithm>: KeyEncrypter {
             self.init(recipient: key, keyID: jwk.keyID)
         case .x25519(let key):
             self.init(recipient: key, keyID: jwk.keyID)
-        case .ed25519, .rsa, .unrecognized:
+        case .ed25519, .rsa, .external, .unrecognized:
             throw .keyTypeMismatch(expected: "EC or OKP X25519", found: jwk.keyType)
         }
     }
@@ -419,7 +419,7 @@ public struct ECDHESDecrypter<Algorithm: ECDHESAlgorithm, Key: ECDHRecipientPriv
             return X25519PublicKey.curveName
         case .ed25519:
             return Ed25519PublicKey.curveName
-        case .rsa, .unrecognized:
+        case .rsa, .external, .unrecognized:
             return jwk.keyType
         }
     }

@@ -96,11 +96,15 @@ jobs:
       # against the scheme Xcode synthesises for the package. It is the only job that proves the
       # iOS deployment target in Package.swift is real, and the only one where the Secure
       # Enclave and keychain code runs on iOS.
+      #
+      # xcodebuild asks before running a package's build plugin. swift-secp256k1 builds its
+      # sources with one, and nobody is here to answer, so the prompt is skipped.
       - name: Build & test
         run: |
           xcodebuild test \
             -scheme JOSEKit-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest'
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -skipPackagePluginValidation
 
   windows:
     name: Build & Test (Windows)

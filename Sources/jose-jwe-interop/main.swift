@@ -159,7 +159,7 @@ func ecdhDecrypter<Algorithm: ECDHESAlgorithm>(_ algorithm: Algorithm.Type, _ jw
         return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, ECPrivateKey<P521Curve>>(privateKey: key))
     case .x25519(let key):
         return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, X25519PrivateKey>(privateKey: key))
-    case .ed25519, .rsa:
+    case .ed25519, .rsa, .external:
         throw InteropError(description: "not an ECDH key")
     }
 }

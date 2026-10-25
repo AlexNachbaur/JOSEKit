@@ -13,6 +13,8 @@ public struct PrivateJWK: Sendable {
         case ed25519(Ed25519PrivateKey)
         case x25519(X25519PrivateKey)
         case rsa(RSAPrivateKey)
+        /// A key of a type another module adds, such as a secp256k1 key from JOSESecp256k1.
+        case external(any ExternalPrivateKey)
     }
 
     public let key: Key
@@ -38,11 +40,15 @@ public struct PrivateJWK: Sendable {
             return JWK(.x25519(key.publicKey), metadata: metadata)
         case .rsa(let key):
             return JWK(.rsa(key.publicKey), metadata: metadata)
+        case .external(let key):
+            return JWK(.external(JWK.ExternalKey(key.publicKey)), metadata: metadata)
         }
     }
 
     /// Parses a private JWK, checking that `d` corresponds to the public members beside it.
-    public init(json: Data) throws(JWKError) {
+    ///
+    /// A key whose type is listed in `keyTypes` is read as ``Key/external(_:)``.
+    public init(json: Data, keyTypes: [any ExternalKeyType] = []) throws(JWKError) {
         let members = try JWKMembers(json: json)
         let keyType = try members.requiredString("kty", keyType: nil)
         metadata = try members.metadata()
@@ -58,12 +64,21 @@ public struct PrivateJWK: Sendable {
             case P521Curve.name:
                 key = .p521(try Self.ecPrivateKey(members, keyType: keyType))
             default:
-                throw .keyTypeMismatch(expected: "EC P-256, P-384 or P-521", found: "EC \(curve)")
+                key = try Self.external(
+                    members,
+                    keyTypes: keyTypes,
+                    otherwise: .keyTypeMismatch(expected: "EC P-256, P-384 or P-521", found: "EC \(curve)")
+                )
             }
         case "OKP":
             let curve = try members.requiredString("crv", keyType: keyType)
             guard curve == Ed25519PublicKey.curveName || curve == X25519PublicKey.curveName else {
-                throw .keyTypeMismatch(expected: "OKP Ed25519 or X25519", found: "OKP \(curve)")
+                key = try Self.external(
+                    members,
+                    keyTypes: keyTypes,
+                    otherwise: .keyTypeMismatch(expected: "OKP Ed25519 or X25519", found: "OKP \(curve)")
+                )
+                return
             }
             let publicBytes = try members.requiredBytes("x", keyType: keyType)
             let privateBytes = try members.requiredBytes("d", keyType: keyType)
@@ -106,11 +121,29 @@ public struct PrivateJWK: Sendable {
             )
             key = .rsa(try RSAPrivateKey(components: components))
         default:
-            throw .keyTypeMismatch(expected: "EC, OKP or RSA", found: keyType)
+            key = try Self.external(
+                members,
+                keyTypes: keyTypes,
+                otherwise: .keyTypeMismatch(expected: "EC, OKP or RSA", found: keyType)
+            )
         }
     }
 
-    private static func ecPrivateKey<Curve: EllipticCurve>(
+    /// The key one of `keyTypes` reads from `members`, or `error` if none of them does.
+    private static func external(
+        _ members: JWKMembers,
+        keyTypes: [any ExternalKeyType],
+        otherwise error: JWKError
+    ) throws(JWKError) -> Key {
+        for externalType in keyTypes {
+            if let key = try externalType.privateKey(from: members.values) {
+                return .external(key)
+            }
+        }
+        throw error
+    }
+
+    static func ecPrivateKey<Curve: EllipticCurve>(
         _ members: JWKMembers,
         keyType: String
     ) throws(JWKError) -> ECPrivateKey<Curve> {
@@ -148,6 +181,8 @@ public struct PrivateJWK: Sendable {
             members.values["dp"] = .string(String(base64URLEncoding: key.components.exponent1))
             members.values["dq"] = .string(String(base64URLEncoding: key.components.exponent2))
             members.values["qi"] = .string(String(base64URLEncoding: key.components.coefficient))
+        case .external(let key):
+            members.values.merge(key.privateJWKMembers) { _, privateMember in privateMember }
         }
         return try members.jsonRepresentation()
     }

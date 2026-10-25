@@ -29,6 +29,25 @@ let thumbprint = try key.thumbprint()             // RFC 7638, SHA-256
 let set = try JWKSet(json: data)                  // set.rejected says why any key was skipped
 ```
 
+### Key types from other modules
+
+A module can add a key type without a fork. Its keys conform to `ExternalPublicKey` and
+`ExternalPrivateKey`, and are carried as `JWK.Key.external` and `PrivateJWK.Key.external`. Two
+external keys are equal when their `kty` and JWK members are. For an elliptic curve, conforming
+the curve to `ExternalCurve` is enough: `ECPublicKey` and `ECPrivateKey` on it become external
+keys, and `ECKeyType<Curve>` reads them. `JOSESecp256k1` adds secp256k1 this way.
+
+Parsing reads an external key only when it is told about its type:
+
+```swift
+let key = try JWK(json: data, keyTypes: [.secp256k1])       // JWK.Key.external
+let set = try JWKSet(json: data, keyTypes: [.secp256k1])
+let unread = try JWK(json: data)                            // JWK.Key.unrecognized
+```
+
+`ECDSAVerifier` reads a key on its own curve from either, so a key set parsed without
+`keyTypes`, such as one fetched by `VerificationKeys(jwksAt:)`, still verifies.
+
 ### PEM
 
 `JWK(pem:)` and `PrivateJWK(pem:)` read one PEM block (RFC 7468), with optional `metadata`:

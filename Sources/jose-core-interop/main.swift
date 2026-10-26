@@ -4,6 +4,7 @@
 
 import Foundation
 import JOSECore
+import TestSupport
 
 struct Challenge: Decodable {
     struct SignatureCase: Decodable {
@@ -31,57 +32,27 @@ struct Response: Encodable {
     var derFromRaw: [String] = []
 }
 
-struct InvalidHex: Error, CustomStringConvertible {
-    let description: String
-}
-
-func bytes(fromHex hex: String) throws -> Data {
-    let digits = Array(hex.utf8)
-    guard digits.count.isMultiple(of: 2) else {
-        throw InvalidHex(description: "hex string has odd length \(digits.count)")
-    }
-    var output = Data(capacity: digits.count / 2)
-    for index in stride(from: 0, to: digits.count, by: 2) {
-        guard let byte = UInt8(String(decoding: digits[index..<(index + 2)], as: UTF8.self), radix: 16) else {
-            throw InvalidHex(description: "invalid hex at offset \(index)")
-        }
-        output.append(byte)
-    }
-    return output
-}
-
-func hex(_ data: Data) -> String {
-    data.map { byte in
-        let digits = String(byte, radix: 16)
-        if digits.count == 1 {
-            return "0" + digits
-        }
-        return digits
-    }
-    .joined()
-}
-
-let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
+let challenge = try Challenge(jsonFrom: .standardInput)
 
 var response = Response()
 for item in challenge.bytesToEncode {
-    response.encoded.append(String(base64URLEncoding: try bytes(fromHex: item)))
+    response.encoded.append(String(base64URLEncoding: try Data(hex: item)))
 }
 for item in challenge.stringsToDecode {
-    response.decoded.append(hex(try Data(base64URLEncoded: item)))
+    response.decoded.append(try Data(base64URLEncoded: item).hex)
 }
 for item in challenge.stringsToQuote {
     response.quoted.append(String(jsonQuoting: item))
 }
 for item in challenge.derSignatures {
     let raw = try ECDSASignatureConverter(coordinateByteCount: item.coordinateByteCount)
-        .rawSignature(fromDER: try bytes(fromHex: item.signature))
-    response.rawFromDER.append(hex(raw))
+        .rawSignature(fromDER: try Data(hex: item.signature))
+    response.rawFromDER.append(raw.hex)
 }
 for item in challenge.rawSignatures {
     let der = try ECDSASignatureConverter(coordinateByteCount: item.coordinateByteCount)
-        .derSignature(fromRaw: try bytes(fromHex: item.signature))
-    response.derFromRaw.append(hex(der))
+        .derSignature(fromRaw: try Data(hex: item.signature))
+    response.derFromRaw.append(der.hex)
 }
 
-FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+try response.writeJSON(to: .standardOutput)

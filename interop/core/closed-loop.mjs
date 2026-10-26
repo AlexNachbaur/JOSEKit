@@ -10,6 +10,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { base64url } from 'jose';
+import { runClosedLoop } from '../shared/closed-loop.mjs';
+import { flipLastBit } from '../shared/fixtures.mjs';
 import { CURVES, generateKeyPair, publicKeyFromSPKIHex, publicKeyToSPKIHex, sign, verifies } from './ecdsa.mjs';
 
 const SIGNATURES_PER_CURVE = 300;
@@ -59,22 +61,10 @@ function challenge(file) {
     );
 }
 
-function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
-    const failures = [];
-    const counts = {};
-
-    function check(section, index, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section}[${index}]: ${detail}`);
-        }
-    }
-
+function verify(challenge, response, { check, fail }) {
     function sameLength(section, expected, actual) {
         if (expected.length !== actual?.length) {
-            failures.push(`${section}: expected ${expected.length} answers, got ${actual?.length}`);
+            fail(`${section}: expected ${expected.length} answers, got ${actual?.length}`);
             return false;
         }
         return true;
@@ -113,38 +103,16 @@ function verify(challengeFile, responseFile) {
             const message = Buffer.from(item.message, 'hex');
             const converted = Buffer.from(answers[i], 'hex');
             check(section, i, verifies(curve, publicKey, message, converted, encoding), `OpenSSL rejected ${answers[i]}`);
-            const tampered = Buffer.from(converted);
-            tampered[tampered.length - 1] ^= 0x01;
             check(
                 `${section} (tampered)`,
                 i,
-                !verifies(curve, publicKey, message, tampered, encoding),
+                !verifies(curve, publicKey, message, flipLastBit(converted), encoding),
                 'OpenSSL accepted a tampered signature',
             );
         });
     }
     checkSignatures('rawFromDER', challenge.derSignatures, response.rawFromDER, 'ieee-p1363');
     checkSignatures('derFromRaw', challenge.rawSignatures, response.derFromRaw, 'der');
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop: all checks passed');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify });

@@ -243,6 +243,13 @@ extension PrivateJWK.Key {
 // MARK: - PEM
 
 extension JWK {
+    /// Reads a public key from a DER SubjectPublicKeyInfo (RFC 5280 §4.1.2.7), the body of a
+    /// `PUBLIC KEY` PEM block and the key in an X.509 certificate: RSA, P-256, P-384, P-521,
+    /// Ed25519 or X25519.
+    public init(derRepresentation: Data, metadata: JWKMetadata = JWKMetadata()) throws(JWKError) {
+        self.init(try Key(subjectPublicKeyInfo: derRepresentation), metadata: metadata)
+    }
+
     /// Reads a public key from PEM: `PUBLIC KEY` (SubjectPublicKeyInfo) holding an RSA, P-256,
     /// P-384, P-521, Ed25519 or X25519 key, or `RSA PUBLIC KEY` (PKCS#1).
     public init(pem: String, metadata: JWKMetadata = JWKMetadata()) throws(JWKError) {

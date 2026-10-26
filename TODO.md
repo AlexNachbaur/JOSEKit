@@ -14,9 +14,10 @@ These may be done later.
 - **ES256K on Windows.** swift-secp256k1 copies its C sources into its targets with a build
   plugin that produces nothing on Windows, so `JOSESecp256k1` is empty there. It becomes
   available when swift-secp256k1 builds on Windows. (D25)
-- **Revocation checking for `x5c`.** The planned cross-platform certificate chain validator
-  (on swift-certificates, in `JOSEX509`) will check the chain and its validity dates, not OCSP
-  or CRLs. Revocation needs network fetches and policy choices of its own. (D18, D22)
+- **Revocation checking for `x5c`.** `X509CertificateChainValidator` (in `JOSEX509`) checks the
+  chain, its validity dates, constraints and key usage, but not OCSP or CRLs. Revocation needs
+  network fetches and policy choices of its own. A caller who needs it can supply their own
+  `CertificateChainValidator`. (D18, D26)
 - **Encrypted PEM keys.** `ENCRYPTED PRIVATE KEY` (PKCS#8 with PBES2) and OpenSSL's legacy
   `Proc-Type: 4,ENCRYPTED` keys are refused. Callers decrypt them first.
 - **Flattening the grouping types.** `JWE`, `JWS`, `JWT`, `EncryptedJWT` and `NestedJWT` hold

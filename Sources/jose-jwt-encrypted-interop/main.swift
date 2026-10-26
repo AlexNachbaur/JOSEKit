@@ -10,6 +10,7 @@ import JOSEJWK
 import JOSEJWS
 import JOSEJWT
 import JOSEJWTEncrypted
+import TestSupport
 
 struct Challenge: Decodable {
     struct Recipient: Decodable {
@@ -47,11 +48,7 @@ struct Response: Encodable {
     var verdicts: [Bool] = []
 }
 
-struct InteropError: Error, CustomStringConvertible {
-    let description: String
-}
-
-let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
+let challenge = try Challenge(jsonFrom: .standardInput)
 let now = Date(timeIntervalSince1970: challenge.now)
 
 func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
@@ -66,7 +63,7 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "RSA-OAEP-256":
         return AnyKeyDecrypter(try RSADecrypter<RSAOAEP256>(jwk: try PrivateJWK(json: json)))
     default:
-        throw InteropError(description: "unsupported algorithm \(algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(algorithm)")
     }
 }
 
@@ -110,7 +107,7 @@ func produce<R: KeyEncrypter>(_ recipient: R, algorithm: String, encryption: Str
     case "A256CBC-HS512":
         return try await make(.a256cbcHS512)
     default:
-        throw InteropError(description: "unsupported content encryption \(encryption)")
+        throw FixtureError(description: "unsupported content encryption \(encryption)")
     }
 }
 
@@ -143,7 +140,7 @@ for recipient in challenge.recipients {
             encryption: recipient.encryption
         )
     default:
-        throw InteropError(description: "unsupported algorithm \(recipient.algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(recipient.algorithm)")
     }
     response.produced.append(produced)
 }
@@ -184,4 +181,4 @@ for item in challenge.verify {
     }
 }
 
-FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+try response.writeJSON(to: .standardOutput)

@@ -1,44 +1,21 @@
 // Generates the fixtures in Tests/JOSEJWSTests/Fixtures by running the counterpart
 // implementation, panva/jose.
 //
-//     cd interop && npm ci && node generate-fixtures.mjs
+//     cd interop && npm ci && node jws/generate-fixtures.mjs
 //
 // Every token is produced by jose, and every verdict on a malformed token is jose's own. Nothing
 // is transcribed from a specification. The fixtures change on every run because keys and
 // signatures are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
     CompactSign, FlattenedSign, GeneralSign, base64url, compactVerify, exportJWK, flattenedVerify, generalVerify,
     generateKeyPair,
 } from 'jose';
-import { ASYMMETRIC, HMAC, RSA_ALGORITHMS, joseVersion } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA_ALGORITHMS } from '../shared/algorithms.mjs';
+import { assert, fixtureWriter } from '../shared/fixtures.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWSTests/Fixtures');
-
-function write(name, description, body) {
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jws/generate-fixtures.mjs.',
-            generator: 'interop/jws/generate-fixtures.mjs',
-            description,
-            jose: joseVersion,
-            node: process.version,
-        },
-        ...body,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, name), JSON.stringify(fixture, null, 2) + '\n');
-    console.log(`wrote ${name}`);
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSEJWSTests');
 
 const encode = (value) => base64url.encode(typeof value === 'string' ? value : JSON.stringify(value));
 

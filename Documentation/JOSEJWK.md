@@ -62,6 +62,7 @@ let unread = try JWK(json: data)                            // JWK.Key.unrecogni
 
 ```swift
 let key = try JWK(pem: pemText, metadata: JWKMetadata(keyID: "signing-2026"))
+let spki = try JWK(derRepresentation: subjectPublicKeyInfoDER)    // the body of a PUBLIC KEY block
 ```
 
 Reading is strict:

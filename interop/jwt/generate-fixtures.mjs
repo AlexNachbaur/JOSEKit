@@ -1,40 +1,17 @@
 // Generates the fixtures in Tests/JOSEJWTTests/Fixtures by running the counterpart
 // implementation, panva/jose.
 //
-//     cd interop && npm ci && node generate-fixtures.mjs
+//     cd interop && npm ci && node jwt/generate-fixtures.mjs
 //
 // Every token is produced by jose, and every verdict is jose's own. Nothing is transcribed from
 // a specification. The fixtures change on every run because keys and signatures are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { CompactSign, FlattenedSign, SignJWT, exportJWK, generateKeyPair, jwtVerify } from 'jose';
-import { HMAC, joseVersion } from './common.mjs';
+import { HMAC } from '../shared/algorithms.mjs';
+import { assert, fixtureWriter } from '../shared/fixtures.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWTTests/Fixtures');
-
-function write(name, description, body) {
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwt/generate-fixtures.mjs.',
-            generator: 'interop/jwt/generate-fixtures.mjs',
-            description,
-            jose: joseVersion,
-            node: process.version,
-        },
-        ...body,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, name), JSON.stringify(fixture, null, 2) + '\n');
-    console.log(`wrote ${name}`);
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSEJWTTests');
 
 // A fixed "now" so that the fixtures do not go stale. All time-dependent verdicts are taken with
 // jose's clock set to this instant.

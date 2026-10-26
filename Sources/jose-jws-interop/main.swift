@@ -7,6 +7,7 @@ import Foundation
 import JOSECore
 import JOSEJWK
 import JOSEJWS
+import TestSupport
 
 struct Challenge: Decodable {
     struct HMACKey: Decodable {
@@ -52,10 +53,6 @@ struct Response: Encodable {
     var verdicts: [Verdict] = []
 }
 
-struct InteropError: Error, CustomStringConvertible {
-    let description: String
-}
-
 struct LevelHeader: HeaderParameters {
     static let criticalParameterNames: Set<String> = ["urn:example:must"]
     var level: Int
@@ -67,43 +64,13 @@ struct LevelHeader: HeaderParameters {
     }
 }
 
-func bytes(fromHex hex: String) throws -> Data {
-    let digits = Array(hex.utf8)
-    guard digits.count.isMultiple(of: 2) else {
-        throw InteropError(description: "hex string has odd length \(digits.count)")
-    }
-    var output = Data(capacity: digits.count / 2)
-    for index in stride(from: 0, to: digits.count, by: 2) {
-        guard let byte = UInt8(String(decoding: digits[index..<(index + 2)], as: UTF8.self), radix: 16) else {
-            throw InteropError(description: "invalid hex at offset \(index)")
-        }
-        output.append(byte)
-    }
-    return output
-}
-
-func hex(_ data: Data) -> String {
-    data.map { byte in
-        let digits = String(byte, radix: 16)
-        if digits.count == 1 {
-            return "0" + digits
-        }
-        return digits
-    }
-    .joined()
-}
-
-func text(_ data: Data) -> String {
-    String(decoding: data, as: UTF8.self)
-}
-
-let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
-let payload = try bytes(fromHex: challenge.payload)
+let challenge = try Challenge(jsonFrom: .standardInput)
+let payload = try Data(hex: challenge.payload)
 let unencodedPayload = Data(challenge.unencodedPayload.utf8)
 
 let secondKey = try ECPrivateKey<P256Curve>()
 let secondSigner = try ECDSASigner(privateKey: secondKey, keyID: "second")
-let secondJWK = text(try JWK(.p256(secondKey.publicKey)).jsonRepresentation())
+let secondJWK = String(utf8: try JWK(.p256(secondKey.publicKey)).jsonRepresentation())
 
 func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produced {
     let signed = try await SimpleJWS.Signed(
@@ -123,16 +90,16 @@ func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produ
         jwk: jwk,
         compact: try signed.compactSerialization(),
         compactDetached: try signed.compactSerialization(detached: true),
-        flattened: text(try signed.flattenedJSONSerialization()),
-        general: text(try both.generalJSONSerialization()),
+        flattened: String(utf8: try signed.flattenedJSONSerialization()),
+        general: String(utf8: try both.generalJSONSerialization()),
         generalSecondJwk: secondJWK,
-        unencodedDetached: text(try unencoded.flattenedJSONSerialization(detached: true)),
+        unencodedDetached: String(utf8: try unencoded.flattenedJSONSerialization(detached: true)),
         customHeader: try custom.compactSerialization()
     )
 }
 
 func publicJSON(_ key: JWK.Key) throws -> String {
-    text(try JWK(key).jsonRepresentation())
+    String(utf8: try JWK(key).jsonRepresentation())
 }
 
 var response = Response()
@@ -175,7 +142,7 @@ for key in challenge.hmacKeys {
     case "HS512":
         response.produced.append(try await produce(try HMACSigner<HS512>(jwk: jwk), jwk: key.jwk))
     default:
-        throw InteropError(description: "unsupported HMAC algorithm \(key.algorithm)")
+        throw FixtureError(description: "unsupported HMAC algorithm \(key.algorithm)")
     }
 }
 
@@ -192,7 +159,7 @@ func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
     case "HS512":
         return AnyVerifier(try HMACVerifier<HS512>(jwk: try SymmetricJWK(json: json)))
     default:
-        throw InteropError(description: "unsupported algorithm \(algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(algorithm)")
     }
 }
 
@@ -206,13 +173,13 @@ for item in challenge.verify {
         case "json":
             unverified = try SimpleJWS.Unverified(json: Data(item.token.utf8))
         default:
-            throw InteropError(description: "unknown serialization \(item.serialization)")
+            throw FixtureError(description: "unknown serialization \(item.serialization)")
         }
         let verified = try await unverified.verify(with: keys)
-        response.verdicts.append(Response.Verdict(accepted: true, payload: hex(verified.payload)))
+        response.verdicts.append(Response.Verdict(accepted: true, payload: verified.payload.hex))
     } catch is JWSError {
         response.verdicts.append(Response.Verdict(accepted: false, payload: nil))
     }
 }
 
-FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+try response.writeJSON(to: .standardOutput)

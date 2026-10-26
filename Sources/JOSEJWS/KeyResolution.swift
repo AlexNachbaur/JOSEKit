@@ -81,8 +81,8 @@ extension VerificationKeys {
 ///
 /// `chain` holds DER-encoded certificates, the signer's first, as carried in `x5c`. An
 /// implementation decides what "valid" means: which anchors are trusted, whether revocation is
-/// checked, what names are expected. ``SecTrustCertificateChainValidator`` is the stock
-/// implementation on Apple platforms; elsewhere, supply one built on a certificate library.
+/// checked, what names are expected. JOSEX509's `X509CertificateChainValidator` works on every
+/// platform; ``SecTrustCertificateChainValidator`` uses Security.framework on Apple platforms.
 public protocol CertificateChainValidator: Sendable {
     func validate(chain: [Data]) async throws -> JWK
 }

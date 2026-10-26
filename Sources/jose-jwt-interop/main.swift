@@ -8,6 +8,7 @@ import JOSECore
 import JOSEJWK
 import JOSEJWS
 import JOSEJWT
+import TestSupport
 
 struct Challenge: Decodable {
     struct VerifyCase: Decodable {
@@ -42,10 +43,6 @@ struct Response: Encodable {
     var verdicts: [Bool] = []
 }
 
-struct InteropError: Error, CustomStringConvertible {
-    let description: String
-}
-
 struct AppClaims: Codable, Sendable {
     var scope: String
     var tenant: Int
@@ -56,11 +53,7 @@ struct AppHeader: HeaderParameters {
     var nonce: String
 }
 
-func text(_ data: Data) -> String {
-    String(decoding: data, as: UTF8.self)
-}
-
-let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
+let challenge = try Challenge(jsonFrom: .standardInput)
 let now = Date(timeIntervalSince1970: challenge.now)
 let clock = JWTClock.fixed(now)
 
@@ -94,7 +87,7 @@ func produce<S: Signer>(_ signer: S, jwk: String) async throws -> Response.Produ
 }
 
 func publicJSON(_ key: JWK.Key) throws -> String {
-    text(try JWK(key).jsonRepresentation())
+    String(utf8: try JWK(key).jsonRepresentation())
 }
 
 var response = Response()
@@ -130,7 +123,7 @@ func verifier(algorithm: String, jwk: String) throws -> AnyVerifier {
     case "HS256":
         return AnyVerifier(try HMACVerifier<HS256>(jwk: try SymmetricJWK(json: json)))
     default:
-        throw InteropError(description: "unsupported algorithm \(algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(algorithm)")
     }
 }
 
@@ -167,4 +160,4 @@ for item in challenge.verify {
     }
 }
 
-FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+try response.writeJSON(to: .standardOutput)

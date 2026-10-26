@@ -1,47 +1,18 @@
 // Generates the fixtures in Tests/JOSECoreTests/Fixtures by running the counterpart
 // implementation: panva/jose and Node's own crypto (OpenSSL).
 //
-//     cd interop && npm ci && node generate-fixtures.mjs
+//     cd interop && npm ci && node core/generate-fixtures.mjs
 //
 // Every expected value in a fixture is produced by, or confirmed by, the counterpart. Nothing is
 // transcribed from a specification. ECDSA fixtures change on every run because signing is
 // randomised.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { base64url } from 'jose';
-import josePackage from 'jose/package.json' with { type: 'json' };
+import { assert, fixtureWriter } from '../shared/fixtures.mjs';
 import { CURVES, generateKeyPair, sign, verifies } from './ecdsa.mjs';
 
-const joseVersion = josePackage.version;
-const fixturesDirectory = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../../Tests/JOSECoreTests/Fixtures',
-);
-
-function write(name, description, body) {
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/core/generate-fixtures.mjs.',
-            generator: 'interop/core/generate-fixtures.mjs',
-            description,
-            jose: joseVersion,
-            node: process.version,
-            openssl: process.versions.openssl,
-        },
-        ...body,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, name), JSON.stringify(fixture, null, 2) + '\n');
-    console.log(`wrote ${name}`);
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSECoreTests');
 
 // ---------------------------------------------------------------------------------------------
 // base64url

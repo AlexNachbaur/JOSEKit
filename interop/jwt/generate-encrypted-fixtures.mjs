@@ -1,25 +1,17 @@
 // Generates the fixture in Tests/JOSEJWTEncryptedTests/Fixtures by running the counterpart
 // implementation, panva/jose.
 //
-//     cd interop && npm ci && node generate-encrypted-fixtures.mjs
+//     cd interop && npm ci && node jwt/generate-encrypted-fixtures.mjs
 //
 // Every token is produced by jose, and every verdict is jose's own. Nothing is transcribed from
 // a specification. The fixture changes on every run because keys are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CompactEncrypt, EncryptJWT, SignJWT, base64url, compactDecrypt, exportJWK, generateKeyPair, jwtDecrypt, jwtVerify } from 'jose';
-import { joseVersion } from './common.mjs';
+import { assert, fixtureWriter } from '../shared/fixtures.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWTEncryptedTests/Fixtures');
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSEJWTEncryptedTests');
 
 // A fixed "now" so that the fixture does not go stale.
 const NOW = 1_800_000_000;
@@ -131,14 +123,7 @@ async function main() {
     }
     assert(nested[0].jose.accepted, 'nested positive control was rejected by jose');
 
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwt/generate-encrypted-fixtures.mjs.',
-            generator: 'interop/jwt/generate-encrypted-fixtures.mjs',
-            description: 'Encrypted and nested JWTs from jose, with jose\'s verdicts at a fixed current time.',
-            jose: joseVersion,
-            node: process.version,
-        },
+    write('encrypted.json', 'Encrypted and nested JWTs from jose, with jose\'s verdicts at a fixed current time.', {
         now: NOW,
         encrypted,
         validationJwk: JSON.stringify(await exportJWK(recipient.decryptKey)),
@@ -146,9 +131,7 @@ async function main() {
         validation,
         nestedSignerJwk: JSON.stringify(await exportJWK(signer.publicKey)),
         nested,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, 'encrypted.json'), JSON.stringify(fixture, null, 2) + '\n');
-    console.log('wrote encrypted.json');
+    });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

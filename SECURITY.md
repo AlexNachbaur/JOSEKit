@@ -13,8 +13,8 @@ not a vulnerability, though a report that it matters more than we thought is wel
 
 ## Supported versions
 
-JOSEKit has not had a release yet. Fixes go to `main`. Once releases begin, only the latest
-receives security fixes until 1.0.
+Until 1.0, only the latest release receives security fixes. Fixes go to `main` and into the
+next release.
 
 ## Reporting a vulnerability
 

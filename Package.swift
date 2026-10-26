@@ -128,48 +128,50 @@ let package = Package(
         // MARK: Interoperability executables
         // Not products. Each answers the challenge produced by its module's closed-loop script in
         // `interop/`, so that the Node counterpart can check what the module produced. Run them
-        // through `scripts/interop.sh`.
+        // through `scripts/interop.sh`. TestSupport gives them hex, JSON on standard input and
+        // output, and their error type.
 
         .executableTarget(
             name: "jose-core-interop",
-            dependencies: ["JOSECore"],
+            dependencies: ["JOSECore", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwk-interop",
-            dependencies: ["JOSECore", "JOSEJWK"],
+            dependencies: ["JOSECore", "JOSEJWK", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jws-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwe-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwt-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwt-encrypted-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-secp256k1-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1", "TestSupport"],
             swiftSettings: swiftSettings
         ),
 
         // MARK: Tests
 
-        // Helpers the test targets share: fixture loading, hex, and keys from counterpart JWKs.
-        // Not a product; it is built only for the tests that depend on it.
+        // Helpers the test targets and the interop executables share: fixture loading, hex, JSON
+        // on standard input and output, and keys from counterpart JWKs. Not a product; it is built
+        // only for the targets that depend on it.
         .target(
             name: "TestSupport",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE"],

@@ -6,6 +6,7 @@
 import Foundation
 import JOSECore
 import JOSEJWK
+import TestSupport
 
 struct Challenge: Decodable {
     struct HMACCase: Decodable {
@@ -49,36 +50,6 @@ struct Response: Encodable {
     var usedSecureEnclave = false
 }
 
-struct InteropError: Error, CustomStringConvertible {
-    let description: String
-}
-
-func bytes(fromHex hex: String) throws -> Data {
-    let digits = Array(hex.utf8)
-    guard digits.count.isMultiple(of: 2) else {
-        throw InteropError(description: "hex string has odd length \(digits.count)")
-    }
-    var output = Data(capacity: digits.count / 2)
-    for index in stride(from: 0, to: digits.count, by: 2) {
-        guard let byte = UInt8(String(decoding: digits[index..<(index + 2)], as: UTF8.self), radix: 16) else {
-            throw InteropError(description: "invalid hex at offset \(index)")
-        }
-        output.append(byte)
-    }
-    return output
-}
-
-func hex(_ data: Data) -> String {
-    data.map { byte in
-        let digits = String(byte, radix: 16)
-        if digits.count == 1 {
-            return "0" + digits
-        }
-        return digits
-    }
-    .joined()
-}
-
 let hashes: [(String, JWKThumbprint.HashAlgorithm)] = [("sha256", .sha256), ("sha384", .sha384), ("sha512", .sha512)]
 
 func describe(curve: String, publicJWK: JWK, privateJWK: PrivateJWK?) throws -> Response.Key {
@@ -108,8 +79,8 @@ func sign<S: Signer>(_ messages: [Data], with signer: S, into key: inout Respons
         key.signatures.append(
             Response.SignatureCase(
                 algorithm: S.Algorithm.identifier.rawValue,
-                message: hex(message),
-                signature: hex(signature.rawRepresentation)
+                message: message.hex,
+                signature: signature.rawRepresentation.hex
             )
         )
     }
@@ -134,20 +105,20 @@ func ecdsaKey<Curve: ECDSACurve>(
 func verdict<V: Verifier>(_ verifier: V, _ item: Challenge.VerifyCase) async throws -> Bool {
     let signature: Signature<V.Algorithm>
     do {
-        signature = try Signature(rawRepresentation: try bytes(fromHex: item.signature))
+        signature = try Signature(rawRepresentation: try Data(hex: item.signature))
     } catch is SignatureError {
         return false
     }
     do {
-        try await verifier.verify(signature, for: try bytes(fromHex: item.message))
+        try await verifier.verify(signature, for: try Data(hex: item.message))
         return true
     } catch VerificationError.signatureMismatch {
         return false
     }
 }
 
-let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
-let messages = try challenge.messages.map { try bytes(fromHex: $0) }
+let challenge = try Challenge(jsonFrom: .standardInput)
+let messages = try challenge.messages.map { try Data(hex: $0) }
 var response = Response()
 
 for _ in 0..<3 {
@@ -199,16 +170,16 @@ for _ in 0..<2 {
 
 for item in challenge.hmac {
     let jwk = try SymmetricJWK(json: Data(item.jwk.utf8))
-    let message = try bytes(fromHex: item.message)
+    let message = try Data(hex: item.message)
     switch item.algorithm {
     case "HS256":
-        response.hmac.append(hex(try await HMACSigner<HS256>(jwk: jwk).sign(message).rawRepresentation))
+        response.hmac.append(try await HMACSigner<HS256>(jwk: jwk).sign(message).rawRepresentation.hex)
     case "HS384":
-        response.hmac.append(hex(try await HMACSigner<HS384>(jwk: jwk).sign(message).rawRepresentation))
+        response.hmac.append(try await HMACSigner<HS384>(jwk: jwk).sign(message).rawRepresentation.hex)
     case "HS512":
-        response.hmac.append(hex(try await HMACSigner<HS512>(jwk: jwk).sign(message).rawRepresentation))
+        response.hmac.append(try await HMACSigner<HS512>(jwk: jwk).sign(message).rawRepresentation.hex)
     default:
-        throw InteropError(description: "unsupported HMAC algorithm \(item.algorithm)")
+        throw FixtureError(description: "unsupported HMAC algorithm \(item.algorithm)")
     }
 }
 
@@ -238,8 +209,8 @@ for item in challenge.verify {
     case "PS512":
         response.verdicts.append(try await verdict(try RSAVerifier<PS512>(jwk: jwk), item))
     default:
-        throw InteropError(description: "unsupported algorithm \(item.algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(item.algorithm)")
     }
 }
 
-FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+try response.writeJSON(to: .standardOutput)

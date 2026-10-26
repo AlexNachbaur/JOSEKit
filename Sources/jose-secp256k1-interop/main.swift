@@ -11,6 +11,7 @@
     import JOSEJWK
     import JOSEJWS
     import JOSESecp256k1
+    import TestSupport
 
     struct Challenge: Decodable {
         struct VerifyCase: Decodable {
@@ -44,43 +45,9 @@
         var verdicts: [Verdict] = []
     }
 
-    struct InteropError: Error, CustomStringConvertible {
-        let description: String
-    }
-
-    func bytes(fromHex hex: String) throws -> Data {
-        let digits = Array(hex.utf8)
-        guard digits.count.isMultiple(of: 2) else {
-            throw InteropError(description: "hex string has odd length \(digits.count)")
-        }
-        var output = Data(capacity: digits.count / 2)
-        for index in stride(from: 0, to: digits.count, by: 2) {
-            guard let byte = UInt8(String(decoding: digits[index..<(index + 2)], as: UTF8.self), radix: 16) else {
-                throw InteropError(description: "invalid hex at offset \(index)")
-            }
-            output.append(byte)
-        }
-        return output
-    }
-
-    func hex(_ data: Data) -> String {
-        data.map { byte in
-            let digits = String(byte, radix: 16)
-            if digits.count == 1 {
-                return "0" + digits
-            }
-            return digits
-        }
-        .joined()
-    }
-
-    func text(_ data: Data) -> String {
-        String(decoding: data, as: UTF8.self)
-    }
-
     func privateKey(_ jwk: PrivateJWK) throws -> ECPrivateKey<Secp256k1Curve> {
         guard case .external(let key) = jwk.key, let key = key as? ECPrivateKey<Secp256k1Curve> else {
-            throw InteropError(description: "not a secp256k1 private key")
+            throw FixtureError(description: "not a secp256k1 private key")
         }
         return key
     }
@@ -91,8 +58,8 @@
             .compactSerialization()
     }
 
-    let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
-    let payload = try bytes(fromHex: challenge.payload)
+    let challenge = try Challenge(jsonFrom: .standardInput)
+    let payload = try Data(hex: challenge.payload)
     var response = Response()
 
     for jwk in challenge.signingKeys {
@@ -107,8 +74,8 @@
         response.generated.append(
             Response.Generated(
                 keyID: keyID.rawValue,
-                privateJwk: text(try jwk.jsonRepresentation()),
-                publicJwk: text(try jwk.publicJWK.jsonRepresentation()),
+                privateJwk: String(utf8: try jwk.jsonRepresentation()),
+                publicJwk: String(utf8: try jwk.publicJWK.jsonRepresentation()),
                 thumbprint: try jwk.publicJWK.thumbprint().base64URLEncoded,
                 token: try await sign(payload, with: key, keyID: keyID)
             )
@@ -122,11 +89,11 @@
         )
         do {
             let verified = try await SimpleJWS.Unverified(compact: item.token).verify(with: keys)
-            response.verdicts.append(Response.Verdict(accepted: true, payload: hex(verified.payload)))
+            response.verdicts.append(Response.Verdict(accepted: true, payload: verified.payload.hex))
         } catch {
             response.verdicts.append(Response.Verdict(accepted: false, payload: nil))
         }
     }
 
-    FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+    try response.writeJSON(to: .standardOutput)
 #endif

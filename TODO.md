@@ -23,8 +23,6 @@ These may be done later.
 - **Flattening the grouping types.** `JWE`, `JWS`, `JWT`, `EncryptedJWT` and `NestedJWT` hold
   only nested types (`JWE.Encrypted`, `JWS.Signed`, ...). They could become top-level generic
   types. (D24)
-- **First release.** `0.1.0` is tagged once the parity work is finished. Until then the API may
-  change without notice.
 
 ## Not planned
 

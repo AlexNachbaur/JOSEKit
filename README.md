@@ -25,12 +25,12 @@ zlib, so it is not available on Windows, and neither is ES256K (`JOSESecp256k1`)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/AlexNachbaur/JOSEKit.git", from: "0.1.0"),
+    .package(url: "https://github.com/AlexNachbaur/josekit-swift.git", from: "0.1.0"),
 ],
 targets: [
     .target(
         name: "MyApp",
-        dependencies: [.product(name: "JOSEJWT", package: "JOSEKit")]
+        dependencies: [.product(name: "JOSEJWT", package: "josekit-swift")]
     ),
 ]
 ```

@@ -23,7 +23,7 @@ Please **do not** report security issues through public GitHub issues.
 Instead, either:
 
 - Use GitHub's private vulnerability reporting on the
-  [Security tab](https://github.com/AlexNachbaur/JOSEKit/security) of the repository, or
+  [Security tab](https://github.com/AlexNachbaur/josekit-swift/security) of the repository, or
 - Email <alex@nachbaur.com> with a description of the issue, steps to reproduce, and the commit
   or version affected.
 

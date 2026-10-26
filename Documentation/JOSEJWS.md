@@ -73,7 +73,7 @@ let resolver = HeaderKeyResolver(
     algorithms: [.es256],
     jwkSetProvider: CachingJWKSetProvider(URLSessionJWKSetProvider()),
     allowedJWKSetURLs: [issuerJWKSURL],                         // exact HTTPS URLs only
-    certificateChainValidator: try SecTrustCertificateChainValidator(anchors: [issuerCA])
+    certificateChainValidator: try X509CertificateChainValidator(anchors: [issuerCA])   // JOSEX509
 )
 let verified = try await unverified.verify(resolving: resolver)
 ```
@@ -83,9 +83,13 @@ With several signatures, each is checked against the keys its own header names.
 `JWKSetProvider` and `CertificateChainValidator` are protocols; supply your own to change the
 transport, the caching or the trust rules. `URLSessionJWKSetProvider` uses a body only when it
 comes from the URL requested; on Apple platforms it also refuses redirects and stops reading at
-`maximumByteCount`. `SecTrustCertificateChainValidator` exists on Apple platforms, trusts only
-the anchors it is given and does not fetch anything from the network. An embedded `jwk` is used
-only when `allowsEmbeddedKey` is on.
+`maximumByteCount`. Two certificate chain validators are provided. Both trust only the anchors
+they are given, and neither fetches anything from the network:
+
+- `X509CertificateChainValidator`, in [JOSEX509](JOSEX509.md), works on every platform.
+- `SecTrustCertificateChainValidator`, here in JOSEJWS, uses Security.framework on Apple platforms.
+
+An embedded `jwk` is used only when `allowsEmbeddedKey` is on.
 
 ## Testing
 

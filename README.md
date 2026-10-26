@@ -47,6 +47,7 @@ Each module is its own library product, so an application builds only what it us
 | `JOSEJWE` | JSON Web Encryption in all three serializations, several recipients. | `JOSEJWK` | [JOSEJWE](Documentation/JOSEJWE.md) |
 | `JOSEJWT` | Signed JWTs: claims, a claims builder, validation policies. | `JOSEJWS` | [JOSEJWT](Documentation/JOSEJWT.md) |
 | `JOSEJWTEncrypted` | Encrypted and nested JWTs. | `JOSEJWT`, `JOSEJWE` | [JOSEJWT](Documentation/JOSEJWT.md) |
+| `JOSEX509` | `x5c` certificate chain validation on every platform. | `JOSEJWS`, [swift-certificates](https://github.com/apple/swift-certificates) | [JOSEX509](Documentation/JOSEX509.md) |
 | `JOSESecp256k1` | ES256K and secp256k1 keys (RFC 8812). Not on Windows. | `JOSEJWS`, [swift-secp256k1](https://github.com/21-DOT-DEV/swift-secp256k1) | [JOSESecp256k1](Documentation/JOSESecp256k1.md) |
 
 ## A signed JWT, end to end

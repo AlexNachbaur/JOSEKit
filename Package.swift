@@ -60,6 +60,8 @@ let package = Package(
         .library(name: "JOSEJWTEncrypted", targets: ["JOSEJWTEncrypted"]),
         // ES256K and secp256k1 keys (RFC 8812), on bitcoin-core's libsecp256k1.
         .library(name: "JOSESecp256k1", targets: ["JOSESecp256k1"]),
+        // `x5c` certificate chain validation on every platform, on swift-certificates.
+        .library(name: "JOSEX509", targets: ["JOSEX509"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-crypto.git", "4.0.0"..<"6.0.0"),
@@ -67,6 +69,8 @@ let package = Package(
         // which Xcode and SwiftPM's Swift Build backend both do, so turning a trait off removes
         // only the C half of a module and leaves its Swift half failing to link.
         .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1.git", .upToNextMinor(from: "0.23.2")),
+        .package(url: "https://github.com/apple/swift-certificates.git", from: "1.21.0"),
+        .package(url: "https://github.com/apple/swift-asn1.git", from: "1.1.0"),
     ],
     targets: [
         // MARK: Libraries
@@ -109,6 +113,15 @@ let package = Package(
         .target(
             name: "JOSESecp256k1",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", secp256k1],
+            swiftSettings: swiftSettings
+        ),
+        .target(
+            name: "JOSEX509",
+            dependencies: [
+                "JOSECore", "JOSEJWK", "JOSEJWS",
+                .product(name: "X509", package: "swift-certificates"),
+                .product(name: "SwiftASN1", package: "swift-asn1"),
+            ],
             swiftSettings: swiftSettings
         ),
 
@@ -204,6 +217,12 @@ let package = Package(
         .testTarget(
             name: "JOSESecp256k1Tests",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1", "TestSupport"],
+            resources: [.copy("Fixtures")],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "JOSEX509Tests",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEX509", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),

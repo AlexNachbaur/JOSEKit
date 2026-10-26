@@ -72,8 +72,7 @@ and bounded:
 let resolver = HeaderKeyResolver(
     algorithms: [.es256],
     jwkSetProvider: CachingJWKSetProvider(URLSessionJWKSetProvider()),
-    allowedJWKSetURLs: [issuerJWKSURL],                         // exact HTTPS URLs only
-    certificateChainValidator: try X509CertificateChainValidator(anchors: [issuerCA])   // JOSEX509
+    allowedJWKSetURLs: [issuerJWKSURL]                          // exact HTTPS URLs only
 )
 let verified = try await unverified.verify(resolving: resolver)
 ```
@@ -83,13 +82,44 @@ With several signatures, each is checked against the keys its own header names.
 `JWKSetProvider` and `CertificateChainValidator` are protocols; supply your own to change the
 transport, the caching or the trust rules. `URLSessionJWKSetProvider` uses a body only when it
 comes from the URL requested; on Apple platforms it also refuses redirects and stops reading at
-`maximumByteCount`. Two certificate chain validators are provided. Both trust only the anchors
-they are given, and neither fetches anything from the network:
+`maximumByteCount`. An embedded `jwk` is used only when `allowsEmbeddedKey` is on.
 
-- `X509CertificateChainValidator`, in [JOSEX509](JOSEX509.md), works on every platform.
-- `SecTrustCertificateChainValidator`, here in JOSEJWS, uses Security.framework on Apple platforms.
+### Certificate chains (`x5c`)
 
-An embedded `jwk` is used only when `allowsEmbeddedKey` is on.
+`x5c` is used only when the resolver has a `CertificateChainValidator`. Two are provided. Both
+trust only the anchors they are given (DER CA certificates), and neither fetches anything from
+the network.
+
+On Apple platforms, `SecTrustCertificateChainValidator` uses Security.framework and needs
+nothing beyond JOSEJWS:
+
+```swift
+import JOSEJWS
+
+let resolver = HeaderKeyResolver(
+    algorithms: [.es256],
+    certificateChainValidator: try SecTrustCertificateChainValidator(anchors: [issuerCA])
+)
+let verified = try await unverified.verify(resolving: resolver)
+```
+
+On every platform, `X509CertificateChainValidator` uses swift-certificates. Add the `JOSEX509`
+product:
+
+```swift
+import JOSEJWS
+import JOSEX509
+
+let resolver = HeaderKeyResolver(
+    algorithms: [.es256],
+    certificateChainValidator: try X509CertificateChainValidator(anchors: [issuerCA])
+)
+let verified = try await unverified.verify(resolving: resolver)
+```
+
+The two differ on a few chains: SecTrust cannot return an Ed25519 key, and JOSEX509 also
+requires the signing certificate's key usage to allow signatures. [JOSEX509](JOSEX509.md) lists
+the differences.
 
 ## Testing
 

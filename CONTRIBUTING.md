@@ -31,7 +31,7 @@ Fedora and RHEL), for JWE compression.
 
 ## Reporting bugs and requesting features
 
-- Search [existing issues](https://github.com/AlexNachbaur/JOSEKit/issues) first.
+- Search [existing issues](https://github.com/AlexNachbaur/josekit-swift/issues) first.
 - Use the issue templates. A minimal reproduction (the token, the key's public JWK, and the
   observed and expected result) makes bugs much faster to fix. Generate throwaway keys for it;
   never paste real private keys or live tokens.

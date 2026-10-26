@@ -121,7 +121,7 @@ struct JWKTests {
                 #expect(try ECPublicKey<P521Curve>(x963Representation: raw) == publicKey)
             case .ed25519(let publicKey):
                 #expect(publicKey.rawRepresentation == raw)
-            case .x25519, .rsa, .unrecognized:
+            case .x25519, .rsa, .external, .unrecognized:
                 Issue.record("\(key.curve) key was not recognised as itself")
             }
         }

@@ -24,7 +24,7 @@ check() {
 
 modules=("$@")
 if [ ${#modules[@]} -eq 0 ]; then
-    modules=(core jwk jws jwe jwt)
+    modules=(core jwk jws jwe jwt secp256k1)
 fi
 
 for module in "${modules[@]}"; do
@@ -38,8 +38,9 @@ for module in "${modules[@]}"; do
         check jwt/closed-loop.mjs jose-jwt-interop jwt
         check jwt/closed-loop-encrypted.mjs jose-jwt-encrypted-interop jwt-encrypted
         ;;
+    secp256k1) check secp256k1/closed-loop.mjs jose-secp256k1-interop secp256k1 ;;
     *)
-        echo "unknown module '$module'; expected core, jwk, jws, jwe or jwt" >&2
+        echo "unknown module '$module'; expected core, jwk, jws, jwe, jwt or secp256k1" >&2
         exit 2
         ;;
     esac

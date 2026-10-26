@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 
 import PackageDescription
 
@@ -27,6 +27,15 @@ let zlib: Target.Dependency = .target(
         .macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS, .driverKit, .linux, .android, .wasi, .openbsd,
     ])
 )
+// swift-secp256k1 shares its C sources into its targets with a build plugin, which produces nothing
+// on Windows, so ES256K is not available there.
+let secp256k1: Target.Dependency = .product(
+    name: "P256K",
+    package: "swift-secp256k1",
+    condition: .when(platforms: [
+        .macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android,
+    ])
+)
 
 let package = Package(
     name: "JOSEKit",
@@ -49,9 +58,15 @@ let package = Package(
         // Encrypted and nested JWTs. Separate from JOSEJWT so that an application that only signs
         // and verifies does not build the encryption code.
         .library(name: "JOSEJWTEncrypted", targets: ["JOSEJWTEncrypted"]),
+        // ES256K and secp256k1 keys (RFC 8812), on bitcoin-core's libsecp256k1.
+        .library(name: "JOSESecp256k1", targets: ["JOSESecp256k1"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-crypto.git", "4.0.0"..<"6.0.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", "4.0.0"..<"6.0.0"),
+        // With its default traits. Its Swift sources are compiled in whenever `Xcode` is defined,
+        // which Xcode and SwiftPM's Swift Build backend both do, so turning a trait off removes
+        // only the C half of a module and leaves its Swift half failing to link.
+        .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1.git", .upToNextMinor(from: "0.23.2")),
     ],
     targets: [
         // MARK: Libraries
@@ -91,6 +106,11 @@ let package = Package(
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT"],
             swiftSettings: swiftSettings
         ),
+        .target(
+            name: "JOSESecp256k1",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", secp256k1],
+            swiftSettings: swiftSettings
+        ),
 
         // MARK: Interoperability executables
         // Not products. Each answers the challenge produced by its module's closed-loop script in
@@ -125,6 +145,11 @@ let package = Package(
         .executableTarget(
             name: "jose-jwt-encrypted-interop",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted"],
+            swiftSettings: swiftSettings
+        ),
+        .executableTarget(
+            name: "jose-secp256k1-interop",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1"],
             swiftSettings: swiftSettings
         ),
 
@@ -173,6 +198,12 @@ let package = Package(
             dependencies: [
                 "JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted", "TestSupport",
             ],
+            resources: [.copy("Fixtures")],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "JOSESecp256k1Tests",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),

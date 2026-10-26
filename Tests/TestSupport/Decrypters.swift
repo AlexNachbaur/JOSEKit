@@ -18,7 +18,7 @@ extension AnyKeyDecrypter {
             self.init(ECDHESDecrypter<Algorithm, ECPrivateKey<P521Curve>>(privateKey: key, keyID: keyID))
         case .x25519(let key):
             self.init(ECDHESDecrypter<Algorithm, X25519PrivateKey>(privateKey: key, keyID: keyID))
-        case .ed25519, .rsa:
+        case .ed25519, .rsa, .external:
             throw FixtureError(description: "not an ECDH key")
         }
     }

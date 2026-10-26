@@ -11,6 +11,9 @@ These may be done later.
 - **`zip` (`DEF`) on Windows.** Windows has no system zlib, so `JWECompression.deflate` does
   not exist there. A received compressed JWE is refused with `unsupportedCompression`. Bundling
   zlib's source would fix this, at the cost of keeping a copy of zlib up to date. (D22)
+- **ES256K on Windows.** swift-secp256k1 copies its C sources into its targets with a build
+  plugin that produces nothing on Windows, so `JOSESecp256k1` is empty there. It becomes
+  available when swift-secp256k1 builds on Windows. (D25)
 - **Revocation checking for `x5c`.** The planned cross-platform certificate chain validator
   (on swift-certificates, in `JOSEX509`) will check the chain and its validity dates, not OCSP
   or CRLs. Revocation needs network fetches and policy choices of its own. (D18, D22)

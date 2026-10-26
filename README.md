@@ -19,7 +19,7 @@ fails loudly where it cannot.
 Swift 6 with strict concurrency and typed throws. Apple platforms (macOS 13, iOS 16, tvOS 16,
 watchOS 9, visionOS 1), Linux, Windows and Android. CryptoKit on Apple platforms and
 [swift-crypto](https://github.com/apple/swift-crypto) elsewhere. JWE compression uses the system
-zlib, so it is not available on Windows.
+zlib, so it is not available on Windows, and neither is ES256K (`JOSESecp256k1`).
 
 ## Installation
 
@@ -47,6 +47,7 @@ Each module is its own library product, so an application builds only what it us
 | `JOSEJWE` | JSON Web Encryption in all three serializations, several recipients. | `JOSEJWK` | [JOSEJWE](Documentation/JOSEJWE.md) |
 | `JOSEJWT` | Signed JWTs: claims, a claims builder, validation policies. | `JOSEJWS` | [JOSEJWT](Documentation/JOSEJWT.md) |
 | `JOSEJWTEncrypted` | Encrypted and nested JWTs. | `JOSEJWT`, `JOSEJWE` | [JOSEJWT](Documentation/JOSEJWT.md) |
+| `JOSESecp256k1` | ES256K and secp256k1 keys (RFC 8812). Not on Windows. | `JOSEJWS`, [swift-secp256k1](https://github.com/21-DOT-DEV/swift-secp256k1) | [JOSESecp256k1](Documentation/JOSESecp256k1.md) |
 
 ## A signed JWT, end to end
 
@@ -84,7 +85,8 @@ swift test               # every module
 ```
 
 Test fixtures are generated from [panva/jose](https://github.com/panva/jose) (and OpenSSL for
-certificates) by the scripts in `interop/`, and are not edited by hand. The closed-loop checks
+certificates and secp256k1, which jose does not support) by the scripts in `interop/`, and are
+not edited by hand. The closed-loop checks
 have the Node implementation judge tokens, keys and signatures this package produces, and
 compare this package's verdicts with its own on tokens it produces. `./scripts/interop.sh jws jwe` checks only the modules
 named.

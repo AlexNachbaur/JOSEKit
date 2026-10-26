@@ -1,10 +1,9 @@
 // Shared by the fixture generator and the closed-loop check.
 
 import crypto from 'node:crypto';
-import { createRequire } from 'node:module';
+import josePackage from 'jose/package.json' with { type: 'json' };
 
-const require = createRequire(import.meta.url);
-export const joseVersion = require('jose/package.json').version;
+export const joseVersion = josePackage.version;
 
 // `joseAlg` is what jose is asked to generate/import with; `algs` are the JOSE identifiers the
 // key signs under; `webcrypto` is the algorithm passed to WebCrypto sign/verify, which for ECDSA

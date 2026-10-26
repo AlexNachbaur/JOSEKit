@@ -119,6 +119,8 @@ extension JWK {
             return key.thumbprint(using: hashAlgorithm)
         case .rsa(let key):
             return key.thumbprint(using: hashAlgorithm)
+        case .external(let external):
+            return external.key.thumbprint(using: hashAlgorithm)
         case .unrecognized(let unrecognized):
             throw .thumbprintUnavailable(keyType: unrecognized.keyType)
         }

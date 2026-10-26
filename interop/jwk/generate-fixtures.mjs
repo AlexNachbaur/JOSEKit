@@ -1,44 +1,17 @@
 // Generates the fixtures in Tests/JOSEJWKTests/Fixtures by running the counterpart
 // implementation: panva/jose and Node's WebCrypto (OpenSSL).
 //
-//     cd interop && npm ci && node generate-fixtures.mjs
+//     cd interop && npm ci && node jwk/generate-fixtures.mjs
 //
 // Every expected value is produced by the counterpart. Nothing is transcribed from a
 // specification. The fixtures change on every run because keys and signatures are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { base64url, calculateJwkThumbprint, calculateJwkThumbprintUri, exportJWK, generateKeyPair, importJWK } from 'jose';
-import { ASYMMETRIC, HMAC, RSA, flipLastBit, hmac, joseVersion, rsaSign, rsaVerifies, sign, verifies } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA, hmac, rsaSign, rsaVerifies, sign, verifies } from '../shared/algorithms.mjs';
+import { assert, fixtureWriter, flipLastBit } from '../shared/fixtures.mjs';
 
-const fixturesDirectory = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../../Tests/JOSEJWKTests/Fixtures',
-);
-
-function write(name, description, body) {
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwk/generate-fixtures.mjs.',
-            generator: 'interop/jwk/generate-fixtures.mjs',
-            description,
-            jose: joseVersion,
-            node: process.version,
-            openssl: process.versions.openssl,
-        },
-        ...body,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, name), JSON.stringify(fixture, null, 2) + '\n');
-    console.log(`wrote ${name}`);
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSEJWKTests');
 
 const HASHES = ['sha256', 'sha384', 'sha512'];
 

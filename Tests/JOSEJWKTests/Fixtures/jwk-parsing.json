@@ -1,7 +1,7 @@
 {
   "_generated": {
-    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
-    "generator": "interop/generate-fixtures.mjs",
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/jwk/generate-fixtures.mjs.",
+    "generator": "interop/jwk/generate-fixtures.mjs",
     "description": "JWK documents, well-formed and not, with what jose importJWK does with each.",
     "jose": "6.2.12",
     "node": "v24.11.1",
@@ -11,7 +11,7 @@
     {
       "curve": "P-256",
       "name": "valid (positive control)",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -20,7 +20,7 @@
     {
       "curve": "P-256",
       "name": "valid with kid, use and alg",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES256\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -29,7 +29,7 @@
     {
       "curve": "P-256",
       "name": "kty missing",
-      "json": "{\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -38,7 +38,7 @@
     {
       "curve": "P-256",
       "name": "crv missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -47,7 +47,7 @@
     {
       "curve": "P-256",
       "name": "x missing",
-      "json": "{\"kty\":\"EC\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -56,7 +56,7 @@
     {
       "curve": "P-256",
       "name": "x is a number",
-      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -65,7 +65,7 @@
     {
       "curve": "P-256",
       "name": "x is not base64url (standard alphabet)",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_+/\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykw+/\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -74,7 +74,7 @@
     {
       "curve": "P-256",
       "name": "x is padded",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ=\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM=\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -83,7 +83,7 @@
     {
       "curve": "P-256",
       "name": "x has one byte too few",
-      "json": "{\"kty\":\"EC\",\"x\":\"vyvyHLGo4UwGPDKYI1fUxdhslcrxxS6ym8-lloT-ZA\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"8zAEdCj1_u7jdRxn5KX2z3V4_vcIm3YLaic5fKTC0w\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -92,7 +92,7 @@
     {
       "curve": "P-256",
       "name": "x has one byte too many",
-      "json": "{\"kty\":\"EC\",\"x\":\"ABe_K_IcsajhTAY8MpgjV9TF2GyVyvHFLrKbz6WWhP5k\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"ABHzMAR0KPX-7uN1HGfkpfbPdXj-9wibdgtqJzl8pMLT\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -101,7 +101,7 @@
     {
       "curve": "P-256",
       "name": "x is empty",
-      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -110,7 +110,7 @@
     {
       "curve": "P-256",
       "name": "kty is oct",
-      "json": "{\"kty\":\"oct\",\"k\":\"QfYu73CMKNJGOFAKcwbUZp4N1aOD_F2pHf_aLJyYlM4\"}",
+      "json": "{\"kty\":\"oct\",\"k\":\"jg1BxAHJNqq5t6GV5L9_BheuXcOh2b4FacuCMeUmoqs\"}",
       "jose": {
         "accepted": true,
         "importedAs": "secret"
@@ -119,7 +119,7 @@
     {
       "curve": "P-256",
       "name": "kty is unknown",
-      "json": "{\"kty\":\"XYZ\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"XYZ\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -128,7 +128,7 @@
     {
       "curve": "P-256",
       "name": "crv is unknown",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-999\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-999\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -137,7 +137,7 @@
     {
       "curve": "P-256",
       "name": "private member d present",
-      "json": "{\"kty\":\"EC\",\"x\":\"NOaPt_0NncNh39vpsxtldmmLxVY6X3AEVN8X6_50npo\",\"y\":\"m5MOkVjzozJa_RffkiXnzzLKKedJOvKzXLTZsJyIN14\",\"crv\":\"P-256\",\"d\":\"DcxMKZgp0gwZkoDeKe7pafAigQAbkawDNFPS-MjvPxA\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"9HWqAD3G2VioM8K4fcDmMPmYIe97cS1ZaB4RTGBl9PE\",\"y\":\"pKhxMCOM5otpfjTSIfDRc0hm-k36P--U84GIQ_RJ2Ac\",\"crv\":\"P-256\",\"d\":\"95RnWTgyX-Xm4efKUH2GsYz7vbsxVeJZ9kzYWhajuf0\"}",
       "jose": {
         "accepted": true,
         "importedAs": "private"
@@ -146,7 +146,7 @@
     {
       "curve": "P-256",
       "name": "y missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -155,7 +155,7 @@
     {
       "curve": "P-256",
       "name": "y from a different key (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"m5MOkVjzozJa_RffkiXnzzLKKedJOvKzXLTZsJyIN14\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pKhxMCOM5otpfjTSIfDRc0hm-k36P--U84GIQ_RJ2Ac\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -164,7 +164,7 @@
     {
       "curve": "P-256",
       "name": "x and y swapped (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"y\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"y\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -173,7 +173,7 @@
     {
       "curve": "P-256",
       "name": "crv names a different curve",
-      "json": "{\"kty\":\"EC\",\"x\":\"F78r8hyxqOFMBjwymCNX1MXYbJXK8cUuspvPpZaE_mQ\",\"y\":\"zb-Io6uR6hxIEkigy53MrjM-_maHqe-SET4zuG5n-5o\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"EfMwBHQo9f7u43UcZ-Sl9s91eP73CJt2C2onOXykwtM\",\"y\":\"pgbag3j2Dni5jfI_cHXK3nVIVEXAYVYmoQzIX-m-pVg\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -182,7 +182,7 @@
     {
       "curve": "P-384",
       "name": "valid (positive control)",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -191,7 +191,7 @@
     {
       "curve": "P-384",
       "name": "valid with kid, use and alg",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES384\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -200,7 +200,7 @@
     {
       "curve": "P-384",
       "name": "kty missing",
-      "json": "{\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -209,7 +209,7 @@
     {
       "curve": "P-384",
       "name": "crv missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -218,7 +218,7 @@
     {
       "curve": "P-384",
       "name": "x missing",
-      "json": "{\"kty\":\"EC\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -227,7 +227,7 @@
     {
       "curve": "P-384",
       "name": "x is a number",
-      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -236,7 +236,7 @@
     {
       "curve": "P-384",
       "name": "x is not base64url (standard alphabet)",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFa+/\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94+/\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -245,7 +245,7 @@
     {
       "curve": "P-384",
       "name": "x is padded",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg=\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK=\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -254,7 +254,7 @@
     {
       "curve": "P-384",
       "name": "x has one byte too few",
-      "json": "{\"kty\":\"EC\",\"x\":\"K14v0G0fHBsMWLJDYj86iGrc3wXjJL7rtM6YhOP70FExfHXgkUp2nB-mFQMVoKA\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"acLaIGwaA_kXqiLYdofFazceZDaY1DXfsOEC2njiJarre98zmj-0NOtAeS73iQo\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -263,7 +263,7 @@
     {
       "curve": "P-384",
       "name": "x has one byte too many",
-      "json": "{\"kty\":\"EC\",\"x\":\"AIwrXi_QbR8cGwxYskNiPzqIatzfBeMkvuu0zpiE4_vQUTF8deCRSnacH6YVAxWgoA\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AMBpwtogbBoD-ReqIth2h8VrNx5kNpjUNd-w4QLaeOIlqut73zOaP7Q060B5LveJCg\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -272,7 +272,7 @@
     {
       "curve": "P-384",
       "name": "x is empty",
-      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -281,7 +281,7 @@
     {
       "curve": "P-384",
       "name": "kty is oct",
-      "json": "{\"kty\":\"oct\",\"k\":\"U8jcRKJpZp-9W0ssGoQvQxDjfOZOsGSuCpaSyI5NZvA\"}",
+      "json": "{\"kty\":\"oct\",\"k\":\"GV3_faO5gdPedqOnPe4P8ALQ6QD-pVrKhlWJ7PCOqQ4\"}",
       "jose": {
         "accepted": true,
         "importedAs": "secret"
@@ -290,7 +290,7 @@
     {
       "curve": "P-384",
       "name": "kty is unknown",
-      "json": "{\"kty\":\"XYZ\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"XYZ\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -299,7 +299,7 @@
     {
       "curve": "P-384",
       "name": "crv is unknown",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-999\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-999\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -308,7 +308,7 @@
     {
       "curve": "P-384",
       "name": "private member d present",
-      "json": "{\"kty\":\"EC\",\"x\":\"dRqaNRgAmYfDirNqhPghdAG9LOblveZKzPqMFye-ppEjBKSkyKGGDbzMqZqg8_yG\",\"y\":\"FTEkz8EFLmlrm-hYtWWD8OdfJzR8sodbGMCYdii-Wv40bON839gQF69OhX9SiQa3\",\"crv\":\"P-384\",\"d\":\"6N_886v1XNzmwx4N4DSY512_sGnrfXaj7xqHrK2l-jVZ8Ex2avvq8DZsvKv4ceq6\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"Kl7Wh7pcPdBj4HgHRV3yQ9a_p9LsWoi9rHxEBhXfhfpNQIRc5obkmNNwwimOko0E\",\"y\":\"nfURA9lxQeYe311IDAulfVEWrAod3HXPWr1y0UqdPUsLUd5mS96T9q7BDgqmg_fQ\",\"crv\":\"P-384\",\"d\":\"LujG4dThmSE8V6bszFnrot5Qi2dWFoPdFArJRixHst8X-ZnIUe-YGcfY2SqPEEp1\"}",
       "jose": {
         "accepted": true,
         "importedAs": "private"
@@ -317,7 +317,7 @@
     {
       "curve": "P-384",
       "name": "y missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -326,7 +326,7 @@
     {
       "curve": "P-384",
       "name": "y from a different key (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"FTEkz8EFLmlrm-hYtWWD8OdfJzR8sodbGMCYdii-Wv40bON839gQF69OhX9SiQa3\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"nfURA9lxQeYe311IDAulfVEWrAod3HXPWr1y0UqdPUsLUd5mS96T9q7BDgqmg_fQ\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -335,7 +335,7 @@
     {
       "curve": "P-384",
       "name": "x and y swapped (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"y\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"crv\":\"P-384\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"y\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"crv\":\"P-384\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -344,7 +344,7 @@
     {
       "curve": "P-384",
       "name": "crv names a different curve",
-      "json": "{\"kty\":\"EC\",\"x\":\"jCteL9BtHxwbDFiyQ2I_Oohq3N8F4yS-67TOmITj-9BRMXx14JFKdpwfphUDFaCg\",\"y\":\"KhKd8Z0GL7lXP8vwzCO-e8_qn-3Q9HvKgMWXODqcxkOM-LyEuuPkSXKkSkdApZuP\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"wGnC2iBsGgP5F6oi2HaHxWs3HmQ2mNQ137DhAtp44iWq63vfM5o_tDTrQHku94kK\",\"y\":\"D0WHoyOaa29B0TPb3p-J65rj-5sQ4gBfjFknRiLrXkcZTWDcih4GNYjHvr4mYyvs\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -353,7 +353,7 @@
     {
       "curve": "P-521",
       "name": "valid (positive control)",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -362,7 +362,7 @@
     {
       "curve": "P-521",
       "name": "valid with kid, use and alg",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES512\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES512\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -371,7 +371,7 @@
     {
       "curve": "P-521",
       "name": "kty missing",
-      "json": "{\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -380,7 +380,7 @@
     {
       "curve": "P-521",
       "name": "crv missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -389,7 +389,7 @@
     {
       "curve": "P-521",
       "name": "x missing",
-      "json": "{\"kty\":\"EC\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -398,7 +398,7 @@
     {
       "curve": "P-521",
       "name": "x is a number",
-      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -407,7 +407,7 @@
     {
       "curve": "P-521",
       "name": "x is not base64url (standard alphabet)",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOH+/\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesX+/\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -416,7 +416,7 @@
     {
       "curve": "P-521",
       "name": "x is padded",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU=\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq=\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -425,16 +425,16 @@
     {
       "curve": "P-521",
       "name": "x has one byte too few",
-      "json": "{\"kty\":\"EC\",\"x\":\"KoX8leGSGLcmZ554WPMp6UqKzn3cPXTgWDCxv_gX8HiZrY8Ot0_fMfs1mCOzf4ctQh7ZEvi6RWwDwL41x9I4dZQ\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"YVnRmws6oWVpZM_GOXL4KfyEl3p5fCb8YSB_WpCxabYrB4X9P3-KcI4lH4JGADzRraNfCVJQlJw0c5LMhZ6xeyo\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
-        "accepted": true,
-        "importedAs": "public"
+        "accepted": false,
+        "error": "DataError: Invalid keyData"
       }
     },
     {
       "curve": "P-521",
       "name": "x has one byte too many",
-      "json": "{\"kty\":\"EC\",\"x\":\"AAAqhfyV4ZIYtyZnnnhY8ynpSorOfdw9dOBYMLG_-BfweJmtjw63T98x-zWYI7N_hy1CHtkS-LpFbAPAvjXH0jh1lA\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AAFhWdGbCzqhZWlkz8Y5cvgp_ISXenl8JvxhIH9akLFptisHhf0_f4pwjiUfgkYAPNGto18JUlCUnDRzksyFnrF7Kg\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -443,7 +443,7 @@
     {
       "curve": "P-521",
       "name": "x is empty",
-      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -452,7 +452,7 @@
     {
       "curve": "P-521",
       "name": "kty is oct",
-      "json": "{\"kty\":\"oct\",\"k\":\"waRUVJhjQD7ReYiWIA93gX1g0gH5n8pAxIfF8QkcjSU\"}",
+      "json": "{\"kty\":\"oct\",\"k\":\"6rBnaCySV-BTN4_4GtEyyIptYoT7bbPZg9CR4gSU3Io\"}",
       "jose": {
         "accepted": true,
         "importedAs": "secret"
@@ -461,7 +461,7 @@
     {
       "curve": "P-521",
       "name": "kty is unknown",
-      "json": "{\"kty\":\"XYZ\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"XYZ\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -470,7 +470,7 @@
     {
       "curve": "P-521",
       "name": "crv is unknown",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-999\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-999\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -479,7 +479,7 @@
     {
       "curve": "P-521",
       "name": "private member d present",
-      "json": "{\"kty\":\"EC\",\"x\":\"AbLnowluyHGQqgpqH3MYsnGf5qExOxaDPbMxwM_V7K-IdeXQ40Ul-88r3yF-gm0oxc7a5oyaO99RcsJiJg5hRcqQ\",\"y\":\"ABobj8svUjiVXiP5Mz8agykACivSJeA9_sXJQhqiirM8V0kXEjHAA_OKkfFuQSCGu9-j8BRVoL79oI9rtG2lsBPD\",\"crv\":\"P-521\",\"d\":\"AZCdDdI53OuSQCtHfp9UTfrni8Z8yQ3UJ3KTkOYHcgemn5VkN1G-OEBA5PuwX7Dya1GmnEEY1ly7wqaN3hoo4_pI\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AKi9v3THF9G4sajEhEB-OmkdNcxB5_MynCA_210ln3IH56XRtixwLnVqZZF3O-8bq1Wu8vzKtm2pnGO7pwdYuMet\",\"y\":\"ADOc90tmZ6RDmD_XjfRe10-55O_L1s42tBHDmuNEBSbuJ7INWzRcoT_4fYoua3REgghIve834nHA0x_ciPYG2s3y\",\"crv\":\"P-521\",\"d\":\"AAVIv4EPiktBghjc09tFSpVtN2iL7SJYPsj9mPO9giI0-BZqyOap1RNDBE-3MS042CFVIpPWo6RBWLYRacQk2RQD\"}",
       "jose": {
         "accepted": true,
         "importedAs": "private"
@@ -488,7 +488,7 @@
     {
       "curve": "P-521",
       "name": "y missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -497,7 +497,7 @@
     {
       "curve": "P-521",
       "name": "y from a different key (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"ABobj8svUjiVXiP5Mz8agykACivSJeA9_sXJQhqiirM8V0kXEjHAA_OKkfFuQSCGu9-j8BRVoL79oI9rtG2lsBPD\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"ADOc90tmZ6RDmD_XjfRe10-55O_L1s42tBHDmuNEBSbuJ7INWzRcoT_4fYoua3REgghIve834nHA0x_ciPYG2s3y\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -506,7 +506,7 @@
     {
       "curve": "P-521",
       "name": "x and y swapped (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"y\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"crv\":\"P-521\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"y\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"crv\":\"P-521\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -515,7 +515,7 @@
     {
       "curve": "P-521",
       "name": "crv names a different curve",
-      "json": "{\"kty\":\"EC\",\"x\":\"ACqF_JXhkhi3JmeeeFjzKelKis593D104Fgwsb_4F_B4ma2PDrdP3zH7NZgjs3-HLUIe2RL4ukVsA8C-NcfSOHWU\",\"y\":\"Ab_zm_rFkI6lGmC4-HjERlc46oFgccO8GpMyYFUTPecXCuZGYTkwiiYyT35Kipq8_xQu2kBVIGh2YwHKCQlUwIUa\",\"crv\":\"P-256\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"AWFZ0ZsLOqFlaWTPxjly-Cn8hJd6eXwm_GEgf1qQsWm2KweF_T9_inCOJR-CRgA80a2jXwlSUJScNHOSzIWesXsq\",\"y\":\"AWaafxC7m6McypQQKc9udwbgTB83qPZmRwPPIAUNP10m4z1-cUGC4K8aiN6N6_1Zc1_Y6NZGwSk9xlyYZL4-AKJQ\",\"crv\":\"P-256\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" does not match the requested algorithm"
@@ -524,7 +524,7 @@
     {
       "curve": "Ed25519",
       "name": "valid (positive control)",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -533,7 +533,7 @@
     {
       "curve": "Ed25519",
       "name": "valid with kid, use and alg",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc\",\"kty\":\"OKP\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"Ed25519\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU\",\"kty\":\"OKP\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"Ed25519\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -542,7 +542,7 @@
     {
       "curve": "Ed25519",
       "name": "kty missing",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -551,7 +551,7 @@
     {
       "curve": "Ed25519",
       "name": "crv missing",
-      "json": "{\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc\",\"kty\":\"OKP\"}",
+      "json": "{\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" Parameter and algorithm name mismatch"
@@ -578,7 +578,7 @@
     {
       "curve": "Ed25519",
       "name": "x is not base64url (standard alphabet)",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-J+/\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDk+/\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -587,7 +587,7 @@
     {
       "curve": "Ed25519",
       "name": "x is padded",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc=\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU=\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -596,7 +596,7 @@
     {
       "curve": "Ed25519",
       "name": "x has one byte too few",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"lIuQuKwfsJfTSX_Et5RwCrYd_wmMgu9_Fu9Na74nFw\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"ZIjiSfYFswlsHbMK1FgH3Xm7YddtiG53LMWavAORxQ\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -605,7 +605,7 @@
     {
       "curve": "Ed25519",
       "name": "x has one byte too many",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"AA-Ui5C4rB-wl9NJf8S3lHAKth3_CYyC738W701rvicX\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"APZkiOJJ9gWzCWwdswrUWAfdebth122IbncsxZq8A5HF\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -623,7 +623,7 @@
     {
       "curve": "Ed25519",
       "name": "kty is oct",
-      "json": "{\"kty\":\"oct\",\"k\":\"XEsG6wJfpj_DFdw2vrrwF14UZwP5lsCcU_qVkEUWqKY\"}",
+      "json": "{\"kty\":\"oct\",\"k\":\"obk905LeHbDvhyfMap3Lhm_eHPV0tpHsnUJ_ox4m0AI\"}",
       "jose": {
         "accepted": true,
         "importedAs": "secret"
@@ -632,7 +632,7 @@
     {
       "curve": "Ed25519",
       "name": "kty is unknown",
-      "json": "{\"crv\":\"Ed25519\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc\",\"kty\":\"XYZ\"}",
+      "json": "{\"crv\":\"Ed25519\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU\",\"kty\":\"XYZ\"}",
       "jose": {
         "accepted": false,
         "error": "JOSENotSupported: Unsupported \"kty\" (Key Type) Parameter value"
@@ -641,7 +641,7 @@
     {
       "curve": "Ed25519",
       "name": "crv is unknown",
-      "json": "{\"crv\":\"P-999\",\"x\":\"D5SLkLisH7CX00l_xLeUcAq2Hf8JjILvfxbvTWu-Jxc\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"P-999\",\"x\":\"9mSI4kn2BbMJbB2zCtRYB915u2HXbYhudyzFmrwDkcU\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: JWK \"crv\" Parameter and algorithm name mismatch"
@@ -650,7 +650,7 @@
     {
       "curve": "Ed25519",
       "name": "private member d present",
-      "json": "{\"crv\":\"Ed25519\",\"d\":\"HDlZkjphLAMWTr5t5-78KDh2H7VXsPnPY01itL5zR6o\",\"x\":\"wltEerSwo2K3uNwChl3w0K8Z6lJorW4PTz9Y8rH0dwk\",\"kty\":\"OKP\"}",
+      "json": "{\"crv\":\"Ed25519\",\"d\":\"wwPpcBUiDXa55F6_brZFdcv6Q8sX1XcLEOWcWTt84X4\",\"x\":\"OBfEzz8O7FgswHCxv0V7Sks0VLgbk8s_JR8l5-q0vgo\",\"kty\":\"OKP\"}",
       "jose": {
         "accepted": true,
         "importedAs": "private"
@@ -659,7 +659,7 @@
     {
       "curve": "RSA",
       "name": "valid (positive control)",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\",\"e\":\"AQAB\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\",\"e\":\"AQAB\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -668,7 +668,7 @@
     {
       "curve": "RSA",
       "name": "valid with kid, use and alg",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\",\"e\":\"AQAB\",\"kid\":\"rsa-1\",\"use\":\"sig\",\"alg\":\"RS256\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\",\"e\":\"AQAB\",\"kid\":\"rsa-1\",\"use\":\"sig\",\"alg\":\"RS256\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -686,7 +686,7 @@
     {
       "curve": "RSA",
       "name": "e missing",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\"}",
       "jose": {
         "accepted": false,
         "error": "DataError: Invalid keyData"
@@ -704,7 +704,7 @@
     {
       "curve": "RSA",
       "name": "n is not base64url (standard alphabet)",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8Wx+/\",\"e\":\"AQAB\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXu+/\",\"e\":\"AQAB\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -722,7 +722,7 @@
     {
       "curve": "RSA",
       "name": "1024-bit key",
-      "json": "{\"kty\":\"RSA\",\"n\":\"sIw0iFy5sVj0MniuYyD8a8EEmR2wqMoGpWlf83cNKSZnTZTjl0BbtYJkKGT8xLbgm3GIH0t7-7jtgd0qgUyh7Q689IgJB4TCLCc6D27uZdmj-w4DEB3ADRM6uBUDB8RQqvYG-UMq76_0kZkRufMsxCP0WGANCvapaco4q2cI3Gk\",\"e\":\"AQAB\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"ztP8Ilqs1amOoyXCs9L8dEaKPyBDCmoE_c0_yToXKC3HjVWwvnUW1R9BhwIlqeZit5IS2bgIR0ks66Q_U2VTnsf3yDeIf6OImy9jpOLfYwxDbCYF-zVQv3zZcAG5A5JQer4ENDiiKgZ_Jy5sEW5JjCIOGLNZwgA6beobw5ToS5M\",\"e\":\"AQAB\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -731,7 +731,7 @@
     {
       "curve": "RSA",
       "name": "n has a leading zero byte",
-      "json": "{\"kty\":\"RSA\",\"n\":\"ALWB09Qfxbj55XTMXESigWhlaoX9gdvANpNanZdDy1gIsoYc2WUcHnah82dSasw5KuuWpZdyTqgPUtUOm0q5rpCHqQxrqygHTEQIa0Vgw9rGhX8DAzuG0T0c1r2I5oZGZg8ONZHoce57Wv4s69ck8Bxb7MXj3Cvg26gDcRutEGsjt4KOOdrej1-Tvj_LNGJtR4749LmVsQln6EmaebPrOfngc3V6toMoqI7h5SF22NsNdLVR-kBmOAHOpbWEGudrwbNdN1nXcQqiKQfpxDh1qpGI3zwoFRXt8q0OKsWroPx8EtFFngb2o_kHciDzLHgpeQYNvL4tBb1HFH03GE_FsVs\",\"e\":\"AQAB\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"AKO5K3gGXxX61zK_nXO8z4UwYxtS_1ethQZ3neOAohLOT4EbNXTG98xIuyUDVaLyU7BkCuJ9Wd6sSCzoVbOlmgIKnHUfoQl5JumrPeM0rHc0vEdsTVQtP90hG-BrM-2Dd2BrR2-OULAi6cwvE9GNhzKni2ffR9SJk-l99YG8X_06zrfQlAIquCnvqZxgG-yrW54Bvk7ypmy2cK32E4xx1k26NxDsQRk2ERWc9GBS0H3fb9-R0sADFvfWVmvAY3AOifR3DVtbc79nfTbWzqUUAfdaZQK4Zb9opsM9Up-sM_8AM52ijipLqRdgpFS7N0furcLoJyZBVt9OuITeSK417ls\",\"e\":\"AQAB\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -740,7 +740,7 @@
     {
       "curve": "RSA",
       "name": "e has a leading zero byte",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\",\"e\":\"AAEAAQ\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\",\"e\":\"AAEAAQ\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -749,7 +749,7 @@
     {
       "curve": "RSA",
       "name": "e is even",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\",\"e\":\"AQAA\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\",\"e\":\"AQAA\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -758,7 +758,7 @@
     {
       "curve": "RSA",
       "name": "e is 1",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\",\"e\":\"AQ\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\",\"e\":\"AQ\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -767,7 +767,7 @@
     {
       "curve": "RSA",
       "name": "n is even",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWg\",\"e\":\"AQAB\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWg\",\"e\":\"AQAB\"}",
       "jose": {
         "accepted": true,
         "importedAs": "public"
@@ -776,7 +776,7 @@
     {
       "curve": "RSA",
       "name": "private member d present",
-      "json": "{\"kty\":\"RSA\",\"n\":\"tYHT1B_FuPnldMxcRKKBaGVqhf2B28A2k1qdl0PLWAiyhhzZZRwedqHzZ1JqzDkq65all3JOqA9S1Q6bSrmukIepDGurKAdMRAhrRWDD2saFfwMDO4bRPRzWvYjmhkZmDw41kehx7nta_izr1yTwHFvsxePcK-DbqANxG60QayO3go452t6PX5O-P8s0Ym1Hjvj0uZWxCWfoSZp5s-s5-eBzdXq2gyiojuHlIXbY2w10tVH6QGY4Ac6ltYQa52vBs103WddxCqIpB-nEOHWqkYjfPCgVFe3yrQ4qxaug_HwS0UWeBvaj-QdyIPMseCl5Bg28vi0FvUcUfTcYT8WxWw\",\"e\":\"AQAB\",\"d\":\"CIv6e4ybdOBfi6Zr2deFHHNaFsEfMkfUyg-ESDErDBQsw9_r5LT0QkXR_lWFLeSrPrizR3Rce9Fs5xdu_I_NxoR801bmklX1o2Z6FqQ91LlwY9CygEUS6TvIaNhfcocyGxdiMmKtqrsoR7u5x0G4BL3XYmIeZfqKnVi8JL97fG_3zF0V6QMnK6NYn2sjtNWdbL6Mf-PZb5PydAwp_o4MjSyLntanedZrqmPq1TgedbWXszfGyvESpbJxNb3RQhjULfyJSDiNvrvoyxjL0FOSzgICHmco_5Nn4SJWSrXlFOmNVvWf1e0r17aj9NilJc7BIGpkEjQlbHXmKlFkHmUHEQ\",\"p\":\"4Qxf45XFzXOwIXT8lLjdZNn-eTjqkslc33xb3o6mBd6v6OaHsWOWYuuLqEDVoNXZpF046aI9LnwKlf1oxi-C1p8AEvqbksOJNEvMcOVb8_2yFMzeH1JzC8QQ-h8DeTFlDX7n6R_VwybMGgImJLsdrGXEDdiLompsBNTlSKbNJL8\",\"q\":\"znhuMJmfdjNajHg0EVAxS4hZxx8VhdNsQWCwFdwZpKh0VS-xoAsBzh17TOBiiADiZpeE5-j_QweVXYQXbpuIK2KdPoXnlqnXyteGGvzgtkfI2AFZmvMQGczEKhf1UjMQMpKozFVgG_pXk48SjBj3-nx9vR2wrsM7vC-9SPVcTmU\",\"dp\":\"2Tq0pF3B3Rs6fFEMLhJzwhGaTTDfXGj6OM81bpKLN0dIzasYd-YFF979o59RljpWJw3FDeAI5oHdRgKhzAu4Y6p-y9MTsIsGOXChGqiKJe5QoztNfTZ8znKnYIfnNmizfl9tQ93y3LjqcoB4iSQE9JAWura3skK_mbpWx9YaVsk\",\"dq\":\"W1DGIzZ-YS-bN48eMB4Qf0CBvGBSC4sTUOLrXe-nY7yhHt_mJktX9Anz8282BMKnXwpaXJse8k1TUTXPizq8gbuuoe1lHKxnZS3nAN6gn92lxWrrb21azJ5Uj-1isYUl_8f_YcfMpvMUco2PfWi5nA4dKlwMPW7ZZ4SRqcfimEU\",\"qi\":\"DcxxpymWfMhOxScrwm5vFgC79yMjGkUQBqhNcOVJKJEpjNMwmIia4rFQiyyb1aTr3SIyGiDRUdJKGCcMIwEnYucAyPiOycL7ainqDmeDHun2OfOXChJ4QOtwq6cib9dFz_VdeWvQfgJI6L4v6CxHu0jU3AOBmqyb5iRUrAVAPqo\"}",
+      "json": "{\"kty\":\"RSA\",\"n\":\"o7kreAZfFfrXMr-dc7zPhTBjG1L_V62FBned44CiEs5PgRs1dMb3zEi7JQNVovJTsGQK4n1Z3qxILOhVs6WaAgqcdR-hCXkm6as94zSsdzS8R2xNVC0_3SEb4Gsz7YN3YGtHb45QsCLpzC8T0Y2HMqeLZ99H1ImT6X31gbxf_TrOt9CUAiq4Ke-pnGAb7KtbngG-TvKmbLZwrfYTjHHWTbo3EOxBGTYRFZz0YFLQfd9v35HSwAMW99ZWa8BjcA6J9HcNW1tzv2d9NtbOpRQB91plArhlv2imwz1Sn6wz_wAznaKOKkupF2CkVLs3R-6twugnJkFW3064hN5IrjXuWw\",\"e\":\"AQAB\",\"d\":\"F2IK40mFqw34Tjcvtafxu4P9o5lm_o65wQK0ehmVDDqLAFVyfQstuO9qSw7-3Bbf_QFMzKw6eaMBa-iC1PWB2WjKj6_EwCWdeSIL5LdRKnVNrqW5JZyQ0nQ4FwU4lWOBWTP5L-WTgJR7772JhxQ_iuyC7ILnL2O2zFJBDhZpXzEcThzgMT7BC-MauUF38AcD9wgC1CbA87rSthfUHIYpt1uBp-32N9EIVlitRdxZSL6HWLZjLRIJwHZBOC4JBioFoF1Lc69O2HIEVrGw0UddTIUYjy_5vo9qLaOeX0_8qmff_OsoVEFC_s9va6p8nazjIaNcqu2B80d7AwpU3OG3gQ\",\"p\":\"3RUSgkfxFbYzGmqFwVktFqHh-EYNkDnhf3JalEr9zj9-YYB3gqn3f80fiZ2IfT4rHd2dZhAhwG6yE-pSafolcl2KhovbH-U5zjGQMBxYNer7m9dNfJJtyYojgznqg-q6yiHXMzT432c8lehVMe3ctggnE8EpQX4fq0fnOi57byU\",\"q\":\"vZTs8IVNs6pS6lEG9QKsi-47EriM_Pfe1MNqNL5T6l28Pn72U4Ac3hmjY8yXlhA6qcTAdjhFXQgMJTqOwxUduFhEKZLRNzIdJH-kD8sGqq8YMTPvsvPXLdLC1eGk6m8rTxiXIvXvsL4T6cxmq2tQhf330q0FWg_39cHZ9VuqL38\",\"dp\":\"YJgGYDnCkfPrXA1Sp2mpE4xjSLCC2JMRfTefb89cGTMQqtUQYlyUsJgUwXG84su41vGvBZrixEsZLy5gF8Gdftxz29lbQhJLMVXiY8Len6Atkqd9SYJIyZe7cGhrmHuEZTBn8A2i9ykKBY1fO9NrbXUebbklp2HNwG5IDtmkQKk\",\"dq\":\"QXCMsSFyhtf-Mv-xJRW9NbgQEBBAKnntIwgpOvePw9CDUBdHM99_F3NGIQbYNGZ5uWw--w_Fca17c8ZYzSIW1jExpiAVs7XKtXSRzxnHvVcfRKymyuC8oAamVmnDIWEqU-0rDlhSWnHiMcvqjLVIYFggGUq8FDB66Qv3DmiLwEU\",\"qi\":\"s7HcOTcqFvrvzipkiD2sPmybix_c2kWRUUkugWq3hin4l5IbLx5GKZIrleoVM9_SGcOtjR5xLrSzu17600I6Mnhee-0rYuxKJFdwHk7GK2ikUNHTGIyXp-1M-5BJCZ344g3qKtPkv192xvv8raQWfTGE7LDljQvkQEEshHKoXUQ\"}",
       "jose": {
         "accepted": true,
         "importedAs": "private"

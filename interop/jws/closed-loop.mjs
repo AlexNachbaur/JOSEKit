@@ -13,7 +13,8 @@ import {
     CompactSign, FlattenedSign, GeneralSign, base64url, compactVerify, exportJWK, flattenedVerify, generalVerify,
     generateKeyPair, importJWK,
 } from 'jose';
-import { ASYMMETRIC, HMAC, RSA_ALGORITHMS } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA_ALGORITHMS } from '../shared/algorithms.mjs';
+import { runClosedLoop } from '../shared/closed-loop.mjs';
 
 async function challenge(file) {
     const hmacKeys = [];
@@ -105,19 +106,7 @@ async function challenge(file) {
     );
 }
 
-async function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
-    const failures = [];
-    const counts = {};
-
-    function check(section, label, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section} ${label}: ${detail}`);
-        }
-    }
-
+async function verify(challenge, response, { check, count, refuses }) {
     // Runs a jose verification and reports whether it accepted and returned the expected payload.
     async function accepts(section, label, run, expectedPayloadHex) {
         try {
@@ -128,15 +117,6 @@ async function verify(challengeFile, responseFile) {
         } catch (error) {
             check(section, label, false, `jose rejected it: ${error.code ?? error.name}: ${error.message}`);
             return undefined;
-        }
-    }
-
-    async function refuses(section, label, run) {
-        try {
-            await run();
-            check(section, label, false, 'jose accepted it');
-        } catch {
-            check(section, label, true, '');
         }
     }
 
@@ -197,27 +177,7 @@ async function verify(challengeFile, responseFile) {
             check('Swift rejects invalid jose JWS', label, verdict.accepted === false, JSON.stringify(verdict));
         }
     }
-    check('challenge has both verdicts', '', (counts['Swift accepts valid jose JWS'] ?? 0) > 0 && (counts['Swift rejects invalid jose JWS'] ?? 0) > 0, '');
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop: all checks passed');
+    check('challenge has both verdicts', '', count('Swift accepts valid jose JWS') > 0 && count('Swift rejects invalid jose JWS') > 0, '');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    await challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    await verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify });

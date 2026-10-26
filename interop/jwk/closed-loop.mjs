@@ -10,7 +10,9 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { calculateJwkThumbprint, calculateJwkThumbprintUri, exportJWK, generateKeyPair, importJWK } from 'jose';
-import { ASYMMETRIC, HMAC, RSA, flipLastBit, hmac, kindForCurve, rsaSign, rsaSpec, rsaVerifies, sign, verifies } from './common.mjs';
+import { ASYMMETRIC, HMAC, RSA, hmac, kindForCurve, rsaSign, rsaSpec, rsaVerifies, sign, verifies } from '../shared/algorithms.mjs';
+import { runClosedLoop } from '../shared/closed-loop.mjs';
+import { flipLastBit } from '../shared/fixtures.mjs';
 
 const HASHES = ['sha256', 'sha384', 'sha512'];
 
@@ -98,19 +100,7 @@ async function challenge(file) {
     fs.writeFileSync(file, JSON.stringify({ messages: messages.map((m) => m.toString('hex')), hmac: hmacCases, verify }));
 }
 
-async function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
-    const failures = [];
-    const counts = {};
-
-    function check(section, label, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section} ${label}: ${detail}`);
-        }
-    }
-
+async function verify(challenge, response, { check }) {
     for (const [index, key] of response.keys.entries()) {
         const isRSA = key.curve === 'RSA';
         const kind = isRSA ? { joseAlg: 'RS256', algs: RSA.map((spec) => spec.alg) } : kindForCurve(key.curve);
@@ -210,27 +200,7 @@ async function verify(challengeFile, responseFile) {
         );
     }
     check('challenge has both verdicts', '', expectedAccepts > 0 && expectedRejects > 0, `${expectedAccepts}/${expectedRejects}`);
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
     console.log(`Secure Enclave key included: ${response.usedSecureEnclave ? 'yes' : 'no'}`);
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop: all checks passed');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    await challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    await verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify });

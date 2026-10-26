@@ -11,8 +11,10 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { base64url, calculateJwkThumbprint } from 'jose';
+import { runClosedLoop } from '../shared/closed-loop.mjs';
+import { flipLastBit } from '../shared/fixtures.mjs';
 import {
-    ORDER, compact, exportJwk, flipLastBit, generateKeyPair, isLowS, otherForm, sign, signingInput, verifies, withS,
+    ORDER, compact, exportJwk, generateKeyPair, isLowS, otherForm, sign, signingInput, verifies, withS,
 } from './common.mjs';
 
 async function challenge(file) {
@@ -53,19 +55,7 @@ async function challenge(file) {
     fs.writeFileSync(file, JSON.stringify({ payload: crypto.randomBytes(100).toString('hex'), signingKeys, verify }));
 }
 
-async function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
-    const failures = [];
-    const counts = {};
-
-    function check(section, label, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section} ${label}: ${detail}`);
-        }
-    }
-
+async function verify(challenge, response, { check, count }) {
     /** OpenSSL's verdict on a compact ES256K JWS, and whether its signature has a low S. */
     function judge(token, publicKey) {
         const [header, body, signature] = token.split('.');
@@ -131,27 +121,7 @@ async function verify(challengeFile, responseFile) {
             check('Swift rejects invalid OpenSSL JWS', label, verdict.accepted === false, JSON.stringify(verdict));
         }
     }
-    check('challenge has both verdicts', '', (counts['Swift accepts valid OpenSSL JWS'] ?? 0) > 0 && (counts['Swift rejects invalid OpenSSL JWS'] ?? 0) > 0, '');
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop: all checks passed');
+    check('challenge has both verdicts', '', count('Swift accepts valid OpenSSL JWS') > 0 && count('Swift rejects invalid OpenSSL JWS') > 0, '');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    await challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    await verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify });

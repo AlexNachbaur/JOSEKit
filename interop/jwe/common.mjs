@@ -2,9 +2,6 @@
 
 import crypto from 'node:crypto';
 import { exportJWK, generateKeyPair } from 'jose';
-import josePackage from 'jose/package.json' with { type: 'json' };
-
-export const joseVersion = josePackage.version;
 
 export const ENCRYPTIONS = [
     { enc: 'A128GCM', keyByteCount: 16 },
@@ -88,10 +85,4 @@ export function keyManagementSetups() {
  */
 export function decryptOptions(alg) {
     return alg.startsWith('PBES2') ? { keyManagementAlgorithms: [alg] } : {};
-}
-
-export function flipLastBit(buffer) {
-    const copy = Buffer.from(buffer);
-    copy[copy.length - 1] ^= 0x01;
-    return copy;
 }

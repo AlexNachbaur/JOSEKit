@@ -72,9 +72,10 @@ jobs:
             ~/Library/Caches/org.swift.swiftpm
             .build
           # Package.resolved is deliberately not committed, so Package.swift is what declares
-          # the dependency versions.
-          key: macos-spm-${{ hashFiles('Package.swift') }}
-          restore-keys: macos-spm-
+          # the dependency versions. `.build` holds absolute paths into the checkout, which is
+          # named after the repository, so a cache from under another name must not be restored.
+          key: macos-spm-${{ github.event.repository.name }}-${{ hashFiles('Package.swift') }}
+          restore-keys: macos-spm-${{ github.event.repository.name }}-
       - name: Show toolchain
         run: swift --version
       - name: Build

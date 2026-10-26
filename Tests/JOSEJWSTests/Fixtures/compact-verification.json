@@ -1,17 +1,18 @@
 {
   "_generated": {
-    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
-    "generator": "interop/generate-fixtures.mjs",
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/jws/generate-fixtures.mjs.",
+    "generator": "interop/jws/generate-fixtures.mjs",
     "description": "Compact JWSs, valid and not, with jose compactVerify's verdict under one ES256 key.",
     "jose": "6.2.12",
-    "node": "v24.11.1"
+    "node": "v24.11.1",
+    "openssl": "3.5.4"
   },
-  "jwk": "{\"kty\":\"EC\",\"x\":\"jw2a0ec7FbN-opLnZ_8qGPEgIxPb4oA-y3Gv8wBqnHU\",\"y\":\"Wvn5EPbyzgp5w5forrWjnnOlV0tL3LS93nhxL3KpDqw\",\"crv\":\"P-256\",\"kid\":\"k1\"}",
-  "hmacJwk": "{\"kty\":\"oct\",\"k\":\"8wSlllcKzBuEqzrywCKNHa1nVwZ6U9y67KSYDA244Yc\"}",
+  "jwk": "{\"kty\":\"EC\",\"x\":\"gb4dtDVdRtboqSbW7kafWYwEdw36IEzd3osoGiS8Bkk\",\"y\":\"uaeWgHzwfQH6ct-U7gshX5L-2RAoG9fX2jclFTWTmH0\",\"crv\":\"P-256\",\"kid\":\"k1\"}",
+  "hmacJwk": "{\"kty\":\"oct\",\"k\":\"Fr0P0jDkx7TdouTSBheitc_m7yKK28Gp9rihQagYAIo\"}",
   "cases": [
     {
       "name": "valid (positive control)",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -19,7 +20,7 @@
     },
     {
       "name": "valid, signed header with whitespace and reordered members",
-      "token": "eyAia2lkIiA6ICJrMSIsCiAiYWxnIiA6ICJFUzI1NiIgfQ.eyJzdWIiOiJhbGljZSJ9.mLYpfCIRsQilV5zQhTTQ9hqtuLs7ncXuZE2tqJ_9XLadai9oXVrxr-dcl9ZY9pWUg61pwu3GggyQmGxaixL-Gg",
+      "token": "eyAia2lkIiA6ICJrMSIsCiAiYWxnIiA6ICJFUzI1NiIgfQ.eyJzdWIiOiJhbGljZSJ9.h38r9_DXb9_wUcUkWLk3IO3pTaT2VxIWyvDdSxhVREGrgV17U2SM-Sfi47_GJYUqurr9nTJ7E8BM6yKmP0yutQ",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -27,7 +28,7 @@
     },
     {
       "name": "payload altered",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJtYWxsb3J5In0.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJtYWxsb3J5In0.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -35,7 +36,7 @@
     },
     {
       "name": "signature altered",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZA",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxA",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -43,7 +44,7 @@
     },
     {
       "name": "header altered",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsyIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsyIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -51,7 +52,7 @@
     },
     {
       "name": "signature truncated",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNj",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2q",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -67,7 +68,7 @@
     },
     {
       "name": "signature in DER",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.MEUCID6cAyS-BM61RY1b4NyAErlzF1a4ZEcaqhTpa-qoTpCOAiEAk0lCuoQULb1fP0KDnbmPbmsT6dmgGffg3O77wqdZEmY",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.MEUCIQCn20_ExBBBZlgNR8aZJQKHxMp4JZheAckeGmKfG4EgcQIgOdO0SINNdAE0mJnpcPBpsGKSKrAaXxp8Vd9ljylF31s",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -75,7 +76,7 @@
     },
     {
       "name": "signed by a different key",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.tA43XVxJlJaiq7xXEeZnGV2v09_kJH3dZFHT4y7HRQ4QKBppa34eZt-CN56Via7_SYNWM5wJYcTvErWDcLJLBw",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.uA0jtY6Vn1-XUCEWBiEDOvEK__tT36UsuJofL3ycISO6uWoXWkc0IIELFuZaxG0853D6iUcktvbmRo30keK75g",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -91,7 +92,7 @@
     },
     {
       "name": "alg none, original signature",
-      "token": "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JOSE_NOT_SUPPORTED: alg none is not supported either by JOSE or your javascript runtime"
@@ -107,7 +108,7 @@
     },
     {
       "name": "alg HS256 keyed with the public key",
-      "token": "eyJhbGciOiJIUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.qIsWp2q9t1wdWGugE7aebG7GrIIi-s_A7AoL-akqrmY",
+      "token": "eyJhbGciOiJIUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.6VbJg3NIr7sSCZn1FYSdUWlNSnxKsyxZP2Fi7CA4rsU",
       "jose": {
         "accepted": false,
         "error": "TypeError: CryptoKey instances must be of type \"secret\" for the HS256 algorithm"
@@ -115,7 +116,7 @@
     },
     {
       "name": "alg es256 (lower case)",
-      "token": "eyJhbGciOiJlczI1NiJ9.eyJzdWIiOiJhbGljZSJ9.gY-rMKDsFOc2eVN5kJKOACLjlrxajvZnvWXvDlKG5Wsvhji_97Gla09OAqUBrP826gytp6kaXrwqcugt0z9KBA",
+      "token": "eyJhbGciOiJlczI1NiJ9.eyJzdWIiOiJhbGljZSJ9.BbZ8GFe0KvO373ZMRZ9FmcZuFu_68f-DVMrD4IMwrK42A9PafC1_HWFghKubB0pX8ZCSBkF6tAZ3F_WoiLsI7w",
       "jose": {
         "accepted": false,
         "error": "ERR_JOSE_NOT_SUPPORTED: alg es256 is not supported either by JOSE or your javascript runtime"
@@ -123,7 +124,7 @@
     },
     {
       "name": "alg ES384 with a P-256 signature",
-      "token": "eyJhbGciOiJFUzM4NCJ9.eyJzdWIiOiJhbGljZSJ9.SA1gfnf7xKjlTu2o-MEgmQEPb_wC-w1NLOhBzySO51oS1XkqCmCcsXBq1trBC95nTNUi5ootHa3dKznBMcSsFA",
+      "token": "eyJhbGciOiJFUzM4NCJ9.eyJzdWIiOiJhbGljZSJ9.wBb6fmAQehfPBtcUaztxVYbkyI0SaRTLG0w34kXHwp-NFmKj397HFnvLDEqHMlFQ10KOB8bIvE3HdHG6KFvkNA",
       "jose": {
         "accepted": false,
         "error": "TypeError: CryptoKey does not support this operation, its algorithm.namedCurve must be P-384"
@@ -131,7 +132,7 @@
     },
     {
       "name": "alg missing",
-      "token": "eyJraWQiOiJrMSJ9.eyJzdWIiOiJhbGljZSJ9.CZc8mDEpAEgrP0IypQrN4fQwxONJigYhXRj-aGGt2C9kRmUGGkkNCY-qtWI7SEN8saMd0nEus0NdirTsWMFA7Q",
+      "token": "eyJraWQiOiJrMSJ9.eyJzdWIiOiJhbGljZSJ9.VKHsGYOyeFvAEYUb2PSsgqrXW1fqfh7dmZ2i8DGfjmOAne439UFntS3CJ7fSHh-pTlQ6RFrCAVGHwrWS8xGfeA",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS \"alg\" (Algorithm) Header Parameter missing or invalid"
@@ -139,7 +140,7 @@
     },
     {
       "name": "alg is a number",
-      "token": "eyJhbGciOjI1Nn0.eyJzdWIiOiJhbGljZSJ9.CFlvVXEr9cw5XXs-QRynoEcH-5GzRqHCG_bahmxH2nSX9cpxgvgx3ixT3SXrrkeAxmA8EEisZGlodM9kq24uzg",
+      "token": "eyJhbGciOjI1Nn0.eyJzdWIiOiJhbGljZSJ9.2ExR2OMIsD-ZNhu7zm58gTfsfiNT1VMI9UiqpF8IcXPVKEqZHCNjpDiS2-1jZl-mC56_h0IsGiOAJ3ZL3k5nGQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS \"alg\" (Algorithm) Header Parameter missing or invalid"
@@ -147,7 +148,7 @@
     },
     {
       "name": "alg is null",
-      "token": "eyJhbGciOm51bGx9.eyJzdWIiOiJhbGljZSJ9.1Cca68Xg3zsiQBsGQu9nCLeimPag1wcD3yQMONHYkbOrPU2azB6oxJ9aRRQRb89KAOLLlu_w3Jjc6X5XkQPDGA",
+      "token": "eyJhbGciOm51bGx9.eyJzdWIiOiJhbGljZSJ9.GYWOHvAerlqJMA0wguuOyVLWzGHYt6OAyjgW5BFrC1n_AVIPPBBEKng_ShVlLAgKlfXI_uOjE-NmYFNK0lggMg",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS \"alg\" (Algorithm) Header Parameter missing or invalid"
@@ -163,7 +164,7 @@
     },
     {
       "name": "four segments",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ.extra",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ.extra",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: Invalid Compact JWS"
@@ -187,7 +188,7 @@
     },
     {
       "name": "header empty",
-      "token": ".eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": ".eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS Protected Header is invalid"
@@ -195,7 +196,7 @@
     },
     {
       "name": "header is not JSON",
-      "token": "bm90IGpzb24.eyJzdWIiOiJhbGljZSJ9.EnJjnAxCx5rVxGSiKdH0C4rnpQLVhFnVAF43q4VziUnrSF5TIEWorYz1isRh8I2UTT-8ezS1IrSy39UUzv8U2w",
+      "token": "bm90IGpzb24.eyJzdWIiOiJhbGljZSJ9.e3pbM-nrILPaBXP9oDcx_MK4fIGI0CVOTRfBAdLx1gi-Ayv13yvXU7scXKxnirRp559j0dUUrKreo_Lsvm0lUg",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS Protected Header is invalid"
@@ -203,7 +204,7 @@
     },
     {
       "name": "header is a JSON array",
-      "token": "WyJhbGciLCJFUzI1NiJd.eyJzdWIiOiJhbGljZSJ9.KUi1zMJWhLtDJCKM8owecF5x-daOedpkBFIEoa7__cYd75-9YxkL_VePdr-uWu7dWUxMa8L_g3zz6IMjaU-M2Q",
+      "token": "WyJhbGciLCJFUzI1NiJd.eyJzdWIiOiJhbGljZSJ9.R2E5gNG39GIC_RlfJnZbGpm1zWZFU5DmRUgsx2zXNmhgmwL6IWZUDilU6kUW-37gF_Cc46wJsQ8bJrtDQdNxHw",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS Protected Header is invalid"
@@ -211,7 +212,7 @@
     },
     {
       "name": "header is a JSON string",
-      "token": "IkVTMjU2Ig.eyJzdWIiOiJhbGljZSJ9.dmQdPce9zLzG3W0xNaU-t7JvzSIpq-Jt-Q9ObgHL6cQqIY5wNdSR046T1aZLZHxaktPD5BwLk0Mp5rvVTo3_3Q",
+      "token": "IkVTMjU2Ig.eyJzdWIiOiJhbGljZSJ9.uSBHa_ZLUOAjSglktL7R7cChnHJEt1-jetejFCOFpvZqdWQfCzl_pznSsSswhj9aV0HpffOmGk8iPevzvX8rGw",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS Protected Header is invalid"
@@ -219,7 +220,7 @@
     },
     {
       "name": "header has duplicate alg",
-      "token": "eyJhbGciOiJFUzI1NiIsImFsZyI6Im5vbmUifQ.eyJzdWIiOiJhbGljZSJ9.aP6_CJWS9ZYZuflnxtrGTdJcsXAqmESeLnVsR8QLoyPymIqNXhXb6cfc3gC_4NUabv5kIVE7S0W14zPPI695xw",
+      "token": "eyJhbGciOiJFUzI1NiIsImFsZyI6Im5vbmUifQ.eyJzdWIiOiJhbGljZSJ9.0xJSUjemayEyscS7pjkb3Sivwyy0w6o4WyUB4uIu_bNsQyxv4Gh0Ct1H7mwnnG0zXkMwNp4itM9MZffpTWdEBQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JOSE_NOT_SUPPORTED: alg none is not supported either by JOSE or your javascript runtime"
@@ -227,7 +228,7 @@
     },
     {
       "name": "header has duplicate alg, first is none",
-      "token": "eyJhbGciOiJub25lIiwiYWxnIjoiRVMyNTYifQ.eyJzdWIiOiJhbGljZSJ9.mUYqkeMhA8b4dgWRS5YLF6UfTvm1MMQwO8MKaraDz67sskWwU7tHX33THBhrlEQZWhmfeKlWaE7zEnPjxid-sg",
+      "token": "eyJhbGciOiJub25lIiwiYWxnIjoiRVMyNTYifQ.eyJzdWIiOiJhbGljZSJ9.Ks5_1IZtRPZ-6ioEmrCuzFyai57yIsdyyS01fzt1f-dA1hvQ34uUacF0cKUJh5AdnlX6qu2rOQYELLIXMEG_QQ",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -235,7 +236,7 @@
     },
     {
       "name": "header segment padded",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0=.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0=.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -243,7 +244,7 @@
     },
     {
       "name": "payload segment padded",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9=.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9=.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -251,7 +252,7 @@
     },
     {
       "name": "signature segment padded",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ==",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ==",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -259,7 +260,7 @@
     },
     {
       "name": "header segment in standard base64",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0+.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0+.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: JWS Protected Header is invalid"
@@ -267,7 +268,7 @@
     },
     {
       "name": "trailing newline",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ\n",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ\n",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -275,7 +276,7 @@
     },
     {
       "name": "leading space",
-      "token": " eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": " eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -283,7 +284,7 @@
     },
     {
       "name": "space inside the payload segment",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJz dWIiOiJhbGljZSJ9.KlUUOVl2nkVT0i3X7gLv009BacaXBBrw3FUy6r_5TO1FJs_BEaetsybu2KrX3_23LNSItd34OS20pzKkmRNjZQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIn0.eyJz dWIiOiJhbGljZSJ9.S95IfigtOSLSnXDeqQ2VurVRWRFZ4zh8-OYeUMav6aIZicDoYIX4E1T6F5vpQ3l6bQH6DMAm_fMeEmHFEz2qxQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_SIGNATURE_VERIFICATION_FAILED: signature verification failed"
@@ -291,7 +292,7 @@
     },
     {
       "name": "crit names an unknown extension",
-      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsidXJuOmV4YW1wbGU6dW5rbm93biJdLCJ1cm46ZXhhbXBsZTp1bmtub3duIjp0cnVlfQ.eyJzdWIiOiJhbGljZSJ9.yLYhpQUwfKsGlBM5nSgvkc9L-9yA9bO0AheWrZVU2_6LxImqt4Up8Buw6l1aG7B-3XIbqVF-xN9W2onIhGk44A",
+      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsidXJuOmV4YW1wbGU6dW5rbm93biJdLCJ1cm46ZXhhbXBsZTp1bmtub3duIjp0cnVlfQ.eyJzdWIiOiJhbGljZSJ9.2iWP4kiBh431hN0re4AOpK6Hu9VgLroPHexaC0uuUjh76IAG5viLoVcXeNFM0Bx8CILk6YIvAJ8Z0EG7522akQ",
       "jose": {
         "accepted": false,
         "error": "ERR_JOSE_NOT_SUPPORTED: Extension Header Parameter \"urn:example:unknown\" is not recognized"
@@ -299,7 +300,7 @@
     },
     {
       "name": "crit is empty",
-      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOltdfQ.eyJzdWIiOiJhbGljZSJ9.bxkbtrC9KwTtOD5p-0mDaHEtrwFgg_vlOOlTZ57gM_4zOaLNhMO07HR4uAiPyDgAhI8m0pByscd2JfTzafCz4g",
+      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOltdfQ.eyJzdWIiOiJhbGljZSJ9.BmXWZ2WXcrTCnevlRa__YULhdHYHgDLnuq36IMM2TDe7UL92BbdxLevhnzd_czxFGXJiazHkg7jT99l8f5hgbA",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: \"crit\" (Critical) Header Parameter MUST be an array of non-empty strings when present"
@@ -307,7 +308,7 @@
     },
     {
       "name": "crit is not an array",
-      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOiJiNjQifQ.eyJzdWIiOiJhbGljZSJ9.rAiJ_gO4sBatfU3Ox1BO6XHsaKoP2o0YONkbNXBNFwjboFOoE2PHy85KaVKdj5TsTuWuopEVFNJRwa0K90ODGg",
+      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOiJiNjQifQ.eyJzdWIiOiJhbGljZSJ9.wG0A4mj8JUJol_HUzHnj1NLDvAo1njJoPaMsBB3gHPenduS7k0rsyBiuS9bAxZob6pzNOtOKRXri7jIw96tDvA",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: \"crit\" (Critical) Header Parameter MUST be an array of non-empty strings when present"
@@ -315,7 +316,7 @@
     },
     {
       "name": "crit names alg",
-      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsiYWxnIl19.eyJzdWIiOiJhbGljZSJ9.MrHiSu-JLRLwxpsmuacb1k-a0FK_dQaIqRBRx8RtKNqoXCvLVTgPYq6oN53i1fokYe7cDXuQk2RZxb4QzKeTPw",
+      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsiYWxnIl19.eyJzdWIiOiJhbGljZSJ9.RES5odXTqZ5SJPWdEHnLD2zHI7NED-YBd_XNp00ddauyaFNgjVM_txboPAElSbG86dUoV9L4lhkqq8iA3chMZg",
       "jose": {
         "accepted": false,
         "error": "ERR_JOSE_NOT_SUPPORTED: Extension Header Parameter \"alg\" is not recognized"
@@ -323,7 +324,7 @@
     },
     {
       "name": "crit names a parameter that is absent",
-      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsidXJuOmV4YW1wbGU6YWJzZW50Il19.eyJzdWIiOiJhbGljZSJ9.VIZqdcDWZel9peJpRqQatrCvtuQLXLKNl2kDNNeRZXqKqkAEgLjjcG3ds2OHhFUsEUziNpROkk9ZmwMXrrpm7g",
+      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsidXJuOmV4YW1wbGU6YWJzZW50Il19.eyJzdWIiOiJhbGljZSJ9.EPM1KWJeFlVdBi15SHzrS42SeRnJtvQuue7J5B-nT7WC5SThsSFaTlFSt5MoY5qi-3reuoZUQz3Y4kO1xjeRdw",
       "jose": {
         "accepted": false,
         "error": "ERR_JOSE_NOT_SUPPORTED: Extension Header Parameter \"urn:example:absent\" is not recognized"
@@ -331,7 +332,7 @@
     },
     {
       "name": "crit names b64 but b64 is absent",
-      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsiYjY0Il19.eyJzdWIiOiJhbGljZSJ9.q64k0m-ZFt0DjPJ8rnIpHtBiipjM75n8I383EB657KmS3uUbb6KuC0660YAmajcrLheUyU2AIV34c_GhnRMXuw",
+      "token": "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsiYjY0Il19.eyJzdWIiOiJhbGljZSJ9.lJdEwa6-8giu50k0eEPYNZEwRu_5pO-NJ0SJIUe3vZ72qzxiEwhjAlvNETp_3wSFVjv4tJC3e7jt4ohGknY-gw",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: Extension Header Parameter \"b64\" is missing"
@@ -339,7 +340,7 @@
     },
     {
       "name": "b64 false without crit",
-      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2V9.eyJzdWIiOiJhbGljZSJ9.Vr4GOwEp3i1zkIHh1ZcMAvQYrBxRwrfSdWVd52pCcT4TQ_S8WbHf6lHcR2LYj0Euogsi-U7ivSGdIe3VXwxHOQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2V9.eyJzdWIiOiJhbGljZSJ9.yZn5ZWpjpNvIAF5wm9cKj_YLZjj_3CUqZ4jxuNM1KgR4bnSytcOv7DTpZvA4suh-DKOuLCssoFvpy7VLfNBhQg",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -347,7 +348,7 @@
     },
     {
       "name": "b64 is a string",
-      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6ImZhbHNlIiwiY3JpdCI6WyJiNjQiXX0.eyJzdWIiOiJhbGljZSJ9.cRUNjP927p6vOBpkvA-jtEP4w3t1-sQmkQvs1fMRsQML18ng6aCcoAyS-S2kXc4A9qn1A9Ws6PnmwRWZ_7XomQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6ImZhbHNlIiwiY3JpdCI6WyJiNjQiXX0.eyJzdWIiOiJhbGljZSJ9.oCPiSjPI84N7EnaE-9TKBBLBloECNbrBwuzNjDeUTHOliaSUG1aUCV1YKcs1J8T47cKPzcoh5KHU3OwDeeutnw",
       "jose": {
         "accepted": false,
         "error": "ERR_JWS_INVALID: The \"b64\" (base64url-encode payload) Header Parameter must be a boolean"
@@ -355,7 +356,7 @@
     },
     {
       "name": "b64 true with crit",
-      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6dHJ1ZSwiY3JpdCI6WyJiNjQiXX0.eyJzdWIiOiJhbGljZSJ9.IICFWTu7OXPIYvbH4VRPIlGtmUN6Csn4MyyMBie6KM8KTfjN-6uUVd3vkEMfOfZsoKjrpLrX_hUZiPgs6o_Dkg",
+      "token": "eyJhbGciOiJFUzI1NiIsImI2NCI6dHJ1ZSwiY3JpdCI6WyJiNjQiXX0.eyJzdWIiOiJhbGljZSJ9.rIVitgm2x7Sy2TjWskemROAaJyvXwLy1sVqzODpf005MQj78L6XnhbgeiXad680IH_Vi1mvtqdE6AMhTDVacDw",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -363,7 +364,7 @@
     },
     {
       "name": "kid is a number",
-      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6NX0.eyJzdWIiOiJhbGljZSJ9.gHdD0p15XqZTJrBX3LqLiNrPMbewRXfrIqU9Sf0SVnskEvajWxudCpP0McYIol0Jy-zEPusuypbtNnlrXQ34kQ",
+      "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6NX0.eyJzdWIiOiJhbGljZSJ9.u2zVzoVKrJ2K2khiw1VixvNxTW47TfU2eqDCooHXiKeeDMvPWbVi76W53UFqzPsM2qCfraqTJX8YEXYejnRM3g",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -371,7 +372,7 @@
     },
     {
       "name": "typ is a number",
-      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6NX0.eyJzdWIiOiJhbGljZSJ9.ELVoWcDMDhPbXAQRSYBWrqQzRY9Fl3Y4OAVUYNtZrg_0NApQtKSjdFHISjCB6sv62PTHqn06esndKbuwsqK6rQ",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6NX0.eyJzdWIiOiJhbGljZSJ9.4L0DZNQJ8D4ky367dOdnr0YQAgZ2nPftHRVoT2sAxeM1b9R3jDl6ibn-1LkEpADbe6g8wuoTWlKPHNUXidH-Qg",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"
@@ -379,7 +380,7 @@
     },
     {
       "name": "unknown non-critical parameter",
-      "token": "eyJhbGciOiJFUzI1NiIsInVybjpleGFtcGxlOmlnbm9yZWQiOnsiYSI6MX19.eyJzdWIiOiJhbGljZSJ9.x3dnXbO5zW1PyxkdSEcCn4vPG_YOjaYJIW3cqV7NbgXE2finAkTc7KGuzrbUp_3QPAaPACNzfTx832HF_c2ycQ",
+      "token": "eyJhbGciOiJFUzI1NiIsInVybjpleGFtcGxlOmlnbm9yZWQiOnsiYSI6MX19.eyJzdWIiOiJhbGljZSJ9.wRHp8asrrLI9S6cX7wKHdUDSOCX9qdec1zjJrwxgj6hfOwWu-Re9ZD_3wCcwk9DFPQBWII9qrTCJSogCBJjR7g",
       "jose": {
         "accepted": true,
         "payload": "7b22737562223a22616c696365227d"

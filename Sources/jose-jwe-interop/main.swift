@@ -7,6 +7,7 @@ import Foundation
 import JOSECore
 import JOSEJWE
 import JOSEJWK
+import TestSupport
 
 struct Challenge: Decodable {
     struct EncryptCase: Decodable {
@@ -64,36 +65,6 @@ struct Response: Encodable {
     var compressedOutcomes: [Outcome] = []
 }
 
-struct InteropError: Error, CustomStringConvertible {
-    let description: String
-}
-
-func bytes(fromHex hex: String) throws -> Data {
-    let digits = Array(hex.utf8)
-    guard digits.count.isMultiple(of: 2) else {
-        throw InteropError(description: "hex string has odd length \(digits.count)")
-    }
-    var output = Data(capacity: digits.count / 2)
-    for index in stride(from: 0, to: digits.count, by: 2) {
-        guard let byte = UInt8(String(decoding: digits[index..<(index + 2)], as: UTF8.self), radix: 16) else {
-            throw InteropError(description: "invalid hex at offset \(index)")
-        }
-        output.append(byte)
-    }
-    return output
-}
-
-func hex(_ data: Data) -> String {
-    data.map { byte in
-        let digits = String(byte, radix: 16)
-        if digits.count == 1 {
-            return "0" + digits
-        }
-        return digits
-    }
-    .joined()
-}
-
 func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> AnyKeyEncrypter {
     let json = Data(jwk.utf8)
     func secret() throws -> SymmetricKeyMaterial {
@@ -144,7 +115,7 @@ func encrypter(algorithm: String, jwk: String, keyID: KeyID? = nil) throws -> An
             try PBES2Encrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation, keyID: keyID)
         )
     default:
-        throw InteropError(description: "unsupported algorithm \(algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(algorithm)")
     }
 }
 
@@ -160,7 +131,7 @@ func ecdhDecrypter<Algorithm: ECDHESAlgorithm>(_ algorithm: Algorithm.Type, _ jw
     case .x25519(let key):
         return AnyKeyDecrypter(ECDHESDecrypter<Algorithm, X25519PrivateKey>(privateKey: key))
     case .ed25519, .rsa, .external:
-        throw InteropError(description: "not an ECDH key")
+        throw FixtureError(description: "not an ECDH key")
     }
 }
 
@@ -171,7 +142,7 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     }
     func rsa() throws -> RSAPrivateKey {
         guard case .rsa(let key) = try PrivateJWK(json: json).key else {
-            throw InteropError(description: "not an RSA key")
+            throw FixtureError(description: "not an RSA key")
         }
         return key
     }
@@ -209,7 +180,7 @@ func decrypter(algorithm: String, jwk: String) throws -> AnyKeyDecrypter {
     case "PBES2-HS512+A256KW":
         return AnyKeyDecrypter(PBES2Decrypter<PBES2HS512A256KW>(password: try secret().rawRepresentation))
     default:
-        throw InteropError(description: "unsupported algorithm \(algorithm)")
+        throw FixtureError(description: "unsupported algorithm \(algorithm)")
     }
 }
 
@@ -270,13 +241,13 @@ func seal(
             additionalAuthenticatedData: additionalData
         )
     default:
-        throw InteropError(description: "unsupported content encryption \(encryption)")
+        throw FixtureError(description: "unsupported content encryption \(encryption)")
     }
 }
 
-let challenge = try JSONDecoder().decode(Challenge.self, from: FileHandle.standardInput.readDataToEndOfFile())
-let plaintext = try bytes(fromHex: challenge.plaintext)
-let additionalData = try bytes(fromHex: challenge.additionalData)
+let challenge = try Challenge(jsonFrom: .standardInput)
+let plaintext = try Data(hex: challenge.plaintext)
+let additionalData = try Data(hex: challenge.additionalData)
 var response = Response()
 
 for item in challenge.encrypt {
@@ -313,10 +284,10 @@ for item in challenge.decrypt {
         case "json":
             jwe = try SimpleJWE.Encrypted(json: Data(item.token.utf8))
         default:
-            throw InteropError(description: "unknown serialization \(item.serialization)")
+            throw FixtureError(description: "unknown serialization \(item.serialization)")
         }
         let decrypted = try await jwe.decrypt(with: keys)
-        response.outcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
+        response.outcomes.append(Response.Outcome(accepted: true, plaintext: decrypted.plaintext.hex))
     } catch is JWEError {
         response.outcomes.append(Response.Outcome(accepted: false, plaintext: nil))
     }
@@ -326,7 +297,7 @@ for item in challenge.decrypt {
 #if !os(Windows)
     let zipKey = try SymmetricJWK(json: Data(challenge.compression.jwk.utf8))
     response.compressed = try await SimpleJWE.Encrypted(
-        encrypting: try bytes(fromHex: challenge.compression.plaintext),
+        encrypting: try Data(hex: challenge.compression.plaintext),
         to: try AESKeyWrapEncrypter<A256KW>(jwk: zipKey),
         using: .a256gcm,
         header: JWEHeaderParameters(compression: .deflate)
@@ -335,11 +306,11 @@ for item in challenge.decrypt {
     for item in challenge.compression.tokens {
         do {
             let decrypted = try await SimpleJWE.Encrypted(compact: item.token).decrypt(with: zipKeys)
-            response.compressedOutcomes.append(Response.Outcome(accepted: true, plaintext: hex(decrypted.plaintext)))
+            response.compressedOutcomes.append(Response.Outcome(accepted: true, plaintext: decrypted.plaintext.hex))
         } catch {
             response.compressedOutcomes.append(Response.Outcome(accepted: false, plaintext: nil))
         }
     }
 #endif
 
-FileHandle.standardOutput.write(try JSONEncoder().encode(response))
+try response.writeJSON(to: .standardOutput)

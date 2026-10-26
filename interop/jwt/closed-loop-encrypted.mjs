@@ -7,10 +7,9 @@
 //
 // `scripts/interop.sh` runs all three. `verify` exits non-zero on any disagreement.
 
-import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { CompactEncrypt, EncryptJWT, SignJWT, base64url, compactDecrypt, exportJWK, generateKeyPair, importJWK, jwtDecrypt, jwtVerify } from 'jose';
+import { runClosedLoop, sameJSON } from '../shared/closed-loop.mjs';
 import { recipients } from './generate-encrypted-fixtures.mjs';
 
 const ISSUER = 'https://issuer.example';
@@ -92,39 +91,9 @@ async function challenge(file) {
     fs.writeFileSync(file, JSON.stringify({ now, recipients: recipientEntries, verify }));
 }
 
-async function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
+async function verify(challenge, response, { check, refuses }) {
     const now = challenge.now;
     const currentDate = new Date(now * 1000);
-    const failures = [];
-    const counts = {};
-
-    function check(section, label, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section} ${label}: ${detail}`);
-        }
-    }
-
-    function sameJSON(actual, expected) {
-        try {
-            assert.deepEqual(actual, expected);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    async function refuses(section, label, run) {
-        try {
-            await run();
-            check(section, label, false, 'jose accepted it');
-        } catch {
-            check(section, label, true, '');
-        }
-    }
-
     const expectedClaims = {
         iss: ISSUER,
         sub: 'user-123',
@@ -183,26 +152,6 @@ async function verify(challengeFile, responseFile) {
             `Swift said ${response.verdicts[index]}`,
         );
     }
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop (encrypted): all checks passed');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    await challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    await verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop-encrypted.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify, name: 'closed loop (encrypted)' });

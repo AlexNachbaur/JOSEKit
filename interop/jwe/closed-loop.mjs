@@ -10,7 +10,9 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { CompactEncrypt, FlattenedEncrypt, GeneralEncrypt, base64url, compactDecrypt, flattenedDecrypt, generalDecrypt, importJWK } from 'jose';
-import { ENCRYPTIONS, decryptOptions, flipLastBit, keyManagementSetups } from './common.mjs';
+import { runClosedLoop } from '../shared/closed-loop.mjs';
+import { flipLastBit } from '../shared/fixtures.mjs';
+import { ENCRYPTIONS, decryptOptions, keyManagementSetups } from './common.mjs';
 
 async function challenge(file) {
     const plaintext = crypto.randomBytes(200);
@@ -108,18 +110,9 @@ async function challenge(file) {
     fs.writeFileSync(file, JSON.stringify({ plaintext: plaintext.toString('hex'), additionalData: additionalData.toString('hex'), encrypt, multiple, decrypt, compression }));
 }
 
-async function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
-    const failures = [];
-    const counts = {};
-
-    function check(section, label, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section} ${label}: ${detail}`);
-        }
-    }
+async function verify(challenge, response, checks) {
+    const { check, count } = checks;
+    const refuses = (section, label, run) => checks.refuses(section, label, run, 'jose decrypted it');
 
     async function opens(section, label, run, expectedAad) {
         try {
@@ -132,15 +125,6 @@ async function verify(challengeFile, responseFile) {
         } catch (error) {
             check(section, label, false, `jose could not decrypt it: ${error.code ?? error.name}: ${error.message}`);
             return undefined;
-        }
-    }
-
-    async function refuses(section, label, run) {
-        try {
-            await run();
-            check(section, label, false, 'jose decrypted it');
-        } catch {
-            check(section, label, true, '');
         }
     }
 
@@ -187,7 +171,7 @@ async function verify(challengeFile, responseFile) {
             check('Swift refuses what jose refuses', label, outcome.accepted === false, JSON.stringify(outcome));
         }
     }
-    check('challenge has both outcomes', '', (counts['Swift decrypts what jose decrypts'] ?? 0) > 0 && (counts['Swift refuses what jose refuses'] ?? 0) > 0, '');
+    check('challenge has both outcomes', '', count('Swift decrypts what jose decrypts') > 0 && count('Swift refuses what jose refuses') > 0, '');
 
     // Compression, both ways.
     const zipKey = base64url.decode(JSON.parse(challenge.compression.jwk).k);
@@ -206,26 +190,6 @@ async function verify(challengeFile, responseFile) {
         check('Swift agrees with jose on compressed JWEs', `[${index}]`, outcome.accepted === item.expected.accepted && (outcome.plaintext ?? null) === (item.expected.plaintext ?? null), JSON.stringify(outcome));
     }
     check('compressed challenge has both outcomes', '', challenge.compression.tokens.some((item) => item.expected.accepted) && challenge.compression.tokens.some((item) => !item.expected.accepted), '');
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop: all checks passed');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    await challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    await verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify });

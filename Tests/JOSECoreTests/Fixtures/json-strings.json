@@ -1,7 +1,7 @@
 {
   "_generated": {
-    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/generate-fixtures.mjs.",
-    "generator": "interop/generate-fixtures.mjs",
+    "notice": "GENERATED FILE. Do not edit by hand; rerun interop/core/generate-fixtures.mjs.",
+    "generator": "interop/core/generate-fixtures.mjs",
     "description": "JSON.stringify output for strings, as used for RFC 7638 canonical JSON.",
     "jose": "6.2.12",
     "node": "v24.11.1",

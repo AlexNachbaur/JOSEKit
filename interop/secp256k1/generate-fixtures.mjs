@@ -7,41 +7,13 @@
 // specification. The fixtures change on every run because keys and signatures are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { base64url, calculateJwkThumbprint } from 'jose';
+import { assert, fixtureWriter, flipLastBit } from '../shared/fixtures.mjs';
 import {
-    ORDER, compact, exportJwk, flipLastBit, generateKeyPair, isLowS, joseVersion, otherForm, sign, signingInput, verifies,
-    withR, withS,
+    ORDER, compact, exportJwk, generateKeyPair, isLowS, otherForm, sign, signingInput, verifies, withR, withS,
 } from './common.mjs';
 
-const fixturesDirectory = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../../Tests/JOSESecp256k1Tests/Fixtures',
-);
-
-function write(name, description, body) {
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/secp256k1/generate-fixtures.mjs.',
-            generator: 'interop/secp256k1/generate-fixtures.mjs',
-            description,
-            jose: joseVersion,
-            node: process.version,
-            openssl: process.versions.openssl,
-        },
-        ...body,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, name), JSON.stringify(fixture, null, 2) + '\n');
-    console.log(`wrote ${name}`);
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSESecp256k1Tests');
 
 const HASHES = ['sha256', 'sha384', 'sha512'];
 

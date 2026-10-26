@@ -1,6 +1,7 @@
 import Foundation
 
-/// A fixture that is missing or does not hold what the test expects.
+/// Test data that is missing or does not hold what the code reading it expects: a fixture, or a
+/// closed-loop challenge.
 public struct FixtureError: Error, CustomStringConvertible {
     public let description: String
 

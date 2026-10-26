@@ -6,9 +6,6 @@
 
 import crypto from 'node:crypto';
 import { base64url } from 'jose';
-import josePackage from 'jose/package.json' with { type: 'json' };
-
-export const joseVersion = josePackage.version;
 
 /** The order of secp256k1's base point (SEC 2 §2.4.1). */
 export const ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
@@ -67,10 +64,4 @@ export function signingInput(header, payload) {
 
 export function compact(input, signature) {
     return `${input}.${base64url.encode(signature)}`;
-}
-
-export function flipLastBit(buffer) {
-    const copy = Buffer.from(buffer);
-    copy[copy.length - 1] ^= 0x01;
-    return copy;
 }

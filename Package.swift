@@ -60,6 +60,8 @@ let package = Package(
         .library(name: "JOSEJWTEncrypted", targets: ["JOSEJWTEncrypted"]),
         // ES256K and secp256k1 keys (RFC 8812), on bitcoin-core's libsecp256k1.
         .library(name: "JOSESecp256k1", targets: ["JOSESecp256k1"]),
+        // `x5c` certificate chain validation on every platform, on swift-certificates.
+        .library(name: "JOSEX509", targets: ["JOSEX509"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-crypto.git", "4.0.0"..<"6.0.0"),
@@ -67,6 +69,8 @@ let package = Package(
         // which Xcode and SwiftPM's Swift Build backend both do, so turning a trait off removes
         // only the C half of a module and leaves its Swift half failing to link.
         .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1.git", .upToNextMinor(from: "0.23.2")),
+        .package(url: "https://github.com/apple/swift-certificates.git", from: "1.21.0"),
+        .package(url: "https://github.com/apple/swift-asn1.git", from: "1.1.0"),
     ],
     targets: [
         // MARK: Libraries
@@ -111,52 +115,63 @@ let package = Package(
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", secp256k1],
             swiftSettings: swiftSettings
         ),
+        .target(
+            name: "JOSEX509",
+            dependencies: [
+                "JOSECore", "JOSEJWK", "JOSEJWS",
+                .product(name: "X509", package: "swift-certificates"),
+                .product(name: "SwiftASN1", package: "swift-asn1"),
+            ],
+            swiftSettings: swiftSettings
+        ),
 
         // MARK: Interoperability executables
         // Not products. Each answers the challenge produced by its module's closed-loop script in
         // `interop/`, so that the Node counterpart can check what the module produced. Run them
-        // through `scripts/interop.sh`.
+        // through `scripts/interop.sh`. TestSupport gives them hex, JSON on standard input and
+        // output, and their error type.
 
         .executableTarget(
             name: "jose-core-interop",
-            dependencies: ["JOSECore"],
+            dependencies: ["JOSECore", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwk-interop",
-            dependencies: ["JOSECore", "JOSEJWK"],
+            dependencies: ["JOSECore", "JOSEJWK", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jws-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwe-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWE", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwt-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWT", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-jwt-encrypted-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE", "JOSEJWT", "JOSEJWTEncrypted", "TestSupport"],
             swiftSettings: swiftSettings
         ),
         .executableTarget(
             name: "jose-secp256k1-interop",
-            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1"],
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1", "TestSupport"],
             swiftSettings: swiftSettings
         ),
 
         // MARK: Tests
 
-        // Helpers the test targets share: fixture loading, hex, and keys from counterpart JWKs.
-        // Not a product; it is built only for the tests that depend on it.
+        // Helpers the test targets and the interop executables share: fixture loading, hex, JSON
+        // on standard input and output, and keys from counterpart JWKs. Not a product; it is built
+        // only for the targets that depend on it.
         .target(
             name: "TestSupport",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEJWE"],
@@ -204,6 +219,12 @@ let package = Package(
         .testTarget(
             name: "JOSESecp256k1Tests",
             dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSESecp256k1", "TestSupport"],
+            resources: [.copy("Fixtures")],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "JOSEX509Tests",
+            dependencies: ["JOSECore", "JOSEJWK", "JOSEJWS", "JOSEX509", "TestSupport"],
             resources: [.copy("Fixtures")],
             swiftSettings: swiftSettings
         ),

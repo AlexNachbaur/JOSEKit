@@ -7,10 +7,10 @@
 //
 // `scripts/interop.sh` runs all three. `verify` exits non-zero on any disagreement.
 
-import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { SignJWT, base64url, exportJWK, generateKeyPair, importJWK, jwtVerify } from 'jose';
+import { runClosedLoop, sameJSON } from '../shared/closed-loop.mjs';
 
 const ALGORITHMS = ['ES256', 'Ed25519', 'RS256', 'PS256', 'HS256'];
 
@@ -88,38 +88,8 @@ async function challenge(file) {
     fs.writeFileSync(file, JSON.stringify({ now, hmacJwk, verify }));
 }
 
-async function verify(challengeFile, responseFile) {
-    const challenge = JSON.parse(fs.readFileSync(challengeFile, 'utf8'));
-    const response = JSON.parse(fs.readFileSync(responseFile, 'utf8'));
+async function verify(challenge, response, { check, count, refuses }) {
     const now = challenge.now;
-    const failures = [];
-    const counts = {};
-
-    function check(section, label, condition, detail) {
-        counts[section] = (counts[section] ?? 0) + 1;
-        if (!condition) {
-            failures.push(`${section} ${label}: ${detail}`);
-        }
-    }
-
-    function sameJSON(actual, expected) {
-        try {
-            assert.deepEqual(actual, expected);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    async function refuses(section, label, run) {
-        try {
-            await run();
-            check(section, label, false, 'jose accepted it');
-        } catch {
-            check(section, label, true, '');
-        }
-    }
-
     check('algorithms covered', '', sameJSON(response.produced.map((p) => p.algorithm), ALGORITHMS), response.produced.map((p) => p.algorithm).join(','));
 
     const options = { issuer: 'https://issuer.example', audience: 'https://api.example', currentDate: new Date(now * 1000) };
@@ -183,27 +153,7 @@ async function verify(challengeFile, responseFile) {
             `Swift said ${response.verdicts[index]}`,
         );
     }
-    check('challenge has both verdicts', '', (counts['Swift accepts JWT jose accepts'] ?? 0) > 0 && (counts['Swift rejects JWT jose rejects'] ?? 0) > 0, '');
-
-    for (const [section, count] of Object.entries(counts)) {
-        console.log(`${section}: ${count} checked`);
-    }
-    if (failures.length > 0) {
-        console.error(`\n${failures.length} FAILURES`);
-        for (const failure of failures.slice(0, 20)) {
-            console.error(`  ${failure}`);
-        }
-        process.exit(1);
-    }
-    console.log('closed loop: all checks passed');
+    check('challenge has both verdicts', '', count('Swift accepts JWT jose accepts') > 0 && count('Swift rejects JWT jose rejects') > 0, '');
 }
 
-const [command, ...files] = process.argv.slice(2);
-if (command === 'challenge' && files.length === 1) {
-    await challenge(files[0]);
-} else if (command === 'verify' && files.length === 2) {
-    await verify(files[0], files[1]);
-} else {
-    console.error('usage: closed-loop.mjs challenge <challenge.json> | verify <challenge.json> <response.json>');
-    process.exit(2);
-}
+await runClosedLoop({ challenge, verify });

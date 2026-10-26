@@ -8,14 +8,9 @@
 // The fixture changes on every run because the keys are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fixtureWriter } from '../shared/fixtures.mjs';
 
-const fixturesDirectory = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../../Tests/JOSEJWKTests/Fixtures',
-);
+const write = fixtureWriter(import.meta.url, 'JOSEJWKTests');
 
 function pem(key, type) {
     return key.export({ type, format: 'pem' });
@@ -82,16 +77,8 @@ const refused = [];
     refused.push({ label: 'Ed448 pkcs8 (not supported)', pem: pem(privateKey, 'pkcs8'), isPrivate: true, reason: 'unsupportedKeyAlgorithm' });
 }
 
-const fixture = {
-    _generated: {
-        notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwk/generate-pem-fixtures.mjs.',
-        generator: 'interop/jwk/generate-pem-fixtures.mjs',
-        description: 'Keys exported by OpenSSL as PEM in each format, with the same keys as JWKs, and PEMs to refuse.',
-        node: process.version,
-        openssl: process.versions.openssl,
-    },
-    keys,
-    refused,
-};
-fs.writeFileSync(path.join(fixturesDirectory, 'pem.json'), JSON.stringify(fixture, null, 2) + '\n');
-console.log(`wrote pem.json: ${keys.length} keys, ${keys.reduce((n, k) => n + k.encodings.length, 0)} encodings, ${refused.length} refused`);
+write(
+    'pem.json',
+    'Keys exported by OpenSSL as PEM in each format, with the same keys as JWKs, and PEMs to refuse.',
+    { keys, refused },
+);

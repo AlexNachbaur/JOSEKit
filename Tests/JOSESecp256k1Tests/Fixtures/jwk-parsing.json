@@ -11,7 +11,7 @@
     {
       "type": "public",
       "name": "valid (positive control)",
-      "json": "{\"kty\":\"EC\",\"x\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-PNQ\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG6g\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "public"
@@ -20,7 +20,7 @@
     {
       "type": "public",
       "name": "valid with kid, use and alg",
-      "json": "{\"kty\":\"EC\",\"x\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-PNQ\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES256K\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG6g\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\",\"kid\":\"key-1\",\"use\":\"sig\",\"alg\":\"ES256K\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "public"
@@ -29,7 +29,7 @@
     {
       "type": "public",
       "name": "x missing",
-      "json": "{\"kty\":\"EC\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_INVALID_ARG_TYPE: The \"key.x\" property must be of type string. Received undefined"
@@ -38,7 +38,7 @@
     {
       "type": "public",
       "name": "y missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-PNQ\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG6g\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_INVALID_ARG_TYPE: The \"key.y\" property must be of type string. Received undefined"
@@ -47,7 +47,7 @@
     {
       "type": "public",
       "name": "x is a number",
-      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":12345,\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_INVALID_ARG_TYPE: The \"key.x\" property must be of type string. Received type number (12345)"
@@ -56,7 +56,7 @@
     {
       "type": "public",
       "name": "x is not base64url (standard alphabet)",
-      "json": "{\"kty\":\"EC\",\"x\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-P+/\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG+/\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_CRYPTO_INVALID_JWK: Invalid JWK EC key"
@@ -65,7 +65,7 @@
     {
       "type": "public",
       "name": "x is padded",
-      "json": "{\"kty\":\"EC\",\"x\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-PNQ=\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG6g=\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "public"
@@ -74,7 +74,7 @@
     {
       "type": "public",
       "name": "x has one byte too few",
-      "json": "{\"kty\":\"EC\",\"x\":\"uNoeT0bm2bl7JBKhS34VG1MlWBolycxCp_sAJD481A\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"yaqhugF4SoNKl9DUjDH5tzhgFHyuc98IKbcUfBgbqA\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_CRYPTO_INVALID_JWK: Invalid JWK EC key"
@@ -83,7 +83,7 @@
     {
       "type": "public",
       "name": "x has one byte too many",
-      "json": "{\"kty\":\"EC\",\"x\":\"AC642h5PRubZuXskEqFLfhUbUyVYGiXJzEKn-wAkPjzU\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"ANbJqqG6AXhKg0qX0NSMMfm3OGAUfK5z3wgptxR8GBuo\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "public"
@@ -92,7 +92,7 @@
     {
       "type": "public",
       "name": "x is empty",
-      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"\",\"y\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_CRYPTO_INVALID_JWK: Invalid JWK EC key"
@@ -101,7 +101,7 @@
     {
       "type": "public",
       "name": "y from a different key (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-PNQ\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG6g\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_CRYPTO_INVALID_JWK: Invalid JWK EC key"
@@ -110,7 +110,7 @@
     {
       "type": "public",
       "name": "x and y swapped (point not on curve)",
-      "json": "{\"kty\":\"EC\",\"x\":\"aa_68oLRXEBgcFdc--Qkb0F_GfEicpGeBRSH9wctFGE\",\"y\":\"LrjaHk9G5tm5eyQSoUt-FRtTJVgaJcnMQqf7ACQ-PNQ\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"dF7RU7lEfl40HoBjhI5WQyplVpJSLNcdJyzQ936XoOs\",\"y\":\"1smqoboBeEqDSpfQ1Iwx-bc4YBR8rnPfCCm3FHwYG6g\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_CRYPTO_INVALID_JWK: Invalid JWK EC key"
@@ -119,7 +119,7 @@
     {
       "type": "public",
       "name": "private member d present",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"8MKQFMLwN6IRMz-hMCRRn92tFxiGbCNLcssuxXSV1SQ\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"4SsQrRkD2ts6MTNdnyPF5_lhV5lOY4vATZxN1rWScLg\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "public"
@@ -128,7 +128,7 @@
     {
       "type": "private",
       "name": "valid (positive control)",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"8MKQFMLwN6IRMz-hMCRRn92tFxiGbCNLcssuxXSV1SQ\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"4SsQrRkD2ts6MTNdnyPF5_lhV5lOY4vATZxN1rWScLg\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "private"
@@ -137,7 +137,7 @@
     {
       "type": "private",
       "name": "valid with kid, use and alg",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"8MKQFMLwN6IRMz-hMCRRn92tFxiGbCNLcssuxXSV1SQ\",\"kid\":\"key-2\",\"use\":\"sig\",\"alg\":\"ES256K\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"4SsQrRkD2ts6MTNdnyPF5_lhV5lOY4vATZxN1rWScLg\",\"kid\":\"key-2\",\"use\":\"sig\",\"alg\":\"ES256K\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "private"
@@ -146,7 +146,7 @@
     {
       "type": "private",
       "name": "d missing",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\"}",
       "openssl": {
         "accepted": false,
         "error": "ERR_INVALID_ARG_TYPE: The \"key.d\" property must be of type string. Received undefined"
@@ -155,7 +155,7 @@
     {
       "type": "private",
       "name": "d from a different key",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"vr83pJx6JIzOe9VoVPFmei1SPnwuvvBVwglIRr-bEps\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"YrOmvxJoQptwkmpgnWetNRpUbArwIFjDZ0c9JKNdiIc\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "private"
@@ -164,7 +164,7 @@
     {
       "type": "private",
       "name": "d is zero",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "private"
@@ -173,7 +173,7 @@
     {
       "type": "private",
       "name": "d is the order",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"_____________________rqu3OavSKA7v9JejNA2QUE\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"_____________________rqu3OavSKA7v9JejNA2QUE\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "private"
@@ -182,7 +182,7 @@
     {
       "type": "private",
       "name": "d has one byte too few",
-      "json": "{\"kty\":\"EC\",\"x\":\"zhI_9WT0wyTOtOCBFsp5l8zDkD9JCSmhDQ3ejjb5ji4\",\"y\":\"Qlxg-VNGiuS_igjXEUxSy4TNtlqQ8ZYtR_mcF_twTww\",\"crv\":\"secp256k1\",\"d\":\"wpAUwvA3ohEzP6EwJFGf3a0XGIZsI0tyyy7FdJXVJA\"}",
+      "json": "{\"kty\":\"EC\",\"x\":\"opbF9vSy2ZANR9IYc2rWWGy1b91Ad9B0NEBXYquZt4w\",\"y\":\"fvjGlHg3ks3SH0FljL9-1CalFTNaOztsaBEiVTRKYaA\",\"crv\":\"secp256k1\",\"d\":\"KxCtGQPa2zoxM12fI8Xn-WFXmU5ji8BNnE3WtZJwuA\"}",
       "openssl": {
         "accepted": true,
         "importedAs": "private"

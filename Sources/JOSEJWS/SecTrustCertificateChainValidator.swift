@@ -5,31 +5,6 @@
     import JOSEJWK
     import Security
 
-    /// Why ``SecTrustCertificateChainValidator`` refused a chain or could not use its key.
-    public enum CertificateValidationError: Error, Sendable {
-        /// An element of the chain is not a DER certificate.
-        case certificateUnreadable(index: Int)
-        case trustEvaluationFailed(description: String)
-        /// The first certificate's key is not a type this package can verify with.
-        case unsupportedKey(description: String)
-        case keyUnusable(JWKError)
-    }
-
-    extension CertificateValidationError: CustomStringConvertible {
-        public var description: String {
-            switch self {
-            case .certificateUnreadable(let index):
-                return "certificate \(index) in the chain is not DER"
-            case .trustEvaluationFailed(let description):
-                return "certificate chain is not trusted: \(description)"
-            case .unsupportedKey(let description):
-                return "the signing certificate's key cannot be used: \(description)"
-            case .keyUnusable(let error):
-                return "the signing certificate's key cannot be used: \(error)"
-            }
-        }
-    }
-
     /// `SecCertificate` is not declared `Sendable`. The anchors are created once and only read
     /// afterwards, which Apple documents as safe.
     private struct Anchors: @unchecked Sendable {

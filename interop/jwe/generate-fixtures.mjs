@@ -1,41 +1,18 @@
 // Generates the fixtures in Tests/JOSEJWETests/Fixtures by running the counterpart
 // implementation, panva/jose.
 //
-//     cd interop && npm ci && node generate-fixtures.mjs
+//     cd interop && npm ci && node jwe/generate-fixtures.mjs
 //
 // Every JWE is produced by jose, and every verdict on a malformed one is jose's own. Nothing is
 // transcribed from a specification. The fixtures change on every run because keys, IVs and
 // ephemeral keys are random.
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { CompactEncrypt, FlattenedEncrypt, GeneralEncrypt, base64url, compactDecrypt, exportJWK, flattenedDecrypt, generalDecrypt, generateKeyPair } from 'jose';
-import { ENCRYPTIONS, decryptOptions, flipLastBit, joseVersion, keyManagementSetups } from './common.mjs';
+import { assert, fixtureWriter, flipLastBit } from '../shared/fixtures.mjs';
+import { ENCRYPTIONS, decryptOptions, keyManagementSetups } from './common.mjs';
 
-const fixturesDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../Tests/JOSEJWETests/Fixtures');
-
-function write(name, description, body) {
-    const fixture = {
-        _generated: {
-            notice: 'GENERATED FILE. Do not edit by hand; rerun interop/jwe/generate-fixtures.mjs.',
-            generator: 'interop/jwe/generate-fixtures.mjs',
-            description,
-            jose: joseVersion,
-            node: process.version,
-        },
-        ...body,
-    };
-    fs.writeFileSync(path.join(fixturesDirectory, name), JSON.stringify(fixture, null, 2) + '\n');
-    console.log(`wrote ${name}`);
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(`fixture generation self-check failed: ${message}`);
-    }
-}
+const write = fixtureWriter(import.meta.url, 'JOSEJWETests');
 
 async function validFixture() {
     const compact = [];

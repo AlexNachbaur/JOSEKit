@@ -68,7 +68,7 @@ let package = Package(
         // With its default traits. Its Swift sources are compiled in whenever `Xcode` is defined,
         // which Xcode and SwiftPM's Swift Build backend both do, so turning a trait off removes
         // only the C half of a module and leaves its Swift half failing to link.
-        .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1.git", .upToNextMinor(from: "0.23.2")),
+        .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1.git", .upToNextMinor(from: "0.24.0")),
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.21.0"),
         .package(url: "https://github.com/apple/swift-asn1.git", from: "1.1.0"),
     ],
